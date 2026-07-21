@@ -36,6 +36,8 @@ const securityHeaders = [
 const nextConfig = {
   poweredByHeader: false,
   compress: true,
+  // Allow Replit's proxied dev domains to reach Next.js dev resources (HMR, fonts, etc.)
+  allowedDevOrigins: ['*.replit.dev', '*.repl.co', '*.janeway.replit.dev'],
   experimental: {
     cpus: 1,
     serverActions: {
