@@ -124,13 +124,15 @@ export async function currentUser(): Promise<AuthUser | null> {
   const row = rows[0];
   if (!row || row.status !== 'ACTIVE' || (row.schoolId && row.schoolIsActive === false)) {
     if (row) await db.delete(sessions).where(eq(sessions.id, row.sessionId));
-    cookieStore.delete(COOKIE_NAME);
+    // Cookie writes are only allowed in Server Actions/Route Handlers, not Server Components.
+    // The session row is already deleted; the cookie will expire naturally if deletion fails here.
+    try { cookieStore.delete(COOKIE_NAME); } catch { /* expected in Server Component context */ }
     return null;
   }
 
   if (Date.now() - row.lastSeenAt.getTime() > IDLE_MINUTES * 60_000) {
     await db.delete(sessions).where(eq(sessions.id, row.sessionId));
-    cookieStore.delete(COOKIE_NAME);
+    try { cookieStore.delete(COOKIE_NAME); } catch { /* expected in Server Component context */ }
     return null;
   }
 
