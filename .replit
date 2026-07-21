@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -18,3 +18,14 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+ACADEMIAOS_DEMO_MODE = "true"
+NEXT_PUBLIC_APP_NAME = "AcademiaOS"
+NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS = "true"
+NEXT_TELEMETRY_DISABLED = "1"

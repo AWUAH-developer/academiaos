@@ -1,0 +1,12 @@
+{
+  "name": "AcademiaOS School Management",
+  "short_name": "AcademiaOS",
+  "description": "School management, attendance, fees and academic approvals.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f8f2e9",
+  "theme_color": "#1f5b45",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

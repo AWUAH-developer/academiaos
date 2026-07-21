@@ -1,0 +1,16 @@
+AcademiaOS v1.2.1 Direct Login Release Verification
+
+Date: 2026-07-21
+
+TypeScript: PASSED
+ESLint: PASSED
+Automated tests: PASSED, 16 tests
+Next.js production build: PASSED
+Secret scan: PASSED, 83 files
+Production dependency audit: PASSED, 0 known vulnerabilities
+
+Authentication behavior:
+- Root URL renders AcademiaOS username/password login directly.
+- /login is a compatible alias only.
+- No Replit Auth, Clerk, OAuth, or social-login package is installed.
+- Replit's own login screen must be disabled by setting Published App Access to Public.

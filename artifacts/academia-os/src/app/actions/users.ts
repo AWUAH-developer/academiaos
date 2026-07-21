@@ -1,0 +1,231 @@
+'use server';
+
+import bcrypt from 'bcryptjs';
+import { and, eq, sql } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { db } from '@/db';
+import { sessions, users } from '@/db/schema';
+import { audit, requireUser } from '@/lib/auth';
+import { generateTemporaryPassword, usernameBaseFromName } from '@/lib/credentials';
+import { imageToDataUrl, ImageUploadError } from '@/lib/images';
+import { canManageUsers } from '@/lib/permissions';
+import { getActiveSchoolId } from '@/lib/tenant';
+import { USER_ROLES, type UserRole } from '@/lib/types';
+import { cleanText, isValidEmail, isValidPhone, normalizeEmail, normalizePhone } from '@/lib/validation';
+
+const TEMPORARY_PASSWORD_HOURS = 24;
+
+export type CredentialActionState = {
+  status: 'idle' | 'success' | 'error';
+  message?: string;
+  username?: string;
+  temporaryPassword?: string;
+};
+
+function temporaryPasswordExpiry() {
+  return new Date(Date.now() + TEMPORARY_PASSWORD_HOURS * 60 * 60 * 1000);
+}
+
+async function availableUsername(name: string) {
+  const base = usernameBaseFromName(name);
+  for (let number = 1; number <= 9999; number += 1) {
+    const candidate = number === 1 ? base : `${base}${number}`;
+    const exists = (await db.select({ id: users.id }).from(users).where(eq(users.username, candidate)).limit(1))[0];
+    if (!exists) return candidate;
+  }
+  throw new Error('Unable to generate a unique username');
+}
+
+function mayManageTarget(actorRole: UserRole, activeSchoolId: string, target: typeof users.$inferSelect) {
+  if (actorRole === 'SUPER_ADMIN') return target.schoolId === null || target.schoolId === activeSchoolId;
+  return target.schoolId === activeSchoolId && target.role !== 'SUPER_ADMIN';
+}
+
+export async function createUserAction(
+  _previousState: CredentialActionState,
+  formData: FormData
+): Promise<CredentialActionState> {
+  const actor = await requireUser();
+  if (!canManageUsers(actor.role)) return { status: 'error', message: 'Permission denied.' };
+
+  const schoolId = await getActiveSchoolId(actor);
+  const name = cleanText(formData.get('name'), 120);
+  const email = normalizeEmail(formData.get('email'));
+  const phone = normalizePhone(formData.get('phone'));
+  const role = cleanText(formData.get('role'), 40) as UserRole;
+
+  if (!name || !isValidPhone(phone) || !isValidEmail(email) || !USER_ROLES.includes(role)) {
+    return { status: 'error', message: 'Enter the staff name, valid mobile number, valid email address and role.' };
+  }
+  if (actor.role !== 'SUPER_ADMIN' && role === 'SUPER_ADMIN') {
+    return { status: 'error', message: 'Only the Super Admin can create another Super Admin.' };
+  }
+
+  let photoUrl: string;
+  try {
+    photoUrl = (await imageToDataUrl(formData.get('photo'), { required: true, label: 'Staff photo' }))!;
+  } catch (error) {
+    return { status: 'error', message: error instanceof ImageUploadError ? error.message : 'The staff photo could not be processed.' };
+  }
+
+  const username = await availableUsername(name);
+  const temporaryPassword = generateTemporaryPassword(6);
+
+  try {
+    const [created] = await db.insert(users).values({
+      schoolId: role === 'SUPER_ADMIN' ? null : schoolId,
+      name,
+      username,
+      email,
+      phone,
+      photoUrl,
+      role,
+      passwordHash: await bcrypt.hash(temporaryPassword, 12),
+      mustChangePassword: true,
+      temporaryPasswordExpiresAt: temporaryPasswordExpiry()
+    }).returning();
+
+    await audit({
+      schoolId,
+      userId: actor.id,
+      action: 'USER_CREATED',
+      entityType: 'User',
+      entityId: created.id,
+      newValue: { name, username, role, email, phone, temporaryPasswordExpiresInHours: TEMPORARY_PASSWORD_HOURS }
+    });
+  } catch {
+    return { status: 'error', message: 'The staff account could not be created. Check the details and try again.' };
+  }
+
+  revalidatePath('/users');
+  return {
+    status: 'success',
+    message: `Staff account created. The temporary password expires in ${TEMPORARY_PASSWORD_HOURS} hours.`,
+    username,
+    temporaryPassword
+  };
+}
+
+export async function updateStaffProfileAction(formData: FormData) {
+  const actor = await requireUser();
+  if (!canManageUsers(actor.role)) redirect('/users?error=Permission+denied');
+
+  const schoolId = await getActiveSchoolId(actor);
+  const userId = cleanText(formData.get('userId'), 100);
+  const email = normalizeEmail(formData.get('email'));
+  const phone = normalizePhone(formData.get('phone'));
+  if (!isValidPhone(phone) || !isValidEmail(email)) {
+    redirect('/users?error=Valid+staff+mobile+number+and+email+are+required');
+  }
+
+  const target = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  if (!target || !mayManageTarget(actor.role, schoolId, target)) redirect('/users?error=User+not+found');
+
+  let photoUrl: string | null = null;
+  try {
+    photoUrl = await imageToDataUrl(formData.get('photo'), { label: 'Staff photo' });
+  } catch (error) {
+    redirect(`/users?error=${encodeURIComponent(error instanceof ImageUploadError ? error.message : 'Staff photo could not be processed')}`);
+  }
+
+  await db.update(users).set({
+    email,
+    phone,
+    ...(photoUrl ? { photoUrl } : {}),
+    updatedAt: new Date()
+  }).where(eq(users.id, userId));
+
+  await audit({
+    schoolId,
+    userId: actor.id,
+    action: 'STAFF_PROFILE_UPDATED',
+    entityType: 'User',
+    entityId: userId,
+    oldValue: { email: target.email, phone: target.phone },
+    newValue: { email, phone, photoChanged: Boolean(photoUrl) }
+  });
+
+  revalidatePath('/users');
+  redirect('/users?success=Staff+profile+updated');
+}
+
+export async function updateUserStatusAction(formData: FormData) {
+  const actor = await requireUser();
+  if (!canManageUsers(actor.role)) redirect('/users?error=Permission+denied');
+  const schoolId = await getActiveSchoolId(actor);
+  const userId = cleanText(formData.get('userId'), 100);
+  const status = cleanText(formData.get('status'), 20);
+  const target = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+
+  if (!target || !mayManageTarget(actor.role, schoolId, target) || !['ACTIVE', 'SUSPENDED'].includes(status)) {
+    redirect('/users?error=Invalid+user+or+status');
+  }
+  if (target.id === actor.id && status === 'SUSPENDED') redirect('/users?error=You+cannot+suspend+your+own+account');
+
+  if (target.role === 'SUPER_ADMIN' && status === 'SUSPENDED') {
+    const [row] = await db.select({ total: sql<number>`count(*)::int` }).from(users)
+      .where(and(eq(users.role, 'SUPER_ADMIN'), eq(users.status, 'ACTIVE')));
+    if (Number(row?.total || 0) <= 1) redirect('/users?error=The+last+active+Super+Admin+cannot+be+suspended');
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, userId));
+    if (status === 'SUSPENDED') await tx.delete(sessions).where(eq(sessions.userId, userId));
+  });
+  await audit({
+    schoolId,
+    userId: actor.id,
+    action: `USER_${status}`,
+    entityType: 'User',
+    entityId: userId,
+    oldValue: { status: target.status },
+    newValue: { status }
+  });
+  revalidatePath('/users');
+  redirect('/users?success=User+status+updated');
+}
+
+export async function resetUserPasswordAction(
+  _previousState: CredentialActionState,
+  formData: FormData
+): Promise<CredentialActionState> {
+  const actor = await requireUser();
+  if (!canManageUsers(actor.role)) return { status: 'error', message: 'Permission denied.' };
+
+  const schoolId = await getActiveSchoolId(actor);
+  const userId = cleanText(formData.get('userId'), 100);
+  const target = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  if (!target || !mayManageTarget(actor.role, schoolId, target)) {
+    return { status: 'error', message: 'User not found.' };
+  }
+
+  const temporaryPassword = generateTemporaryPassword(6);
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({
+      passwordHash: await bcrypt.hash(temporaryPassword, 12),
+      mustChangePassword: true,
+      temporaryPasswordExpiresAt: temporaryPasswordExpiry(),
+      failedLoginCount: 0,
+      lockedUntil: null,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+    await tx.delete(sessions).where(eq(sessions.userId, userId));
+  });
+
+  await audit({
+    schoolId,
+    userId: actor.id,
+    action: 'PASSWORD_RESET',
+    entityType: 'User',
+    entityId: userId,
+    newValue: { temporaryPasswordExpiresInHours: TEMPORARY_PASSWORD_HOURS }
+  });
+  revalidatePath('/users');
+  return {
+    status: 'success',
+    message: `Temporary password generated for ${target.name}. It expires in ${TEMPORARY_PASSWORD_HOURS} hours.`,
+    username: target.username,
+    temporaryPassword
+  };
+}

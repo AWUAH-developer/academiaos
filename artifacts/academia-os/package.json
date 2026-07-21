@@ -1,0 +1,52 @@
+{
+  "name": "@workspace/academia-os",
+  "version": "1.2.1",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0 <25"
+  },
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p $PORT",
+    "build": "next build",
+    "start": "node scripts/start.mjs",
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "messages:process": "tsx scripts/process-messages.ts",
+    "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
+    "security:scan": "node scripts/security-scan.mjs",
+    "db:provision-auth": "tsx scripts/provision-auth.ts"
+  },
+  "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "bcryptjs": "3.0.2",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "1.25.0",
+    "next": "16.2.10",
+    "pg": "8.16.3",
+    "qrcode": "1.5.4",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "@types/node": "24.10.1",
+    "@types/pg": "8.15.5",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "autoprefixer": "10.4.21",
+    "drizzle-kit": "0.31.6",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.2.10",
+    "postcss": "8.5.10",
+    "tailwindcss": "3.4.17",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

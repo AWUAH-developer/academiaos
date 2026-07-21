@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --paper: #fffdf7;
+  --ink: #1f2937;
+  --wood: #5f3a24;
+  --wood-dark: #2f1d14;
+  --chalk: #1f5b45;
+  --gold: #d9a441;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255,255,255,.72), transparent 34%),
+    linear-gradient(135deg, #ede2d2 0%, #f8f2e9 48%, #ead9c5 100%);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+::selection { background: #d6e9de; color: #173c30; }
+
+@layer components {
+  .paper-card {
+    @apply rounded-2xl border border-white/80 bg-white/90 shadow-card backdrop-blur-sm;
+  }
+  .page-title {
+    @apply text-2xl font-black tracking-tight text-slate-900 sm:text-3xl;
+  }
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-chalk-700;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-chalk-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-chalk-900 focus:outline-none focus:ring-4 focus:ring-chalk-100 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100;
+  }
+  .input {
+    @apply min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-chalk-500 focus:ring-4 focus:ring-chalk-100;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-bold text-slate-700;
+  }
+  .table-shell {
+    @apply overflow-hidden rounded-2xl border border-slate-200 bg-white;
+  }
+  .data-table {
+    @apply min-w-full divide-y divide-slate-200 text-left text-sm;
+  }
+  .data-table th {
+    @apply bg-slate-50 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-slate-500;
+  }
+  .data-table td {
+    @apply px-4 py-3 align-middle text-slate-700;
+  }
+  .status-pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold;
+  }
+}
+
+.wood-grain {
+  background-color: var(--wood-dark);
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0,0,0,.12) 1px, transparent 1px),
+    radial-gradient(ellipse at 20% 0%, #6f4329 0, transparent 48%),
+    radial-gradient(ellipse at 80% 100%, #4b2c1c 0, transparent 50%);
+  background-size: 38px 100%, 100% 18px, 100% 100%, 100% 100%;
+}
+
+.chalk-board {
+  background:
+    linear-gradient(rgba(255,255,255,.025), rgba(255,255,255,.025)),
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,.035), transparent 24%),
+    #1f5b45;
+  box-shadow: inset 0 0 35px rgba(0,0,0,.18);
+}
+
+.desk-line {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    rgba(80, 110, 145, .10) 32px
+  );
+}

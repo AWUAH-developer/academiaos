@@ -1,0 +1,53 @@
+'use client';
+
+import { useActionState } from 'react';
+import { UserPlus } from 'lucide-react';
+import { createUserAction, type CredentialActionState } from '@/app/actions/users';
+import type { UserRole } from '@/lib/types';
+
+export function StaffAccountForm({ roles }: { roles: UserRole[] }) {
+  const initialState: CredentialActionState = { status: 'idle' };
+  const [state, formAction, pending] = useActionState(createUserAction, initialState);
+
+  return (
+    <section className="paper-card h-fit p-5">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-chalk-50 text-chalk-700"><UserPlus size={20}/></div>
+        <div>
+          <h2 className="font-black">Create staff account</h2>
+          <p className="text-xs text-slate-500">Username and six-character one-time password are generated automatically</p>
+        </div>
+      </div>
+
+      {state.status !== 'idle' && (
+        <div className={`mt-4 rounded-xl p-4 text-sm ${state.status === 'success' ? 'bg-emerald-50 text-emerald-900' : 'bg-rose-50 text-rose-900'}`}>
+          <p className="font-bold">{state.message}</p>
+          {state.status === 'success' && (
+            <div className="mt-3 rounded-lg bg-white/80 p-3 font-mono text-sm">
+              <p>Username: <b>{state.username}</b></p>
+              <p>Temporary password: <b>{state.temporaryPassword}</b></p>
+              <p className="mt-2 font-sans text-xs text-slate-600">The user must sign in within 24 hours and change this password immediately.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <form action={formAction} className="mt-5 space-y-3">
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Staff profile photo</label>
+          <input className="input" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required/>
+          <p className="mt-1 text-[11px] text-slate-500">JPG, PNG or WebP. Maximum 1.5 MB.</p>
+        </div>
+        <input className="input" name="name" placeholder="Full staff name" required/>
+        <div className="grid grid-cols-2 gap-3">
+          <input className="input" name="phone" type="tel" placeholder="Mobile number" required/>
+          <input className="input" name="email" type="email" placeholder="Email address" required/>
+        </div>
+        <select className="input" name="role" required>
+          {roles.map((role) => <option key={role} value={role}>{role.replaceAll('_',' ')}</option>)}
+        </select>
+        <button className="btn-primary w-full" disabled={pending}>{pending ? 'Creating account…' : 'Create staff account'}</button>
+      </form>
+    </section>
+  );
+}

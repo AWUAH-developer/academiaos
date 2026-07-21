@@ -1,0 +1,27 @@
+import Link from 'next/link';
+import { and, desc, eq } from 'drizzle-orm';
+import { MailPlus } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { markNotificationReadAction, sendMessageAction } from '@/app/actions/messages';
+import { EmptyState } from '@/components/EmptyState';
+import { FlashMessage } from '@/components/FlashMessage';
+import { PageHeader } from '@/components/PageHeader';
+import { db } from '@/db';
+import { messages, notifications, users } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+import { canAccess } from '@/lib/permissions';
+import { getActiveSchoolId } from '@/lib/tenant';
+
+export const metadata = { title: 'Messages' }; export const dynamic = 'force-dynamic';
+export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
+  const user = await requireUser(); if (!canAccess(user.role, 'messages')) redirect('/dashboard'); const schoolId = await getActiveSchoolId(user); const params = await searchParams;
+  const [sent, inbox] = await Promise.all([
+    db.select({ message: messages, senderName: users.name }).from(messages).innerJoin(users, eq(messages.senderId, users.id)).where(eq(messages.schoolId, schoolId)).orderBy(desc(messages.createdAt)).limit(150),
+    db.select().from(notifications).where(and(eq(notifications.schoolId, schoolId), eq(notifications.userId, user.id))).orderBy(desc(notifications.createdAt)).limit(100)
+  ]);
+  const canSend = ['SUPER_ADMIN','SCHOOL_ADMIN','PROPRIETOR','HEADTEACHER','ACADEMIC_ADMIN','TEACHER','ACCOUNTS','TRANSPORT','RECEPTIONIST'].includes(user.role);
+  return <><PageHeader eyebrow="Communication" title="Messages and notifications" description="In-app notices are delivered immediately. SMS, WhatsApp, and email records stay queued until an approved provider is configured with real credentials."/><FlashMessage success={params.success} error={params.error}/>
+  {canSend && <section className="paper-card p-5"><h2 className="flex items-center gap-2 font-black"><MailPlus size={19}/> Send school message</h2><form action={sendMessageAction} className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><select className="input" name="channel"><option value="IN_APP">In-app notification</option><option value="SMS">SMS queue</option><option value="WHATSAPP">WhatsApp queue</option><option value="EMAIL">Email queue</option></select><select className="input" name="audience"><option value="ALL">All school users</option><option value="INDIVIDUAL">One user</option><option value="PARENTS">Parents</option><option value="TEACHERS">Teachers</option><option value="STAFF">All staff</option><option value="OUTSTANDING_FEES">Parents with outstanding fees</option><option value="TRANSPORT">Transport users</option></select><input className="input" name="recipient" placeholder="Username, phone, or email"/><input className="input" name="subject" placeholder="Subject"/><textarea className="input min-h-28 sm:col-span-2 xl:col-span-4" name="body" placeholder="Message" required/><button className="btn-primary sm:col-span-2 xl:col-span-4">Create message</button></form></section>}
+  <div className="mt-6 grid gap-6 xl:grid-cols-2"><section className="paper-card overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-black">My notifications</h2></div>{inbox.length ? <div className="divide-y divide-slate-100">{inbox.map(note=><article key={note.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-black">{note.title}</h3><p className="mt-1 text-xs text-slate-500">{note.type} | {note.createdAt.toLocaleString()}</p></div>{!note.readAt && <span className="status-pill bg-amber-100 text-amber-800">New</span>}</div><p className="mt-2 text-sm text-slate-700">{note.body}</p><div className="mt-3 flex flex-wrap gap-3">{note.link && <Link href={note.link} className="text-sm font-bold text-chalk-700 underline">Open related page</Link>}{!note.readAt && <form action={markNotificationReadAction}><input type="hidden" name="notificationId" value={note.id}/><button className="text-sm font-bold text-slate-600 underline">Mark as read</button></form>}</div></article>)}</div> : <div className="p-5"><EmptyState title="No notifications" text="Attendance, result, homework, transport, and school notices will appear here."/></div>}</section>
+  <section className="paper-card overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-black">Communication log</h2></div>{sent.length ? <div className="divide-y divide-slate-100">{sent.map(({message,senderName})=><article key={message.id} className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black">{message.subject || 'School message'}</h3><p className="mt-1 text-xs text-slate-500">{senderName} | {message.channel} | {message.audience}</p></div><span className={`status-pill ${message.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' : message.status === 'FAILED' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>{message.status}</span></div><p className="mt-2 text-sm text-slate-700">{message.body}</p><p className="mt-2 text-xs text-slate-500">{message.createdAt.toLocaleString()}{message.recipient ? ` | ${message.recipient}` : ''}</p></article>)}</div> : <div className="p-5"><EmptyState title="No messages" text="Sent and queued communication will appear here."/></div>}</section></div></>;
+}
