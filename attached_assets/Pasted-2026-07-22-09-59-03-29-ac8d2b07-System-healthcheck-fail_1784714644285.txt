@@ -1,0 +1,120 @@
+2026-07-22 09:59:03.29
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:04.19
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:04.23
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:04.90
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:05.19
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:05.84
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:07.66
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:08.77
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:09.65
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:11.27
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:12.04
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:12.82
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:13.23
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:13.76
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:14.40
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:14.43
+ac8d2b07
+System
+not all artifact ports opened within timeout expected=[18361 8080] detected=1
+
+2026-07-22 09:59:14.44
+ac8d2b07
+System
+artifact process exited with error error=signal: terminated artifact=artifacts/api-server
+
+2026-07-22 09:59:14.44
+ac8d2b07
+System
+a port configuration was specified but the required port was never opened
+
+2026-07-22 09:59:14.46
+ac8d2b07
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-07-22 09:59:14.67
+ac8d2b07
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-07-22 09:59:14.98
+ac8d2b07
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-07-22 09:59:15.08
+ac8d2b07
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-07-22 09:59:16.13
+ac8d2b07
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-07-22 09:59:16.46
+ac8d2b07
+System
+healthcheck failed error=healthcheck /api returned status 500
+

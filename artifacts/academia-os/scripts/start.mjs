@@ -19,8 +19,14 @@ if (isPublished && process.env.NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS === 'true' && p
 }
 
 const port = process.env.PORT || '3000';
+// Resolve the artifact root (the directory containing this script's parent).
+// start.mjs lives at artifacts/academia-os/scripts/start.mjs, so one level up
+// gives artifacts/academia-os/ — where node_modules/next and .next both live.
+const artifactRoot = new URL('..', import.meta.url).pathname;
+
 const child = spawn('node', ['node_modules/next/dist/bin/next', 'start', '-H', '0.0.0.0', '-p', port], {
   stdio: 'inherit',
+  cwd: artifactRoot,
   env: process.env
 });
 
