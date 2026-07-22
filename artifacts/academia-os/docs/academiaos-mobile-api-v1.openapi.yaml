@@ -1,0 +1,200 @@
+openapi: 3.1.0
+info:
+  title: AcademiaOS Mobile API
+  version: 1.0.0
+  description: Secure native Android and iOS API for the AcademiaOS Replit application.
+servers:
+  - url: https://YOUR-DOMAIN.replit.app/api/mobile/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: OpaqueToken
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+    LoginRequest:
+      type: object
+      required: [username, password, deviceIdentifier, platform]
+      properties:
+        username: { type: string, minLength: 2, maxLength: 100 }
+        password: { type: string, minLength: 6, maxLength: 200 }
+        deviceIdentifier: { type: string, minLength: 8, maxLength: 128 }
+        deviceName: { type: string, maxLength: 120 }
+        platform: { type: string, enum: [android, ios] }
+        appVersion: { type: string, maxLength: 40 }
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    AttendanceRequest:
+      type: object
+      required: [learnerId, date, status]
+      properties:
+        learnerId: { type: string, format: uuid }
+        date: { type: string, format: date }
+        status:
+          type: string
+          enum: [PRESENT, ABSENT, LATE, EXCUSED, SICK, PARTIAL, HALF_DAY_MORNING, HALF_DAY_AFTERNOON, SCHOOL_ACTIVITY, SUSPENDED, HOLIDAY]
+        reason: { type: string, maxLength: 500 }
+paths:
+  /status:
+    get:
+      summary: Check API and database availability
+      responses:
+        '200': { description: Service available }
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auth/login:
+    post:
+      summary: Sign in with an AcademiaOS username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: Signed in }
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auth/refresh:
+    post:
+      summary: Rotate the refresh token and obtain new tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200': { description: Tokens rotated }
+        '401':
+          description: Invalid, expired, or reused refresh token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auth/logout:
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Revoke the current mobile session
+      responses:
+        '200': { description: Signed out }
+  /auth/change-password:
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Change a temporary or existing password
+      responses:
+        '200': { description: Password changed and new tokens issued }
+  /profile:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get the current user and school branding
+      responses:
+        '200': { description: Profile returned }
+  /learners:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get learners within the server-approved user scope
+      parameters:
+        - { in: query, name: learnerId, schema: { type: string, format: uuid } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { in: query, name: offset, schema: { type: integer, minimum: 0 } }
+      responses:
+        '200': { description: Learners returned }
+  /attendance:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get permitted learner attendance
+      responses:
+        '200': { description: Attendance returned }
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Record attendance for an authorised learner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttendanceRequest' }
+      responses:
+        '201': { description: Attendance recorded or updated }
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /fees:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get charge records and complete balance summaries
+      responses:
+        '200': { description: Fees returned }
+  /payments:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get permitted payment receipts
+      responses:
+        '200': { description: Payments returned }
+  /results:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get approved or locked academic results
+      responses:
+        '200': { description: Results returned }
+  /reports:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get published terminal reports
+      responses:
+        '200': { description: Reports returned }
+  /announcements:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get applicable in-app announcements
+      responses:
+        '200': { description: Announcements returned }
+  /notifications:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Get personal notifications
+      responses:
+        '200': { description: Notifications returned }
+    patch:
+      security: [{ bearerAuth: [] }]
+      summary: Mark notifications as read
+      responses:
+        '200': { description: Notifications updated }
+  /devices:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: List active mobile devices
+      responses:
+        '200': { description: Devices returned }
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Update current device and push token
+      responses:
+        '200': { description: Device updated }
+    delete:
+      security: [{ bearerAuth: [] }]
+      summary: Revoke a mobile device and its sessions
+      responses:
+        '200': { description: Device revoked }

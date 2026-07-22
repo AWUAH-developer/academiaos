@@ -6,7 +6,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { db } from '@/db';
-import { loginAttempts, schools, sessions, users } from '@/db/schema';
+import { loginAttempts, mobileSessions, schools, sessions, users } from '@/db/schema';
 import { audit, createSession, destroySession, requireUser } from '@/lib/auth';
 import { cleanText } from '@/lib/validation';
 
@@ -153,6 +153,7 @@ export async function changePasswordAction(formData: FormData) {
       updatedAt: new Date()
     }).where(eq(users.id, user.id));
     await tx.delete(sessions).where(eq(sessions.userId, user.id));
+    await tx.update(mobileSessions).set({ revokedAt: new Date(), updatedAt: new Date() }).where(eq(mobileSessions.userId, user.id));
   });
   await audit({ schoolId: user.schoolId, userId: user.id, action: 'PASSWORD_CHANGED', entityType: 'User', entityId: user.id });
   await createSession(user.id);

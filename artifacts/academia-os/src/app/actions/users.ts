@@ -5,7 +5,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { sessions, users } from '@/db/schema';
+import { mobileSessions, sessions, users } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
 import { generateTemporaryPassword, usernameBaseFromName } from '@/lib/credentials';
 import { imageToDataUrl, ImageUploadError } from '@/lib/images';
@@ -171,7 +171,10 @@ export async function updateUserStatusAction(formData: FormData) {
 
   await db.transaction(async (tx) => {
     await tx.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, userId));
-    if (status === 'SUSPENDED') await tx.delete(sessions).where(eq(sessions.userId, userId));
+    if (status === 'SUSPENDED') {
+      await tx.delete(sessions).where(eq(sessions.userId, userId));
+      await tx.update(mobileSessions).set({ revokedAt: new Date(), updatedAt: new Date() }).where(eq(mobileSessions.userId, userId));
+    }
   });
   await audit({
     schoolId,
@@ -211,6 +214,7 @@ export async function resetUserPasswordAction(
       updatedAt: new Date()
     }).where(eq(users.id, userId));
     await tx.delete(sessions).where(eq(sessions.userId, userId));
+    await tx.update(mobileSessions).set({ revokedAt: new Date(), updatedAt: new Date() }).where(eq(mobileSessions.userId, userId));
   });
 
   await audit({

@@ -1,0 +1,38 @@
+ACADEMIAOS MOBILE API INSTALLATION COMMAND FOR REPLIT
+
+Use the uploaded AcademiaOS Replit v1.3.0 package as the project source.
+Do not add Replit Auth, OAuth, Clerk, Firebase Auth, Supabase Auth, or any redirect-based sign-in.
+Keep the existing AcademiaOS PostgreSQL username-and-password authentication.
+The published app Access setting must be Public so Replit does not place its own sign-in screen in front of AcademiaOS.
+
+In the Replit Shell, run exactly:
+
+npm ci && npm run db:migrate && npm run mobile:api:check && npm run build
+
+Then test the API status endpoint, replacing YOUR-DOMAIN:
+
+curl -sS https://YOUR-DOMAIN.replit.app/api/mobile/v1/status
+
+Expected result:
+
+{"data":{"service":"AcademiaOS Mobile API","version":"v1","database":"connected",...}}
+
+Replit Publish settings:
+
+Deployment type: Autoscale or Reserved VM
+Build command: npm run db:migrate && npm run db:provision-auth && npm run mobile:api:check && npm run build
+Run command: npm run start
+Access: Public
+
+Required Secret:
+
+DATABASE_URL
+
+Optional mobile security settings:
+
+MOBILE_ACCESS_TOKEN_MINUTES=15
+MOBILE_REFRESH_TOKEN_DAYS=30
+MOBILE_MAX_SESSIONS_PER_USER=10
+
+Do not put DATABASE_URL, password hashes, database passwords, or private provider keys in the Expo mobile app.
+The Expo app must call only /api/mobile/v1 endpoints over HTTPS.

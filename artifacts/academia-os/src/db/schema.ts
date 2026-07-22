@@ -289,6 +289,49 @@ export const supportTickets = pgTable('support_tickets', {
   resolution: text('resolution'), createdAt: created(), updatedAt: updated()
 }, (t) => [index('ticket_status_idx').on(t.schoolId, t.status, t.priority)]);
 
+
+export const mobileDevices = pgTable('mobile_devices', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  schoolId: text('school_id').references(() => schools.id, { onDelete: 'cascade' }),
+  deviceIdentifier: text('device_identifier').notNull(),
+  deviceName: text('device_name'),
+  platform: text('platform').notNull(),
+  appVersion: text('app_version'),
+  pushToken: text('push_token'),
+  notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: created(),
+  updatedAt: updated()
+}, (t) => [
+  uniqueIndex('mobile_device_user_identifier_uq').on(t.userId, t.deviceIdentifier),
+  index('mobile_device_user_idx').on(t.userId, t.revokedAt),
+  index('mobile_device_push_token_idx').on(t.pushToken)
+]);
+
+export const mobileSessions = pgTable('mobile_sessions', {
+  id: id(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: text('device_id').notNull().references(() => mobileDevices.id, { onDelete: 'cascade' }),
+  accessTokenHash: text('access_token_hash').notNull().unique(),
+  refreshTokenHash: text('refresh_token_hash').notNull().unique(),
+  accessExpiresAt: timestamp('access_expires_at', { withTimezone: true }).notNull(),
+  refreshExpiresAt: timestamp('refresh_expires_at', { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  lastRotatedAt: timestamp('last_rotated_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: created(),
+  updatedAt: updated()
+}, (t) => [
+  index('mobile_session_user_idx').on(t.userId, t.revokedAt),
+  index('mobile_session_device_idx').on(t.deviceId, t.revokedAt),
+  index('mobile_session_access_expiry_idx').on(t.accessExpiresAt),
+  index('mobile_session_refresh_expiry_idx').on(t.refreshExpiresAt)
+]);
+
 export const auditLogs = pgTable('audit_logs', {
   id: id(), schoolId: text('school_id').references(() => schools.id, { onDelete: 'set null' }), userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   action: text('action').notNull(), entityType: text('entity_type').notNull(), entityId: text('entity_id'), oldValue: jsonb('old_value'), newValue: jsonb('new_value'),

@@ -19,7 +19,7 @@ run = "pnpm --filter @workspace/academia-os run dev"
 [services.production]
 
 [services.production.build]
-args = ["sh", "-c", "pnpm --filter @workspace/academia-os run db:migrate && pnpm --filter @workspace/academia-os run db:provision-auth && pnpm --filter @workspace/academia-os run build"]
+args = ["sh", "-c", "pnpm --filter @workspace/academia-os run db:migrate && pnpm --filter @workspace/academia-os run db:provision-auth && pnpm --filter @workspace/academia-os run mobile:api:check && pnpm --filter @workspace/academia-os run build"]
 
 [services.production.build.env]
 NODE_ENV = "production"

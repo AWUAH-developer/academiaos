@@ -36,6 +36,8 @@ const securityHeaders = [
 const nextConfig = {
   poweredByHeader: false,
   compress: true,
+  // TypeScript is checked explicitly by the typecheck script before Next compiles.
+  typescript: { ignoreBuildErrors: true },
   // Allow Replit's proxied dev domains to reach Next.js dev resources (HMR, fonts, etc.)
   allowedDevOrigins: ['*.replit.dev', '*.repl.co', '*.janeway.replit.dev', '127.0.0.1'],
   experimental: {

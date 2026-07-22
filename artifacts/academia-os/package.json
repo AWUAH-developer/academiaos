@@ -1,6 +1,6 @@
 {
   "name": "@workspace/academia-os",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "engines": {
     "node": ">=22.0.0 <25"
@@ -18,7 +18,9 @@
     "messages:process": "tsx scripts/process-messages.ts",
     "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "security:scan": "node scripts/security-scan.mjs",
-    "db:provision-auth": "tsx scripts/provision-auth.ts"
+    "db:provision-auth": "tsx scripts/provision-auth.ts",
+    "mobile:api:check": "node scripts/mobile-api-check.mjs",
+    "replit:mobile-api": "pnpm run db:migrate && pnpm run db:provision-auth && pnpm run mobile:api:check && pnpm run build"
   },
   "dependencies": {
     "@zxing/browser": "^0.1.5",

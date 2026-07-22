@@ -1,0 +1,76 @@
+import bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { db } from '@/db';
+import { mobileSessions, sessions, users } from '@/db/schema';
+import { audit } from '@/lib/auth';
+import { authenticateMobileRequest, clientIp, createMobileSession, mobileError, mobileJson, publicUser } from '@/lib/mobile-api';
+import { cleanText } from '@/lib/validation';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const schema = z.object({
+  currentPassword: z.string().min(6).max(200),
+  newPassword: z.string().min(12).max(128)
+    .regex(/[A-Z]/, 'upper')
+    .regex(/[a-z]/, 'lower')
+    .regex(/\d/, 'number'),
+  confirmPassword: z.string().min(12).max(128)
+}).refine((value) => value.newPassword === value.confirmPassword, { path: ['confirmPassword'] });
+
+export async function POST(request: NextRequest) {
+  const auth = await authenticateMobileRequest(request, { allowPasswordChange: true });
+  if ('response' in auth) return auth.response;
+  let body: unknown;
+  try { body = await request.json(); } catch { return mobileError(400, 'INVALID_JSON', 'Send a valid JSON request body.'); }
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return mobileError(400, 'INVALID_PASSWORD', 'Use 12 to 128 characters with uppercase, lowercase, and a number.');
+  }
+  const record = (await db.select().from(users).where(eq(users.id, auth.context.user.id)).limit(1))[0];
+  if (!record || !(await bcrypt.compare(parsed.data.currentPassword, record.passwordHash))) {
+    return mobileError(400, 'CURRENT_PASSWORD_INCORRECT', 'The current password is incorrect.');
+  }
+  if (await bcrypt.compare(parsed.data.newPassword, record.passwordHash)) {
+    return mobileError(400, 'PASSWORD_REUSED', 'Choose a different password.');
+  }
+  const now = new Date();
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({
+      passwordHash,
+      mustChangePassword: false,
+      temporaryPasswordExpiresAt: null,
+      failedLoginCount: 0,
+      lockedUntil: null,
+      updatedAt: now
+    }).where(eq(users.id, record.id));
+    await tx.delete(sessions).where(eq(sessions.userId, record.id));
+    await tx.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.userId, record.id));
+  });
+  const tokens = await createMobileSession({
+    userId: record.id,
+    schoolId: record.schoolId,
+    deviceIdentifier: auth.context.deviceIdentifier,
+    platform: auth.context.platform as 'android' | 'ios',
+    appVersion: auth.context.appVersion,
+    ipAddress: clientIp(request),
+    userAgent: cleanText(request.headers.get('user-agent'), 512)
+  });
+  const nextContext = { ...auth.context, user: { ...auth.context.user, mustChangePassword: false }, sessionId: tokens.accessToken.split('.')[1], deviceId: tokens.deviceId };
+  await audit({ schoolId: record.schoolId, userId: record.id, action: 'MOBILE_PASSWORD_CHANGED', entityType: 'User', entityId: record.id });
+  return mobileJson({
+    data: {
+      user: publicUser(nextContext),
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+        accessExpiresAt: tokens.accessExpiresAt.toISOString(),
+        refreshExpiresAt: tokens.refreshExpiresAt.toISOString()
+      }
+    }
+  });
+}
