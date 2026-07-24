@@ -296,6 +296,7 @@ export const packages = pgTable('packages', {
   name: text('name').notNull(),
   description: text('description'),
   pricePerTerm: numeric('price_per_term', { precision: 12, scale: 2 }).notNull().default('0'),
+  pricePerLearner: numeric('price_per_learner', { precision: 12, scale: 2 }),  // null = flat pricing
   maxLearners: integer('max_learners'),      // null = unlimited
   maxStaff: integer('max_staff'),            // null = unlimited
   features: jsonb('features').notNull().default([]), // string[]
@@ -322,6 +323,7 @@ export const schoolSubscriptions = pgTable('school_subscriptions', {
   term: text('term').notNull(),                     // TERM_1 | TERM_2 | TERM_3
   startDate: timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: timestamp('end_date', { withTimezone: true }).notNull(),
+  learnerCount: integer('learner_count'),            // null = flat-rate package
   baseAmount: numeric('base_amount', { precision: 12, scale: 2 }).notNull(),
   addonsAmount: numeric('addons_amount', { precision: 12, scale: 2 }).notNull().default('0'),
   totalAmount: numeric('total_amount', { precision: 12, scale: 2 }).notNull(),

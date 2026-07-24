@@ -57,6 +57,13 @@
       "when": 1784894400000,
       "tag": "0007_reset_superadmin",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1753401600000,
+      "tag": "0008_per_learner_pricing",
+      "breakpoints": true
     }
   ]
 }

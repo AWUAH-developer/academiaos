@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { enrolSchoolAction, type EnrolSchoolState } from '@/app/actions/subscriptions';
 
-type Pkg  = { id: string; name: string; description: string | null; pricePerTerm: string; maxLearners: number | null; maxStaff: number | null; features: unknown };
+type Pkg  = { id: string; name: string; description: string | null; pricePerTerm: string; pricePerLearner: string | null; maxLearners: number | null; maxStaff: number | null; features: unknown };
 type Addon = { id: string; name: string; description: string | null; pricePerTerm: string };
 
 const TERMS  = [{ value: 'TERM_1', label: 'Term 1' }, { value: 'TERM_2', label: 'Term 2' }, { value: 'TERM_3', label: 'Term 3' }];
@@ -29,12 +29,17 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
   const [paymentAmt, setPaymentAmt]     = useState('');
   const [open, setOpen]                 = useState(true);
 
-  const pkg         = pkgs.find(p => p.id === selectedPkg);
-  const addonTotal  = addons.filter(a => selectedAddons.includes(a.id)).reduce((s, a) => s + parseFloat(a.pricePerTerm), 0);
-  const basePrice   = parseFloat(pkg?.pricePerTerm ?? '0');
-  const total       = basePrice + addonTotal;
-  const paid        = parseFloat(paymentAmt) || 0;
-  const willActivate = paid >= total && total > 0;
+  const [learnerCount, setLearnerCount] = useState('');
+
+  const pkg            = pkgs.find(p => p.id === selectedPkg);
+  const addonTotal     = addons.filter(a => selectedAddons.includes(a.id)).reduce((s, a) => s + parseFloat(a.pricePerTerm), 0);
+  const perLearner     = pkg?.pricePerLearner ? parseFloat(pkg.pricePerLearner) : null;
+  const basePrice      = perLearner !== null
+    ? perLearner * (parseInt(learnerCount) || 0)
+    : parseFloat(pkg?.pricePerTerm ?? '0');
+  const total          = basePrice + addonTotal;
+  const paid           = parseFloat(paymentAmt) || 0;
+  const willActivate   = paid >= total && total > 0;
 
   function toggleAddon(id: string) {
     setAddons(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -172,7 +177,10 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-black text-slate-900">{p.name}</p>
-                      <p className="shrink-0 text-sm font-black text-chalk-700">{fmt(p.pricePerTerm)}<span className="font-normal text-slate-400">/term</span></p>
+                      {p.pricePerLearner
+                        ? <p className="shrink-0 text-sm font-black text-chalk-700">GHS {parseFloat(p.pricePerLearner).toFixed(2)}<span className="font-normal text-slate-400"> / learner</span></p>
+                        : <p className="shrink-0 text-sm font-black text-chalk-700">{fmt(p.pricePerTerm)}<span className="font-normal text-slate-400">/term</span></p>
+                      }
                     </div>
                     {p.description && <p className="mt-0.5 text-xs text-slate-500">{p.description}</p>}
                     {p.maxLearners && <p className="mt-1 text-xs text-slate-400">Up to {p.maxLearners} learners · {p.maxStaff} staff</p>}
@@ -180,6 +188,31 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
                 </label>
               ))}
             </div>
+
+            {/* Learner count — shown only for per-learner packages */}
+            {perLearner !== null && (
+              <div className="mt-4 rounded-xl border border-chalk-200 bg-chalk-50 p-4">
+                <label className="label text-chalk-800">Number of learners *</label>
+                <div className="flex items-center gap-3 mt-1">
+                  <input
+                    className="input max-w-[140px] font-mono"
+                    name="learnerCount"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 120"
+                    value={learnerCount}
+                    onChange={e => setLearnerCount(e.target.value)}
+                    required
+                  />
+                  {learnerCount && parseInt(learnerCount) > 0 && (
+                    <p className="text-sm text-slate-600">
+                      {parseInt(learnerCount)} × GHS {perLearner.toFixed(2)} = <strong className="text-chalk-700">{fmt(basePrice)}</strong>
+                    </p>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-slate-400">Enter the current enrolled learner count to calculate the fee.</p>
+              </div>
+            )}
 
             {/* Add-ons */}
             {addons.length > 0 && (
@@ -245,7 +278,15 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
 
             {/* Totals */}
             <div className="mb-4 rounded-xl bg-slate-50 p-4 text-sm">
-              <div className="flex justify-between"><span className="text-slate-600">Package ({pkg?.name})</span><span className="font-bold">{fmt(basePrice)}</span></div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">
+                  {pkg?.name}
+                  {perLearner !== null && learnerCount && parseInt(learnerCount) > 0
+                    ? ` (${parseInt(learnerCount)} learners × GHS ${perLearner.toFixed(2)})`
+                    : ''}
+                </span>
+                <span className="font-bold">{fmt(basePrice)}</span>
+              </div>
               {addonTotal > 0 && <div className="flex justify-between mt-1"><span className="text-slate-600">Add-ons</span><span className="font-bold">{fmt(addonTotal)}</span></div>}
               <div className="mt-2 flex justify-between border-t border-slate-200 pt-2"><span className="font-black text-slate-900">Total due</span><span className="font-black text-chalk-700">{fmt(total)}</span></div>
             </div>

@@ -84,6 +84,13 @@ export async function enrolSchoolAction(
   const pkg = (await db.select().from(packages).where(eq(packages.id, packageId)).limit(1))[0];
   if (!pkg) return { status: 'error', message: 'Selected package not found.' };
 
+  // Learner count (required for per-learner packages)
+  const learnerCount = parseInt(String(formData.get('learnerCount') || '0')) || null;
+  const pricePerLearner = pkg.pricePerLearner ? parseFloat(String(pkg.pricePerLearner)) : null;
+  if (pricePerLearner !== null && (!learnerCount || learnerCount < 1)) {
+    return { status: 'error', message: 'Enter the number of learners to calculate the subscription fee.' };
+  }
+
   // Fetch add-on prices
   let addonsTotal = 0;
   const addonRows = addonIds.length
@@ -93,7 +100,9 @@ export async function enrolSchoolAction(
     : [];
   for (const a of addonRows) addonsTotal += parseFloat(String(a.pricePerTerm));
 
-  const baseAmount  = parseFloat(String(pkg.pricePerTerm));
+  const baseAmount  = pricePerLearner !== null
+    ? pricePerLearner * learnerCount!
+    : parseFloat(String(pkg.pricePerTerm));
   const totalAmount = baseAmount + addonsTotal;
   const activateNow = paymentAmount >= totalAmount;
 
@@ -137,6 +146,7 @@ export async function enrolSchoolAction(
         schoolId: school.id, packageId,
         academicYear, term,
         startDate, endDate,
+        learnerCount,
         baseAmount: String(baseAmount),
         addonsAmount: String(addonsTotal),
         totalAmount: String(totalAmount),

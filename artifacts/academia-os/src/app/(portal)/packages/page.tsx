@@ -50,8 +50,16 @@ export default async function PackagesPage() {
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Price / term</p>
-                      <p className="mt-0.5 text-lg font-black text-chalk-700">{fmt(pkg.pricePerTerm)}</p>
+                      {pkg.pricePerLearner
+                        ? <>
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Price / learner</p>
+                            <p className="mt-0.5 text-lg font-black text-chalk-700">GHS {parseFloat(String(pkg.pricePerLearner)).toFixed(2)}</p>
+                          </>
+                        : <>
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Price / term</p>
+                            <p className="mt-0.5 text-lg font-black text-chalk-700">{fmt(pkg.pricePerTerm)}</p>
+                          </>
+                      }
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Max learners</p>
