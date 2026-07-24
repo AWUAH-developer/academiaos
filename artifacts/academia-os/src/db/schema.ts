@@ -290,6 +290,21 @@ export const supportTickets = pgTable('support_tickets', {
 }, (t) => [index('ticket_status_idx').on(t.schoolId, t.status, t.priority)]);
 
 
+export const demoRequests = pgTable('demo_requests', {
+  id: id(),
+  schoolName: text('school_name').notNull(),
+  contactName: text('contact_name').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone').notNull(),
+  learnerCount: integer('learner_count'),
+  staffCount: integer('staff_count'),
+  message: text('message'),
+  status: text('status').notNull().default('PENDING'), // PENDING | APPROVED | DECLINED
+  notes: text('notes'),
+  createdAt: created(),
+  updatedAt: updated()
+});
+
 export const mobileDevices = pgTable('mobile_devices', {
   id: id(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

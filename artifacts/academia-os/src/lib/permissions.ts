@@ -1,7 +1,7 @@
 import type { UserRole } from '@/lib/types';
 
 export const navigationByRole: Record<UserRole, string[]> = {
-  SUPER_ADMIN: ['dashboard','schools','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
+  SUPER_ADMIN: ['dashboard','schools','demo-requests','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
   SCHOOL_ADMIN: ['dashboard','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
   PROPRIETOR: ['dashboard','staff-attendance','learners','academics','homework','approvals','reports','messages','helpdesk','audit'],
   HEADTEACHER: ['dashboard','setup','learners','attendance','staff-attendance','academics','homework','approvals','reports','messages','helpdesk','id-cards'],

@@ -3,56 +3,24 @@ import Link from 'next/link';
 import {
   BadgeCheck, BookOpenCheck, BusFront, CircleDollarSign,
   ClipboardCheck, CreditCard, GraduationCap, LockKeyhole,
-  Mail, Menu, Smartphone, Users, UsersRound
+  Mail, Smartphone, Users, UsersRound,
 } from 'lucide-react';
 import { currentUser } from '@/lib/auth';
+import { DemoRequestForm } from '@/components/DemoRequestForm';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'AcademiaOS — School Command Centre' };
 
 const features = [
-  {
-    icon: UsersRound,
-    title: 'Admissions & Learners',
-    desc: 'Digital admission records, profile photos, class assignments, guardian contacts and payment plan configuration — all in one place.',
-    color: 'bg-emerald-50 text-emerald-700',
-  },
-  {
-    icon: ClipboardCheck,
-    title: 'Attendance & Daily Fees',
-    desc: 'Mark attendance in seconds. Daily-fee learners are charged automatically per day present. Missed days carry forward — nothing slips through.',
-    color: 'bg-amber-50 text-amber-700',
-  },
-  {
-    icon: CircleDollarSign,
-    title: 'Fees & Finance',
-    desc: 'Collect payments, generate official receipts and track outstanding balances. Term, monthly and daily fee plans all supported.',
-    color: 'bg-blue-50 text-blue-700',
-  },
-  {
-    icon: BookOpenCheck,
-    title: 'Academic Results',
-    desc: 'Teachers enter marks, headteachers review, proprietors approve. Results are locked until every level signs off.',
-    color: 'bg-violet-50 text-violet-700',
-  },
-  {
-    icon: CreditCard,
-    title: 'Smart ID Cards',
-    desc: 'Print scannable ID cards for every staff member and learner. QR codes link directly to their profile for gate security and transport tracking.',
-    color: 'bg-rose-50 text-rose-700',
-  },
-  {
-    icon: Users,
-    title: 'Parent & Guardian Portal',
-    desc: 'Parents see attendance, fees, homework and results in real time. No WhatsApp chasing — everything is in the app.',
-    color: 'bg-teal-50 text-teal-700',
-  },
+  { icon: UsersRound,       title: 'Admissions & Learners',    desc: 'Digital admission records, profile photos, class assignments, guardian contacts and payment plan configuration — all in one place.',                                                         color: 'bg-emerald-50 text-emerald-700' },
+  { icon: ClipboardCheck,   title: 'Attendance & Daily Fees',  desc: 'Mark attendance in seconds. Daily-fee learners are charged automatically per day present. Missed days carry forward — nothing slips through.',                                                color: 'bg-amber-50 text-amber-700' },
+  { icon: CircleDollarSign, title: 'Fees & Finance',           desc: 'Collect payments, generate official receipts and track outstanding balances. Term, monthly and daily fee plans all supported.',                                                               color: 'bg-blue-50 text-blue-700' },
+  { icon: BookOpenCheck,    title: 'Academic Results',         desc: 'Teachers enter marks, headteachers review, proprietors approve. Results are locked until every level signs off.',                                                                               color: 'bg-violet-50 text-violet-700' },
+  { icon: CreditCard,       title: 'Smart ID Cards',           desc: 'Print scannable ID cards for every staff member and learner. QR codes link directly to their profile for gate security and transport tracking.',                                               color: 'bg-rose-50 text-rose-700' },
+  { icon: Users,            title: 'Parent & Guardian Portal', desc: 'Parents see attendance, fees, homework and results in real time. No WhatsApp chasing — everything is in the app.',                                                                             color: 'bg-teal-50 text-teal-700' },
 ];
 
-const roles = [
-  'School admin', 'Headteacher', 'Class teacher', 'Accounts officer',
-  'Receptionist', 'Transport officer', 'Security / gate', 'Parent / guardian',
-];
+const roles = ['School admin','Headteacher','Class teacher','Accounts officer','Receptionist','Transport officer','Security / gate','Parent / guardian'];
 
 export default async function HomePage() {
   const user = await currentUser();
@@ -69,7 +37,7 @@ export default async function HomePage() {
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
-            {[['#features', 'Features'], ['#daily-fees', 'Daily fees'], ['#id-cards', 'Smart ID'], ['#access', 'Get access']].map(([href, label]) => (
+            {([['#features','Features'],['#daily-fees','Daily fees'],['#id-cards','Smart ID'],['#request','Request demo']] as const).map(([href, label]) => (
               <a key={href} href={href} className="text-sm font-bold text-white/70 transition hover:text-white">{label}</a>
             ))}
           </nav>
@@ -79,8 +47,10 @@ export default async function HomePage() {
               <Link href="/dashboard" className="btn-primary text-sm px-5 py-2.5">Open dashboard</Link>
             ) : (
               <>
-                <Link href="/login" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-white/80 transition hover:text-white sm:block">Sign in</Link>
-                <a href="#access" className="btn-primary text-sm px-5 py-2.5">Request access</a>
+                <Link href="/login" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-white/70 transition hover:text-white sm:block">
+                  School sign in
+                </Link>
+                <a href="#request" className="btn-primary text-sm px-5 py-2.5">Request demo</a>
               </>
             )}
           </div>
@@ -89,10 +59,8 @@ export default async function HomePage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="wood-grain relative overflow-hidden px-5 py-24 text-white sm:px-8 sm:py-32">
-        {/* Decorative rings */}
         <div className="pointer-events-none absolute -right-32 -top-32 h-[600px] w-[600px] rounded-full border-[60px] border-white/5" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full border-[40px] border-white/5" />
-
         <div className="relative mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
             School command centre · v1.3.0
@@ -105,15 +73,15 @@ export default async function HomePage() {
             AcademiaOS connects admissions, attendance, daily fees, academic results, Smart ID cards, parent communication and mobile access — all under one login, with role-based security for every member of staff.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <a href="#access" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#d9a441] px-7 py-3 text-base font-black text-[#2f1d14] shadow-lg transition hover:bg-amber-400">
-              Request access for your school
+            <a href="#request" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#d9a441] px-7 py-3 text-base font-black text-[#2f1d14] shadow-lg transition hover:bg-amber-400">
+              Request a demo for your school
             </a>
             <Link href="/login" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-7 py-3 text-base font-bold text-white transition hover:bg-white/20">
-              <LockKeyhole size={17} /> Sign in
+              <LockKeyhole size={17} /> School sign in
             </Link>
           </div>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-bold text-white/60">
-            {['Ghanaian curriculum ready', 'GHS & multi-currency', 'Works offline on desktop', 'Android & iOS apps'].map(f => (
+            {['Ghanaian curriculum ready','GHS & multi-currency','Works offline on desktop','Android & iOS apps'].map(f => (
               <span key={f} className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-[#d9a441]"/>{f}</span>
             ))}
           </div>
@@ -163,10 +131,10 @@ export default async function HomePage() {
             </p>
             <ul className="mt-8 space-y-4">
               {[
-                ['Carry-forward logic', 'Any unpaid balance from the previous day is automatically carried forward — no manual chasing.'],
-                ['Term, monthly & daily plans', 'Set a different payment plan per learner. The system handles the maths.'],
-                ['Real-time balance', 'Accounts staff always see the live balance. No spreadsheets.'],
-                ['Official PDF receipts', 'Every payment generates a printable, numbered receipt instantly.'],
+                ['Carry-forward logic','Any unpaid balance from the previous day is automatically carried forward — no manual chasing.'],
+                ['Term, monthly & daily plans','Set a different payment plan per learner. The system handles the maths.'],
+                ['Real-time balance','Accounts staff always see the live balance. No spreadsheets.'],
+                ['Official PDF receipts','Every payment generates a printable, numbered receipt instantly.'],
               ].map(([title, desc]) => (
                 <li key={title} className="flex gap-4">
                   <div className="mt-1 h-5 w-5 shrink-0 rounded-full bg-[#d9a441] grid place-items-center">
@@ -182,11 +150,11 @@ export default async function HomePage() {
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-300">Example · Daily fee learner</p>
               <div className="mt-5 space-y-3">
                 {[
-                  ['Term days attended', '42 days', 'text-white'],
-                  ['Fee per day', 'GHS 12.50', 'text-white'],
-                  ['Gross charge', 'GHS 525.00', 'text-white'],
-                  ['Payments received', 'GHS 480.00', 'text-emerald-300'],
-                  ['Balance carried forward', 'GHS 45.00', 'text-amber-300'],
+                  ['Term days attended','42 days','text-white'],
+                  ['Fee per day','GHS 12.50','text-white'],
+                  ['Gross charge','GHS 525.00','text-white'],
+                  ['Payments received','GHS 480.00','text-emerald-300'],
+                  ['Balance carried forward','GHS 45.00','text-amber-300'],
                 ].map(([label, value, cls]) => (
                   <div key={label} className="flex items-center justify-between border-b border-white/10 pb-3">
                     <span className="text-sm text-white/65">{label}</span>
@@ -205,10 +173,9 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
           <div className="order-2 lg:order-1">
             <div className="flex flex-col gap-4 sm:flex-row">
-              {/* Sample ID card mockup */}
               {[
-                { label: 'STAFF', name: 'Mrs. E. Asante', sub: 'Headteacher', id: 'headteacher', accent: 'bg-amber-700' },
-                { label: 'LEARNER', name: 'Kofi Mensah', sub: 'Primary 4 (Blue)', id: 'ADM-2024-0042', accent: 'bg-emerald-800' },
+                { label: 'STAFF',   name: 'Mrs. E. Asante', sub: 'Headteacher',         id: 'headteacher',    accent: 'bg-amber-700' },
+                { label: 'LEARNER', name: 'Kofi Mensah',    sub: 'Primary 4 (Blue)',     id: 'ADM-2024-0042',  accent: 'bg-emerald-800' },
               ].map(card => (
                 <div key={card.label} className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                   <div className={`${card.accent} flex items-center justify-between px-4 py-2`}>
@@ -216,9 +183,7 @@ export default async function HomePage() {
                     <span className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-white">{card.label}</span>
                   </div>
                   <div className="flex gap-3 p-4">
-                    <div className="flex h-[80px] w-[62px] items-center justify-center rounded-xl bg-slate-100 text-2xl font-black text-slate-300">
-                      {card.name[0]}
-                    </div>
+                    <div className="flex h-[80px] w-[62px] items-center justify-center rounded-xl bg-slate-100 text-2xl font-black text-slate-300">{card.name[0]}</div>
                     <div className="flex flex-col justify-between">
                       <div>
                         <p className="text-sm font-black text-slate-900">{card.name}</p>
@@ -241,7 +206,7 @@ export default async function HomePage() {
             <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-900">Smart ID cards — print & scan.</h2>
             <p className="mt-5 text-lg leading-8 text-slate-500">Every staff member and learner gets a scannable ID card. Print individually or in bulk. QR codes link directly to the person's record for gate security, transport tracking and attendance.</p>
             <ul className="mt-6 space-y-3">
-              {['Staff cards (amber) and learner cards (green) are visually distinct', 'Print on any A4 printer — 2 cards per row', 'QR codes encode the unique badge ID', 'Filter by class or role before printing'].map(t => (
+              {['Staff (amber) and learner (green) cards are visually distinct','Print on any A4 printer — 2 per row','QR codes encode the unique badge ID','Filter by class or role before printing'].map(t => (
                 <li key={t} className="flex items-start gap-3 text-sm text-slate-600">
                   <BadgeCheck size={18} className="mt-0.5 shrink-0 text-[#1f5b45]" /> {t}
                 </li>
@@ -258,7 +223,7 @@ export default async function HomePage() {
           <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Every staff member sees only what they need.</h2>
           <p className="mx-auto mt-4 max-w-xl text-slate-500">14 role types from Super Admin to Canteen staff. Permissions are fixed by role — not configurable by accident.</p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            {['Super admin', 'Proprietor', 'Headteacher', 'Academic admin', 'Class teacher', 'Accounts', 'Receptionist', 'Transport', 'Security / gate', 'Librarian', 'Canteen', 'Parent', 'Learner'].map(r => (
+            {['Super admin','Proprietor','Headteacher','Academic admin','Class teacher','Accounts','Receptionist','Transport','Security / gate','Librarian','Canteen','Parent','Learner'].map(r => (
               <span key={r} className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-700 shadow-sm">{r}</span>
             ))}
           </div>
@@ -269,9 +234,9 @@ export default async function HomePage() {
       <section className="px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-3 lg:gap-8">
           {[
-            { icon: Smartphone, title: 'Android & iOS apps', desc: 'Native mobile apps for staff who need to work on the go. Attendance, approvals and messages — all from a phone.', color: 'bg-violet-100 text-violet-700' },
-            { icon: GraduationCap, title: 'Desktop offline app', desc: 'Electron-based desktop app for schools with unreliable internet. Data syncs when connection is restored.', color: 'bg-amber-100 text-amber-700' },
-            { icon: Mail, title: 'Built-in messaging', desc: 'Secure internal messaging between staff and parents. No third-party apps needed — everything stays in the system.', color: 'bg-blue-100 text-blue-700' },
+            { icon: Smartphone,    title: 'Android & iOS apps',     desc: 'Native mobile apps for staff who need to work on the go. Attendance, approvals and messages — all from a phone.',                   color: 'bg-violet-100 text-violet-700' },
+            { icon: GraduationCap, title: 'Desktop offline app',    desc: 'Electron-based desktop app for schools with unreliable internet. Data syncs when connection is restored.',                            color: 'bg-amber-100 text-amber-700' },
+            { icon: Mail,          title: 'Built-in messaging',     desc: 'Secure internal messaging between staff and parents. No third-party apps needed — everything stays in the system.',                  color: 'bg-blue-100 text-blue-700' },
           ].map(({ icon: Icon, title, desc, color }) => (
             <div key={title} className="paper-card p-7 mt-6 lg:mt-0">
               <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}><Icon size={24}/></div>
@@ -282,30 +247,51 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── GET ACCESS ───────────────────────────────────────────────────── */}
-      <section id="access" className="scroll-mt-20 wood-grain px-5 py-20 sm:px-8">
-        <div className="mx-auto max-w-3xl text-center text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-300">For schools</p>
-          <h2 className="mt-4 text-4xl font-black tracking-tight">Ready to run your school from one desk?</h2>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-white/70">AcademiaOS is set up and managed by an administrator. If your school is already on the platform, sign in below. To onboard your school, contact us.</p>
+      {/* ── DEMO REQUEST FORM ────────────────────────────────────────────── */}
+      <section id="request" className="scroll-mt-20 wood-grain px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-5xl lg:grid lg:grid-cols-[1fr_480px] lg:items-start lg:gap-16">
+          {/* Left — copy */}
+          <div className="text-white">
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-300">For schools</p>
+            <h2 className="mt-4 text-4xl font-black leading-tight tracking-tight">
+              Ready to run your school from one desk?
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-white/70">
+              Fill in the form and we will set up a demo for your school. You will receive login credentials to explore the full system before committing to anything.
+            </p>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-7 text-left backdrop-blur">
-              <LockKeyhole className="text-amber-300" size={28}/>
-              <h3 className="mt-4 text-xl font-black">Your school is already set up?</h3>
-              <p className="mt-2 text-sm text-white/65">Use the credentials your school administrator provided.</p>
-              <Link href="/login" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#2f1d14] transition hover:bg-amber-50">
-                Sign in to AcademiaOS
+            <div className="mt-8 space-y-5">
+              {[
+                ['We set up your school','Your data, your staff, your classes — configured before you log in for the first time.'],
+                ['You get real credentials','No demo sandbox — you see a live system with your school name and logo.'],
+                ['Training included','We walk your administrator through every module before handover.'],
+              ].map(([title, desc]) => (
+                <div key={title} className="flex gap-4">
+                  <div className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-[#d9a441] grid place-items-center">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#2f1d14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <div>
+                    <p className="font-black text-white">{title}</p>
+                    <p className="mt-0.5 text-sm text-white/65">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Already a school divider */}
+            <div className="mt-10 rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+              <p className="font-black text-white">Already a school on AcademiaOS?</p>
+              <p className="mt-1 text-sm text-white/65">Use the credentials your administrator provided.</p>
+              <Link href="/login" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-black text-[#2f1d14] transition hover:bg-amber-50">
+                <LockKeyhole size={15} /> School sign in
               </Link>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-7 text-left backdrop-blur">
-              <BusFront className="text-amber-300" size={28}/>
-              <h3 className="mt-4 text-xl font-black">Want to onboard your school?</h3>
-              <p className="mt-2 text-sm text-white/65">Contact us to set up your school, import your learner records and train your staff.</p>
-              <a href="mailto:hello@academiaos.cc" className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20">
-                Contact us — hello@academiaos.cc
-              </a>
-            </div>
+          </div>
+
+          {/* Right — form */}
+          <div className="mt-10 rounded-3xl border border-white/15 bg-white p-8 shadow-2xl lg:mt-0">
+            <h3 className="mb-6 text-xl font-black text-slate-900">Request a demo</h3>
+            <DemoRequestForm />
           </div>
         </div>
       </section>
@@ -320,7 +306,7 @@ export default async function HomePage() {
           </div>
           <p className="text-xs text-white/40">Built for primary and secondary schools. © {new Date().getFullYear()} AcademiaOS.</p>
           <div className="flex gap-5">
-            <Link href="/login" className="text-xs font-bold text-white/60 hover:text-white">Sign in</Link>
+            <Link href="/login" className="text-xs font-bold text-white/60 hover:text-white">School sign in</Link>
             <a href="mailto:hello@academiaos.cc" className="text-xs font-bold text-white/60 hover:text-white">Contact</a>
           </div>
         </div>

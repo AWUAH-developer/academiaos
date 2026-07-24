@@ -1,0 +1,67 @@
+1. Full technical specification
+
+This is everything we have been defining:
+
+Website
+Web application
+Super Admin
+School creation
+Direct paid-school enrollment
+Website enquiries
+Demo management
+School memberships
+Packages
+Term subscriptions
+Mobile apps
+Desktop app
+Offline synchronization
+Payments
+Security
+Notifications
+Production deployment
+
+2. Master Replit prompt
+
+At the end of the document there should be one large prompt you paste into Replit after uploading the Word file.
+
+Something along these lines:
+
+ACADEMIAOS FULL PRODUCTION IMPLEMENTATION
+
+You are continuing development of the existing published AcademiaOS platform. Read the attached production specification completely before changing any code.
+
+Do not rebuild AcademiaOS from scratch. Preserve the existing production database, users, schools, authentication, mobile API, Expo project, custom domain and existing working functionality.
+
+Implement the attached specification as one connected AcademiaOS ecosystem consisting of the public website, secure web application, Android application, iOS application and desktop application using the same production backend, school records, memberships, roles, subscriptions and entitlement engine.
+
+Do not expose public demo credentials. Implement Super Admin controlled private demo creation, direct paid-school enrollment, website enquiry conversion, school membership enforcement and all production requirements described in the attached document.
+
+Before editing, create a checkpoint and inspect the existing architecture. Work through the defined implementation phases. Run migrations, type checking, linting, automated tests and production builds after every phase.
+
+Do not report the project as complete because a development preview works. Complete production deployment and verify the live website, secure web application, production database/API, mobile release configuration and desktop builds according to the acceptance requirements in the attached specification.
+
+3. Phase prompts
+
+This is what I think the current final document is missing most.
+
+Instead of asking Replit to swallow the whole project in one shot, the document should contain separate copy-and-paste instructions such as:
+
+PHASE 1 PROMPT: Production foundation, authentication, school membership, packages and subscriptions.
+
+PHASE 2 PROMPT: Public website, enquiries, direct school enrollment and sales management.
+
+PHASE 3 PROMPT: Private demo management and conversion to production schools.
+
+PHASE 4 PROMPT: Web app production cleanup, removal of old public/demo behavior and role enforcement.
+
+PHASE 5 PROMPT: Android and iOS integration.
+
+PHASE 6 PROMPT: Desktop app, offline database and synchronization.
+
+PHASE 7 PROMPT: Production deployment, security audit, acceptance testing and final publishing.
+
+That is safer than telling Replit, “build everything.”
+
+4. Final production/publish prompt
+
+This is especially important given what happened before when Replit stopped at the preview.
