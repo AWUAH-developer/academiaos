@@ -1,10 +1,17 @@
-import { GraduationCap } from 'lucide-react';
+import Image from 'next/image';
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg shadow-black/15">
-        <GraduationCap size={25} strokeWidth={2.4} />
+      <div className="shrink-0 overflow-hidden rounded-2xl shadow-lg shadow-black/20">
+        <Image
+          src="/brand-logo.jpg"
+          alt="AcademiaOS"
+          width={44}
+          height={44}
+          unoptimized
+          className="h-11 w-11 object-cover"
+        />
       </div>
       {!compact && (
         <div>
