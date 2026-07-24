@@ -1,0 +1,27 @@
+kind = "slides"
+previewPath = "/academia-os-deck/"
+title = "AcademiaOS Overview"
+version = "1.0.0"
+id = "artifacts/academia-os-deck"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/academia-os-deck/" ]
+localPort = 18949
+
+[services.development]
+run = "pnpm --filter @workspace/academia-os-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/academia-os-deck", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/academia-os-deck/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18949"
+BASE_PATH = "/academia-os-deck/"

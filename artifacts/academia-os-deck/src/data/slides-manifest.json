@@ -1,0 +1,82 @@
+[
+  {
+    "id": "f8a7b3c2-d1e4-4f9a-b201-d4e5f6a7b8c9",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide01Cover.tsx",
+    "title": "AcademiaOS",
+    "description": "Cover — The School Command Centre",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a2b3c4d5-e6f7-4890-b302-e5f6a7b8c9d0",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide02Roles.tsx",
+    "title": "One Platform. Every Role.",
+    "description": "Six portals on one shared database",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b3c4d5e6-f7a8-4901-c403-f6a7b8c9d0e1",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide03DailyFees.tsx",
+    "title": "Daily Fees That Follow Reality",
+    "description": "Five fee policies including carry-forward",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c4d5e6f7-a8b9-4012-d504-a7b8c9d0e1f2",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide04DuplicateProtection.tsx",
+    "title": "Bullet-Proof Duplicate Protection",
+    "description": "Idempotent charges — one per learner per date",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d5e6f7a8-b9c0-4123-e605-b8c9d0e1f2a3",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide05Attendance.tsx",
+    "title": "Attendance — Real-Time & Role-Gated",
+    "description": "QR scanner, manual mark, feeds fee engine",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e6f7a8b9-c0d1-4234-f706-c9d0e1f2a3b4",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide06FeeManagement.tsx",
+    "title": "Fee Management & Payments",
+    "description": "Multiple fee types, term billing, receipts",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f7a8b9c0-d1e2-4345-a807-d0e1f2a3b4c5",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide07Results.tsx",
+    "title": "Results, Reports & Communication",
+    "description": "Marks, report cards, WhatsApp, helpdesk",
+    "speakerNotes": ""
+  },
+  {
+    "id": "a8b9c0d1-e2f3-4456-b908-e1f2a3b4c5d6",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide08MobileAPI.tsx",
+    "title": "Mobile API v1 — 15 Live Endpoints",
+    "description": "JWT REST API for the Expo companion app",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b9c0d1e2-f3a4-4567-c009-f2a3b4c5d6e7",
+    "position": 9,
+    "filepath": "src/pages/slides/Slide09Security.tsx",
+    "title": "Role-Based Security, Top to Bottom",
+    "description": "Server-enforced permissions, audit logs",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c0d1e2f3-a4b5-4678-d100-a3b4c5d6e7f8",
+    "position": 10,
+    "filepath": "src/pages/slides/Slide10Roadmap.tsx",
+    "title": "What's Coming Next",
+    "description": "Four-phase roadmap: website, super admin, desktop, mobile apps",
+    "speakerNotes": ""
+  }
+]
