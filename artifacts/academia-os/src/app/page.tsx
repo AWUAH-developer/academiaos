@@ -52,7 +52,7 @@ export default async function HomePage() {
           <div>
             <HeroText delay={0}>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
-                School command centre · v1.3.0
+                School command centre
               </div>
             </HeroText>
             <HeroText delay={100}>
