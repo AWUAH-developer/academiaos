@@ -1,1 +1,2 @@
 - [Desktop app architecture](desktop-app-architecture.md) — Electron app is excluded from pnpm workspace; must be built independently on Windows; full security model and DB design documented here.
+- [Migration immutability rule](migration-immutability.md) — applied migrations are immutable; corrections go in a new file (0010+); watch journal timestamps vs production watermark
