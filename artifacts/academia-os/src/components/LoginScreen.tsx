@@ -37,7 +37,7 @@ export function LoginScreen({
         <p className="eyebrow">AcademiaOS account</p>
         <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{user ? 'You are already signed in' : 'Sign in with username and password'}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          {user ? `Signed in as ${user.name} (${user.username}).` : 'Use the username and password assigned by your school administrator. No Replit account is required.'}
+          {user ? `Signed in as ${user.name} (${user.username}).` : 'Use the username and password assigned by your school administrator.'}
         </p>
 
         {error && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div>}
