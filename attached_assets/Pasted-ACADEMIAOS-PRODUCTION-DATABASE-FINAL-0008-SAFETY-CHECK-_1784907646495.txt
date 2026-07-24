@@ -1,0 +1,91 @@
+ACADEMIAOS PRODUCTION DATABASE - FINAL 0008 SAFETY CHECK
+
+STOP.
+Do not Republish yet.
+Do not run Windows CI.
+Do not modify production data.
+
+The deployment blocker is mostly fixed, but migration 0008 still contains
+unconditional package pricing UPDATE statements.
+
+Production already contains price_per_learner values, while the report says
+migration 0008 may still be unapplied in __drizzle_migrations.
+
+This creates a risk that the migration will overwrite existing production
+package prices.
+
+1. VERIFY MIGRATION JOURNAL
+
+Read only the production Drizzle migration journal.
+
+Confirm whether migration 0008 is actually recorded as applied.
+
+Do not expose school or user data.
+
+Return:
+0007 journal status
+0008 journal status
+0009 journal status
+
+2. PROTECT EXISTING PACKAGE PRICES
+
+If 0008 is NOT recorded as applied, change its seed UPDATE statements so they
+only populate NULL values.
+
+Use equivalent conditions such as:
+
+UPDATE packages
+SET price_per_learner = 15.00
+WHERE lower(name) = 'starter'
+  AND price_per_learner IS NULL;
+
+UPDATE packages
+SET price_per_learner = 25.00
+WHERE lower(name) = 'standard'
+  AND price_per_learner IS NULL;
+
+UPDATE packages
+SET price_per_learner = 35.00
+WHERE lower(name) = 'premium'
+  AND price_per_learner IS NULL;
+
+Do not overwrite any non-null production price.
+
+Do not change an already-applied migration unless you have first confirmed it
+is not recorded in production.
+
+3. VERIFY CURRENT VALUES SAFELY
+
+Report only:
+
+number of package rows with non-null price_per_learner
+number of package rows with null price_per_learner
+
+Do not print the actual values unless needed for a migration conflict check.
+
+4. DEPLOYMENT SCHEMA SYNC
+
+Confirm again that:
+
+lib/db has no active drizzle-kit push or push-force command
+production deployment does not call drizzle-kit push
+artifacts/academia-os drizzle migrate() is the only production schema
+mutation path
+
+5. DRY-RUN / PREVIEW
+
+Re-run the deployment schema preview without applying it.
+
+Required outcome:
+
+DROP TABLE operations: 0
+DROP COLUMN operations: 0
+TRUNCATE operations: 0
+existing non-null price_per_learner values overwritten: 0
+existing learner_count values overwritten/deleted: 0
+
+Return the exact proposed operations.
+
+Then STOP.
+
+Do not Republish automatically.
