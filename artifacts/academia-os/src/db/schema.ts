@@ -1,5 +1,15 @@
 import { randomUUID } from 'crypto';
-import { boolean, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, customType, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+
+/**
+ * PostgreSQL uuid column type for tables whose DDL uses uuid PRIMARY KEY.
+ * Only used for desktop_outbox_idempotency_keys to match the 0009 migration
+ * SQL exactly.  All other tables use the text-based id() helper for
+ * historical consistency.
+ */
+const pgUuid = customType<{ data: string }>({
+  dataType() { return 'uuid'; },
+});
 
 const id = () => text('id').primaryKey().$defaultFn(() => randomUUID());
 const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -423,7 +433,8 @@ export const auditLogs = pgTable('audit_logs', {
  * 30 days, so no client will replay an operation older than that.
  */
 export const desktopOutboxIdempotencyKeys = pgTable('desktop_outbox_idempotency_keys', {
-  id:             id(),
+  // uuid type — matches the 0009 SQL migration exactly (uuid PRIMARY KEY DEFAULT gen_random_uuid())
+  id:             pgUuid('id').primaryKey().$default(() => randomUUID()),
   idempotencyKey: text('idempotency_key').notNull().unique(),
   schoolId:       text('school_id').references(() => schools.id, { onDelete: 'cascade' }),
   userId:         text('user_id').references(() => users.id, { onDelete: 'set null' }),

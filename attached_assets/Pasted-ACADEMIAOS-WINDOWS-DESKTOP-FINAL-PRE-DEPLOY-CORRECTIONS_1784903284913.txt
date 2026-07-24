@@ -1,0 +1,189 @@
+ACADEMIAOS WINDOWS DESKTOP - FINAL PRE-DEPLOY CORRECTIONS
+
+Create a checkpoint first.
+
+DO NOT REPUBLISH PRODUCTION YET.
+DO NOT START MACOS.
+DO NOT START LINUX.
+DO NOT BUILD THE PUBLIC WINDOWS RELEASE YET.
+
+The audit was good, but three corrections are required before production
+redeployment.
+
+==================================================
+1. USE ELECTRON 43 ASYNC SAFESTORAGE
+==================================================
+
+The previous report incorrectly stated that Electron 43 does not expose
+encryptStringAsync/decryptStringAsync.
+
+Electron 43 does provide the asynchronous safeStorage API.
+
+Update secure-storage.ts to prefer:
+
+safeStorage.isAsyncEncryptionAvailable()
+safeStorage.encryptStringAsync()
+safeStorage.decryptStringAsync()
+
+Use the asynchronous API for newly stored:
+
+- access tokens
+- refresh tokens
+- database encryption key
+- other protected desktop secrets
+
+Handle the decryptStringAsync result correctly, including:
+
+result
+shouldReEncrypt
+
+When shouldReEncrypt is true, securely re-encrypt and atomically replace the
+stored value.
+
+Do not fall back to plaintext when secure storage is unavailable.
+
+The app should fail safely and show an appropriate secure-storage error.
+
+Keep compatibility migration for any credentials already encrypted with the
+synchronous API if necessary.
+
+==================================================
+2. FIX DESKTOP IDEMPOTENCY TABLE TYPE CONSISTENCY
+==================================================
+
+The audit found and fixed idempotency_key, but another mismatch remains.
+
+The SQL migration/startup definition currently uses:
+
+id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+
+while the Drizzle schema reportedly uses an id() helper that maps to text.
+
+Do not leave this mismatch.
+
+Use UUID consistently.
+
+For desktop_outbox_idempotency_keys, make the id column equivalent to:
+
+uuid("id").defaultRandom().primaryKey()
+
+in the Drizzle schema.
+
+Confirm the exact same UUID type exists in:
+
+- src/db/schema.ts
+- drizzle/0009_desktop_outbox_idempotency.sql
+- any related startup/schema validation
+- tests
+
+Also confirm idempotency_key remains TEXT consistently everywhere.
+
+Run typecheck and database schema tests.
+
+==================================================
+3. REMOVE THE EXPOSED PASSWORD RESET FROM 0007
+==================================================
+
+Production has not yet deployed migration 0007.
+
+The bcrypt hash contained in:
+
+drizzle/0007_reset_superadmin.sql
+
+must now be considered exposed.
+
+Do NOT deploy a migration that installs a known temporary Super Admin
+password into production.
+
+Before production redeployment, change the pending 0007 migration so it
+does NOT set password_hash to a known value.
+
+It may safely perform lockout recovery such as:
+
+- clear locked_until
+- reset failed-login counters
+- remove relevant login_attempt records
+
+but it must not assign a known password.
+
+If the Super Admin genuinely requires password recovery, implement/use a
+one-time secure provisioning command that:
+
+- reads the temporary recovery password from a Replit Secret/environment
+  variable
+- never writes the plaintext password to logs
+- bcrypt-hashes it server-side
+- updates only the intended Super Admin
+- forces password change where supported
+- revokes old sessions
+- is manually invoked, not automatically run on every startup
+
+Do not put the recovery password or replacement password in source,
+migration files, prompts, documentation or GitHub.
+
+After successful password recovery, remove the temporary secret.
+
+==================================================
+4. SIMPLIFY MIGRATION AUTHORITY
+==================================================
+
+The audit has already demonstrated a real drift bug between:
+
+start.mjs
+0009 SQL
+schema.ts
+
+Do not ignore that warning.
+
+Prefer Drizzle migrations as the authoritative schema mutation mechanism.
+
+Change start.mjs so that normal production startup performs:
+
+1. database connection
+2. Drizzle migrations
+3. post-migration schema verification
+4. application start
+
+The post-migration verification may CHECK that required columns/tables/indexes
+exist, but it should not independently maintain a second copy of the schema.
+
+If something required is missing, fail startup with a precise migration
+error rather than silently creating a slightly different schema.
+
+Do not duplicate 0008/0009 CREATE/ALTER definitions in two independently
+maintained locations.
+
+Preserve all existing production data.
+
+==================================================
+5. VERIFY AGAIN BEFORE REPUBLISH
+==================================================
+
+After these changes run:
+
+pnpm typecheck
+tests
+production Next.js build
+
+Report:
+
+Electron version
+safeStorage API now used
+safeStorage key-rotation handling
+better-sqlite3-multiple-ciphers version
+database cipher
+desktop id column type
+idempotency_key type
+0007 final behavior
+migration authority
+changed files
+test results
+production build result
+
+Then STOP.
+
+Do not Republish automatically.
+Do not trigger GitHub Actions.
+Do not start macOS/Linux.
+
+Wait for my approval before the production deployment.

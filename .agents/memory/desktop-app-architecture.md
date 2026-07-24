@@ -11,7 +11,16 @@ The desktop Electron app lives in `artifacts/academia-os-desktop/` but is **excl
 **How to apply:** Always `cd artifacts/academia-os-desktop && pnpm install` — never from the workspace root.
 
 ## Schema note
-`desktopOutboxIdempotencyKeys` uses `text` (not `uuid`) for idempotencyKey because drizzle-orm 0.45.2 does not re-export `uuid` from its pg-core index. All UUID PK columns in this codebase use `text` via the `id()` helper.
+`desktopOutboxIdempotencyKeys` id column: uses `pgUuid` (a `customType<{ data: string }>` returning `'uuid'`) — NOT the `id()` text helper — to match `0009_desktop_outbox_idempotency.sql` exactly. `customType` IS exported from drizzle-orm 0.45.2 pg-core CJS index despite `uuid` not being in the ESM index. `idempotency_key` column is `text` everywhere (schema.ts, 0009 SQL, start.mjs).
+
+## Migration authority
+Single authority: Drizzle only. `start.mjs` no longer has duplicate DDL. Step 1 = Drizzle migrate, Step 2 = post-migration schema verification (read-only information_schema checks, fails startup with precise error if anything missing), Step 3 = Next.js start.
+
+## 0007 migration
+Was rewritten: no longer contains a hardcoded bcrypt hash. Only does lockout recovery (clear failed_login_count, locked_until, delete login_attempts). Password recovery uses `scripts/superadmin-recovery.mjs` which reads from SUPERADMIN_RECOVERY_PASSWORD Replit Secret.
+
+## safeStorage
+Uses async API: `safeStorage.isAsyncEncryptionAvailable()` → `encryptStringAsync()` / `decryptStringAsync({ value, shouldReEncrypt })`. Sync fallback only for migration of legacy credentials. Never falls back to plaintext — throws if encryption unavailable. tsconfig.electron.json must include `"DOM"` in lib for `console` to be typed.
 
 ## Desktop auth
 - Reuses `mobileDevices` + `mobileSessions` DB tables (server-side)

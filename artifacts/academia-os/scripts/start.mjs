@@ -1,3 +1,20 @@
+/**
+ * AcademiaOS — Production Startup Script
+ *
+ * Startup sequence:
+ *   1. Validate DATABASE_URL
+ *   2. Run Drizzle migrations (single authoritative migration mechanism)
+ *   3. Post-migration schema verification (read-only; fails loudly if anything
+ *      required by migrations 0008/0009 is absent)
+ *   4. Start Next.js
+ *
+ * Migration authority: Drizzle only.
+ * This script does NOT maintain a second copy of schema DDL. If a required
+ * column or table is missing after Drizzle runs, startup fails with a
+ * precise error naming the missing object and the migration that should have
+ * created it. This makes schema drift visible immediately rather than
+ * silently patching it with a slightly different definition.
+ */
 import { spawn } from 'node:child_process';
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -15,64 +32,7 @@ if (!/^postgres(?:ql)?:\/\//i.test(databaseUrl)) {
 // Resolve the artifact root (artifacts/academia-os/)
 const artifactRoot = new URL('..', import.meta.url).pathname;
 
-// ── Step 1: Apply any outstanding schema changes directly via SQL ────────────
-// These statements are all idempotent (IF NOT EXISTS / WHERE NOT EXISTS) so it
-// is safe to run them on every startup.  This approach is used in addition to
-// the Drizzle migrator because Drizzle may skip a migration it has already
-// recorded as applied in __drizzle_migrations even when the DDL never actually
-// ran (e.g. if a previous deploy crashed mid-migration).
-console.log('[start] Ensuring schema is up to date…');
-try {
-  const { Pool } = await import('pg');
-  const pool = new Pool({ connectionString: databaseUrl });
-
-  await pool.query(`
-    ALTER TABLE packages
-      ADD COLUMN IF NOT EXISTS price_per_learner numeric(12, 2);
-  `);
-
-  await pool.query(`
-    ALTER TABLE school_subscriptions
-      ADD COLUMN IF NOT EXISTS learner_count integer;
-  `);
-
-  // Seed per-learner rates for the three standard tiers (safe to re-run)
-  await pool.query(`
-    UPDATE packages SET price_per_learner = 15.00 WHERE lower(name) = 'starter'  AND price_per_learner IS NULL;
-    UPDATE packages SET price_per_learner = 25.00 WHERE lower(name) = 'standard' AND price_per_learner IS NULL;
-    UPDATE packages SET price_per_learner = 35.00 WHERE lower(name) = 'premium'  AND price_per_learner IS NULL;
-  `);
-
-  // Migration 0009: Desktop outbox idempotency keys (DB-persisted, restart-safe)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "desktop_outbox_idempotency_keys" (
-      "id"               uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-      "idempotency_key"  text NOT NULL,
-      "school_id"        text REFERENCES "schools"("id") ON DELETE CASCADE,
-      "user_id"          text REFERENCES "users"("id") ON DELETE SET NULL,
-      "operation_type"   text NOT NULL,
-      "result"           text NOT NULL,
-      "error_message"    text,
-      "processed_at"     timestamp with time zone NOT NULL DEFAULT now()
-    );
-  `);
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "doik_idempotency_key_idx"
-      ON "desktop_outbox_idempotency_keys"("idempotency_key");
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS "doik_school_processed_idx"
-      ON "desktop_outbox_idempotency_keys"("school_id", "processed_at");
-  `);
-
-  await pool.end();
-  console.log('[start] Schema bootstrap complete.');
-} catch (err) {
-  console.error('[start] Schema bootstrap failed — aborting startup:', err.message);
-  process.exit(1);
-}
-
-// ── Step 2: Run Drizzle migrations (picks up any remaining pending migrations) ─
+// ── Step 1: Run Drizzle migrations (authoritative) ────────────────────────────
 console.log('[start] Running Drizzle migrations…');
 try {
   const { Pool }    = await import('pg');
@@ -85,8 +45,75 @@ try {
   await pool.end();
   console.log('[start] Drizzle migrations complete.');
 } catch (err) {
-  // Non-fatal: log but continue — schema was already bootstrapped above
-  console.warn('[start] Drizzle migrator warning (non-fatal):', err.message);
+  console.error('[start] Migration failed — aborting startup:', err.message);
+  process.exit(1);
+}
+
+// ── Step 2: Post-migration schema verification ────────────────────────────────
+// Read-only checks against information_schema.  If anything required by a
+// migration is absent, startup fails immediately with a precise error message.
+// This is a verification step only — it does NOT create or alter anything.
+console.log('[start] Verifying post-migration schema…');
+try {
+  const { Pool } = await import('pg');
+  const pool = new Pool({ connectionString: databaseUrl });
+
+  const required = [
+    {
+      migration: '0008_per_learner_pricing',
+      label:     'packages.price_per_learner column',
+      query:     `SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public'
+                    AND table_name   = 'packages'
+                    AND column_name  = 'price_per_learner'`,
+    },
+    {
+      migration: '0008_per_learner_pricing',
+      label:     'school_subscriptions.learner_count column',
+      query:     `SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public'
+                    AND table_name   = 'school_subscriptions'
+                    AND column_name  = 'learner_count'`,
+    },
+    {
+      migration: '0009_desktop_outbox_idempotency',
+      label:     'desktop_outbox_idempotency_keys table',
+      query:     `SELECT 1 FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name   = 'desktop_outbox_idempotency_keys'`,
+    },
+    {
+      migration: '0009_desktop_outbox_idempotency',
+      label:     'doik_idempotency_key_idx unique index',
+      query:     `SELECT 1 FROM pg_indexes
+                  WHERE schemaname = 'public'
+                    AND indexname  = 'doik_idempotency_key_idx'`,
+    },
+  ];
+
+  const failures = [];
+  for (const check of required) {
+    const { rows } = await pool.query(check.query);
+    if (rows.length === 0) {
+      failures.push(`  MISSING: ${check.label} (expected by migration ${check.migration})`);
+    }
+  }
+
+  await pool.end();
+
+  if (failures.length > 0) {
+    console.error(
+      '[start] Schema verification FAILED — required objects are missing:\n' +
+      failures.join('\n') + '\n' +
+      '[start] Run the Drizzle migration manually or check the migration journal.'
+    );
+    process.exit(1);
+  }
+
+  console.log('[start] Schema verification passed.');
+} catch (err) {
+  console.error('[start] Schema verification failed — aborting startup:', err.message);
+  process.exit(1);
 }
 
 // ── Step 3: Start Next.js ────────────────────────────────────────────────────

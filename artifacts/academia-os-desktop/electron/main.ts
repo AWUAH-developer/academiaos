@@ -4,7 +4,7 @@
  * Startup order (security-critical — do not reorder):
  *   1. app.whenReady()
  *   2. ensureDbKey()        — generate/retrieve AES key from OS DPAPI vault
- *   3. initializeDb(key)    — open SQLCipher DB, apply key, create schema
+ *   3. initializeDb(key)    — open sqleet-encrypted DB, apply key, create schema
  *   4. setupIpcHandlers()   — register IPC channels (DB is ready at this point)
  *   5. createWindow()       — create BrowserWindow with contextIsolation + sandbox
  *
@@ -13,7 +13,7 @@
  *   - nodeIntegration:  false  (renderer has no Node.js APIs)
  *   - sandbox:          true   (renderer process is sandboxed)
  *   - safeStorage DPAPI vault  (no plaintext tokens on disk)
- *   - SQLCipher at-rest encryption
+ *   - sqleet at-rest encryption (via better-sqlite3-multiple-ciphers)
  *   - CSP blocks inline scripts in production
  *   - Navigation allowlist rejects unexpected origins
  *   - New windows always open in external browser, never in-app
