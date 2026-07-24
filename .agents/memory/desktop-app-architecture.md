@@ -20,7 +20,13 @@ Single authority: Drizzle only. `start.mjs` no longer has duplicate DDL. Step 1 
 Was rewritten: no longer contains a hardcoded bcrypt hash. Only does lockout recovery (clear failed_login_count, locked_until, delete login_attempts). Password recovery uses `scripts/superadmin-recovery.mjs` which reads from SUPERADMIN_RECOVERY_PASSWORD Replit Secret.
 
 ## safeStorage
-Uses async API: `safeStorage.isAsyncEncryptionAvailable()` → `encryptStringAsync()` / `decryptStringAsync({ value, shouldReEncrypt })`. Sync fallback only for migration of legacy credentials. Never falls back to plaintext — throws if encryption unavailable. tsconfig.electron.json must include `"DOM"` in lib for `console` to be typed.
+Electron 43 async API: `isAsyncEncryptionAvailable()` returns `Promise<boolean>` — MUST be awaited. `decryptStringAsync()` returns `{ result, shouldReEncrypt }` — property is `result` not `value`. Sync `decryptString` fallback only for legacy migration; immediately re-encrypts with async. Never falls back to plaintext. tsconfig.electron.json must include `"DOM"` in lib for `console` to be typed.
+
+## uuid in drizzle-orm 0.45.2
+`uuid` IS exported from CJS pg-core index AND from the TypeScript declarations, and works in both production build and Turbopack dev server. The earlier `ReferenceError` was a transient HMR artifact. `customType` workaround no longer needed. `uuid('id').defaultRandom().primaryKey()` works correctly.
+
+## vitest in desktop package
+Vitest declared in devDependencies and package.json test script added. Cannot be installed in Replit Linux environment due to security policy blocking `@electron/rebuild` during lockfile resolution. Tests run on Windows CI runner only.
 
 ## Desktop auth
 - Reuses `mobileDevices` + `mobileSessions` DB tables (server-side)

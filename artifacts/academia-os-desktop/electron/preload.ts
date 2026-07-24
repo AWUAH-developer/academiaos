@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /** App metadata */
-  getVersion: (): string => process.versions.electron,
+  getVersion: (): string => process.versions.electron ?? 'unknown',
   getPlatform: (): string => process.platform,
 });
 

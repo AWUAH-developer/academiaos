@@ -8,13 +8,18 @@
  *   macOS   : Keychain
  *   Linux   : libsecret / GNOME Keyring / KWallet
  *
- * API preference:
- *   safeStorage.isAsyncEncryptionAvailable() → encryptStringAsync() / decryptStringAsync()
- *   decryptStringAsync returns { value, shouldReEncrypt }. When shouldReEncrypt
- *   is true the value is atomically re-encrypted and the vault is updated.
- *   Sync fallback exists ONLY to migrate credentials written by an earlier
- *   version of this file that used encryptString().  Once re-encrypted via
- *   the async path, the sync path is never hit again for that credential.
+ * API preference (Electron 43):
+ *   safeStorage.isAsyncEncryptionAvailable() → Promise<boolean>  (must be awaited)
+ *   safeStorage.encryptStringAsync(value)    → Promise<Buffer>
+ *   safeStorage.decryptStringAsync(buf)      → Promise<{ result: string, shouldReEncrypt: boolean }>
+ *
+ *   When shouldReEncrypt is true the credential is atomically re-encrypted
+ *   and the vault is updated so future reads use the refreshed key material.
+ *
+ *   A sync fallback (safeStorage.decryptString) exists ONLY to migrate
+ *   credentials written by earlier versions of this module that called
+ *   encryptString() synchronously.  Once successfully re-encrypted via the
+ *   async path, the sync path is never hit again for that credential.
  *
  * Security properties:
  * - Tokens are NEVER written to the local SQLite database.
@@ -22,8 +27,8 @@
  * - The vault file is unreadable by other OS users (DPAPI is user-scoped).
  * - The DB encryption key is generated once per device; it is never derived
  *   from username, password, school ID or device ID.
- * - If secure storage is unavailable the app refuses to store credentials
- *   rather than silently falling back to plaintext.
+ * - If async secure storage is unavailable, the app refuses to store
+ *   credentials rather than silently falling back to plaintext.
  */
 import { safeStorage, app } from 'electron';
 import fs from 'fs';
@@ -64,11 +69,14 @@ export const ACCOUNT_DEVICE_ID     = 'device_id';
 
 // ── Encryption guard ──────────────────────────────────────────────────────────
 /**
- * Throws with a user-facing message if async safeStorage is not available.
- * The app must NOT fall back to plaintext storage.
+ * Throws with a user-facing message if async safeStorage is unavailable.
+ * The app must NOT fall back to plaintext storage for new writes.
+ *
+ * isAsyncEncryptionAvailable() returns Promise<boolean> in Electron 43 —
+ * it MUST be awaited.
  */
-function requireAsyncEncryption(): void {
-  if (!safeStorage.isAsyncEncryptionAvailable()) {
+async function requireAsyncEncryption(): Promise<void> {
+  if (!await safeStorage.isAsyncEncryptionAvailable()) {
     throw new Error(
       'Secure storage is not available on this system. ' +
       'AcademiaOS cannot store credentials safely. ' +
@@ -84,7 +92,7 @@ function requireAsyncEncryption(): void {
  * Throws if async encryption is unavailable — never falls back to plaintext.
  */
 export async function saveCredential(account: string, value: string): Promise<void> {
-  requireAsyncEncryption();
+  await requireAsyncEncryption();
   const encrypted = await safeStorage.encryptStringAsync(value);
   const vault = readVault();
   vault[account] = encrypted.toString('base64');
@@ -96,13 +104,12 @@ export async function saveCredential(account: string, value: string): Promise<vo
  *
  * Decryption strategy:
  *  1. Try the async API (Electron 43+).
- *     - If shouldReEncrypt is true, atomically re-encrypt with the async API.
+ *     - decryptStringAsync returns { result, shouldReEncrypt }.
+ *     - If shouldReEncrypt is true, atomically re-encrypt via saveCredential().
  *  2. If async decryption throws (e.g. a value was encrypted with the legacy
  *     sync API), fall back to safeStorage.decryptString() and immediately
- *     re-encrypt the result with the async API so future reads use the
- *     preferred path.
- *  3. If both paths fail, return null (credential unusable — caller must
- *     prompt for re-authentication).
+ *     re-encrypt with the async API so future reads use the preferred path.
+ *  3. If both paths fail, return null — caller must prompt re-authentication.
  *
  * Returns null if the account is not in the vault.
  */
@@ -114,16 +121,17 @@ export async function getCredential(account: string): Promise<string | null> {
   const buf = Buffer.from(encoded, 'base64');
 
   // ── Path 1: async API (preferred, Electron 43+) ───────────────────────────
-  if (safeStorage.isAsyncEncryptionAvailable()) {
+  if (await safeStorage.isAsyncEncryptionAvailable()) {
     try {
-      const { value, shouldReEncrypt } = await safeStorage.decryptStringAsync(buf);
+      const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(buf);
 
       if (shouldReEncrypt) {
         // OS indicates key rotation is needed — re-encrypt atomically.
         try {
-          await saveCredential(account, value);
+          await saveCredential(account, result);
         } catch (reEncryptErr) {
-          // Log but don't fail the read — value is still usable this session.
+          // Log the failure but don't block the read — value is still usable
+          // for this session; re-encryption will be retried on next access.
           console.warn(
             `[secure-storage] Re-encryption of '${account}' failed:`,
             (reEncryptErr as Error).message
@@ -131,9 +139,9 @@ export async function getCredential(account: string): Promise<string | null> {
         }
       }
 
-      return value;
+      return result;
     } catch {
-      // Async decrypt failed — may be a legacy sync-encrypted value.
+      // Async decrypt failed — may be a legacy sync-encrypted credential.
       // Fall through to sync compatibility path.
     }
   }
@@ -141,15 +149,16 @@ export async function getCredential(account: string): Promise<string | null> {
   // ── Path 2: sync compatibility (legacy credentials only) ─────────────────
   // This path is hit ONLY if the credential was written by an older version
   // of this file that called safeStorage.encryptString() (sync).
-  // Once re-encrypted via Path 1, this branch is never hit again.
+  // On successful decryption we immediately re-encrypt with the async API,
+  // so this branch is never hit again for that credential.
   if (safeStorage.isEncryptionAvailable()) {
     try {
-      const value = safeStorage.decryptString(buf);
+      const legacyValue = safeStorage.decryptString(buf);
 
-      // Immediately re-encrypt with the async API if available.
-      if (safeStorage.isAsyncEncryptionAvailable()) {
+      // Immediately upgrade to async encryption.
+      if (await safeStorage.isAsyncEncryptionAvailable()) {
         try {
-          await saveCredential(account, value);
+          await saveCredential(account, legacyValue);
         } catch (reEncryptErr) {
           console.warn(
             `[secure-storage] Migration re-encryption of '${account}' failed:`,
@@ -158,7 +167,7 @@ export async function getCredential(account: string): Promise<string | null> {
         }
       }
 
-      return value;
+      return legacyValue;
     } catch {
       // Both paths exhausted — credential is unreadable.
       console.error(

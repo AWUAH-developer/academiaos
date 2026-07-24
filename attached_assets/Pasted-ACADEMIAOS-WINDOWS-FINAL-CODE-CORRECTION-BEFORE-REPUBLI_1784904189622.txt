@@ -1,0 +1,172 @@
+ACADEMIAOS WINDOWS - FINAL CODE CORRECTION BEFORE REPUBLISH
+
+Create a checkpoint.
+
+DO NOT REPUBLISH YET.
+DO NOT START MACOS OR LINUX.
+DO NOT TRIGGER GITHUB ACTIONS YET.
+
+Three final corrections are required.
+
+==================================================
+1. FIX ELECTRON 43 SAFESTORAGE ASYNC API USAGE
+==================================================
+
+The current secure-storage.ts implementation shown in the report contains:
+
+if (safeStorage.isAsyncEncryptionAvailable()) {
+  const { value, shouldReEncrypt } =
+    await safeStorage.decryptStringAsync(buf);
+}
+
+This is incorrect according to the Electron 43 API.
+
+safeStorage.isAsyncEncryptionAvailable() returns Promise<boolean>.
+
+It MUST be awaited:
+
+if (await safeStorage.isAsyncEncryptionAvailable()) {
+
+Also decryptStringAsync() returns:
+
+{
+  result: string,
+  shouldReEncrypt: boolean
+}
+
+It does NOT return a property named "value".
+
+Correct the implementation to use "result".
+
+Example structure:
+
+if (await safeStorage.isAsyncEncryptionAvailable()) {
+  const { result, shouldReEncrypt } =
+    await safeStorage.decryptStringAsync(buf);
+
+  if (shouldReEncrypt) {
+    await saveCredential(name, result);
+  }
+
+  return result;
+}
+
+Preserve the existing secure migration behavior for credentials previously
+encrypted through the synchronous API.
+
+Do not allow any plaintext fallback.
+
+Add tests/mocks that prove:
+
+- isAsyncEncryptionAvailable is awaited
+- result is read from decryptStringAsync
+- shouldReEncrypt rewrites the credential
+- unavailable secure storage fails safely
+- legacy sync-encrypted credentials migrate to async encryption
+
+==================================================
+2. USE DRIZZLE NATIVE UUID TYPE
+==================================================
+
+Do not use a custom pgUuid customType for this table.
+
+Drizzle PostgreSQL already provides a native uuid column type.
+
+Change desktop_outbox_idempotency_keys.id in schema.ts to the equivalent of:
+
+uuid("id").defaultRandom().primaryKey()
+
+Import uuid from drizzle-orm/pg-core.
+
+This should correspond exactly to:
+
+uuid PRIMARY KEY DEFAULT gen_random_uuid()
+
+in migration 0009.
+
+Remove the custom pgUuid implementation if it is no longer used anywhere.
+
+Confirm:
+
+schema.ts:
+UUID + database default
+
+0009 migration:
+UUID + gen_random_uuid()
+
+idempotency_key:
+TEXT in both
+
+Run the web build/schema checks again.
+
+==================================================
+3. WINDOWS CI MUST USE NODE 24
+==================================================
+
+Review:
+
+.github/workflows/desktop-windows.yml
+
+The previous report showed Node.js 20.
+
+Electron ecosystem tooling now requires Node 22+.
+
+For the AcademiaOS Electron 43 Windows build, use:
+
+node-version: 24
+
+Use currently supported GitHub Actions versions.
+
+Keep:
+
+windows-latest
+Electron 43.2.0
+Windows x64
+pnpm locked install
+electron-rebuild for better-sqlite3-multiple-ciphers
+electron-builder NSIS
+
+Do not change the packaged Electron version.
+
+==================================================
+4. ACTUAL DESKTOP TYPECHECK
+==================================================
+
+The previous report says desktop Electron/renderer TypeScript checking could
+not complete because the desktop dependencies/types are not installed in the
+Replit Linux environment.
+
+Do not call the desktop source fully typechecked on that basis.
+
+Where practical, install the desktop package's JavaScript/type dependencies
+without attempting the Windows native release and run:
+
+renderer TypeScript check
+Electron main/preload TypeScript check
+
+At minimum ensure the new safeStorage implementation typechecks against the
+actual Electron 43.2.0 TypeScript declarations.
+
+The Windows CI must repeat these checks before packaging.
+
+==================================================
+5. RETURN VERIFICATION
+
+Return:
+
+safeStorage corrected code
+confirmation isAsyncEncryptionAvailable is awaited
+decryptStringAsync property names
+UUID schema definition
+whether custom pgUuid was removed
+Windows CI Node version
+Electron version
+desktop typecheck result
+Next.js production build result
+
+Then STOP.
+
+Do not Republish.
+Do not run recovery.
+Do not trigger GitHub Actions.
+Do not start macOS/Linux.
