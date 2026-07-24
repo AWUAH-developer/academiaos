@@ -47,7 +47,7 @@ try {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS "desktop_outbox_idempotency_keys" (
       "id"               uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-      "idempotency_key"  uuid NOT NULL,
+      "idempotency_key"  text NOT NULL,
       "school_id"        text REFERENCES "schools"("id") ON DELETE CASCADE,
       "user_id"          text REFERENCES "users"("id") ON DELETE SET NULL,
       "operation_type"   text NOT NULL,

@@ -108,7 +108,7 @@ export async function ensureDbKey(): Promise<string> {
   if (existing) return existing;
 
   const { randomBytes } = await import('crypto');
-  // 32 bytes → 64 hex chars → used as SQLCipher passphrase
+  // 32 bytes → 64 hex chars → used as sqleet encryption passphrase
   const key = randomBytes(32).toString('hex');
   await saveCredential(ACCOUNT_DB_KEY, key);
   return key;

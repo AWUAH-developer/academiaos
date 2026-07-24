@@ -1,8 +1,15 @@
 /**
  * AcademiaOS Desktop — Local encrypted SQLite database
  *
- * Library : better-sqlite3-multiple-ciphers (SQLCipher-compatible)
- * API     : synchronous (safe in Electron main process)
+ * Library  : better-sqlite3-multiple-ciphers 12.11.1
+ * API      : synchronous (safe in Electron main process)
+ *
+ * DATABASE CIPHER: SQLEET
+ *   better-sqlite3-multiple-ciphers supports multiple ciphers.  AcademiaOS
+ *   uses the library default cipher, which is sqleet (an independent
+ *   AES-256-CBC variant).  No cipher-selection PRAGMA is issued; the library
+ *   activates sqleet when only PRAGMA key is applied.
+ *   Do NOT describe this database as SQLCipher-encrypted — it is sqleet.
  *
  * Encryption:
  *   - Key is a 256-bit random hex string generated once per device.
@@ -18,8 +25,12 @@
  * Migration path (dev → production):
  *   If a plaintext SQLite database exists on disk (from an earlier dev build
  *   that lacked encryption), openOrMigrate() detects it and re-encrypts it
- *   in-place using sqlcipher_export().  The plaintext file is renamed to
- *   .plaintext-backup (not deleted) as a safety net.
+ *   in-place using sqlcipher_export().  sqlcipher_export() is a utility
+ *   function included in better-sqlite3-multiple-ciphers that exports with
+ *   the currently active cipher (sqleet in this case) — it is a function
+ *   name, not an indicator that SQLCipher is being used.
+ *   The plaintext file is renamed to .plaintext-backup (not deleted) as a
+ *   safety net.
  *
  * Proof of encryption:
  *   After AcademiaOS signs in and caches data:

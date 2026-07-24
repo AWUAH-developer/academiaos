@@ -1,0 +1,261 @@
+1. Electron 43.2.0 is correct ✅
+
+This part is good. Electron 43.2.0 is the current stable release and includes Node 24.18.0. Electron 43 remains supported until January 5, 2027.
+
+So keep:
+
+electron: 43.2.0
+2. The SQLite encryption report has an important inconsistency ⚠️
+
+Replit says:
+
+better-sqlite3-multiple-ciphers ^9.6.0
+
+“Uses the SQLCipher encryption extension.”
+
+PRAGMA key = ...
+
+Those statements do not automatically mean the database is using SQLCipher.
+
+The current stable better-sqlite3-multiple-ciphers is 12.11.1, not 9.6.0. More importantly, according to the package documentation, simply applying PRAGMA key uses its default sqleet cipher. To explicitly use SQLCipher, the application needs to select the SQLCipher cipher before applying the key.
+
+That does not mean the current encryption is useless. sqleet is still encrypted storage. It means Replit must tell us accurately which cipher it implemented.
+
+I would also update from ^9.6.0 to the current supported 12.11.1, subject to the Windows Electron rebuild succeeding.
+
+3. safeStorage is the right move ✅
+
+Replacing keytar with Electron safeStorage was correct.
+
+On Windows, Electron protects the encryption material through DPAPI. Electron now recommends its asynchronous safeStorage API because it supports key rotation and handles temporary storage unavailability better.
+
+So this part of Replit's work is fundamentally sound.
+
+4. I do not want production migrations handled two different ways ⚠️
+
+This sentence concerns me:
+
+“start.mjs applies them idempotently via direct IF NOT EXISTS SQL on every boot, then Drizzle's migrator runs as a secondary pass.”
+
+That creates two migration authorities:
+
+start.mjs direct SQL
+        +
+Drizzle migrations
+
+For a real school database, I would rather have one authoritative migration mechanism, or very carefully documented bootstrap SQL that cannot conflict with Drizzle's migration journal.
+
+Before deployment, Replit needs to show exactly what 0007, 0008, 0009, start.mjs, and the Drizzle migration journal do.
+
+There is an additional security concern: 0007_reset_superadmin.sql. We need to make sure it is not resetting a Super Admin password every time production starts.
+
+Also, the Super Admin password was included in the report you pasted here. Treat that password as exposed and rotate it before the final public release. Do not put the replacement password into Replit prompts, source code, GitHub Actions, or chat messages.
+
+Where Windows actually stands
+Component	Status
+Electron application source	✅ Built
+Electron 43.2.0	✅ Correct
+Secure preload/IPC architecture	✅
+safeStorage	✅
+Encrypted SQLite implementation	⚠️ Needs cipher/version verification
+/api/desktop/v1 source	✅ Reported implemented
+Production /api/desktop/v1	❌ Not yet deployed/tested
+Migration 0009	❌ Not in production
+Windows .exe	❌ Not built
+SHA-256	❌ Not available
+Clean Windows test	❌ Not performed
+Code signing	❌ Unsigned
+Website Windows download	❌ Correctly disabled
+macOS/Linux	⏸️ Do not start yet
+
+So Replit has done real development, not just a mockup. But it has not yet produced the Windows application that a school can actually download and install.
+
+Give Replit this next
+
+Paste this into the same main project:
+
+ACADEMIAOS WINDOWS DESKTOP - PRE-RELEASE VERIFICATION
+
+Do not start macOS or Linux.
+Do not publish the Windows download yet.
+Do not make destructive database changes.
+
+Create a checkpoint first.
+
+Before production redeployment or running the Windows installer workflow,
+complete the following audit.
+
+1. SQLITE ENCRYPTION
+
+The report currently states:
+
+better-sqlite3-multiple-ciphers ^9.6.0
+and claims SQLCipher while describing only PRAGMA key.
+
+Verify the exact implementation.
+
+The current stable better-sqlite3-multiple-ciphers release is 12.11.1.
+
+Unless there is a demonstrated compatibility reason not to, update the
+desktop project to:
+
+better-sqlite3-multiple-ciphers 12.11.1
+
+Rebuild it against Electron 43.2.0.
+
+Then state explicitly which cipher AcademiaOS uses.
+
+If using the package default sqleet encryption, state:
+
+DATABASE CIPHER: SQLEET
+
+Do not call it SQLCipher.
+
+If intentionally using SQLCipher, explicitly configure the required cipher
+PRAGMA before the key according to the library requirements and state:
+
+DATABASE CIPHER: SQLCIPHER
+
+Show the relevant initialization code.
+
+Do not expose the actual encryption key.
+
+Run an automated encryption verification proving an ordinary unencrypted
+SQLite connection cannot read the resulting production database.
+
+2. SAFESTORAGE
+
+Confirm whether the Electron 43 asynchronous safeStorage API is being used.
+
+Prefer the current asynchronous safeStorage encryption/decryption APIs.
+
+Confirm:
+- database key is random
+- database key is never hardcoded
+- database key is never derived from user credentials
+- tokens never enter renderer localStorage/sessionStorage
+- sensitive values are never written in plaintext
+
+3. MIGRATION AUDIT
+
+STOP before production deployment.
+
+Show the exact purpose and execution path of:
+
+drizzle/0007_reset_superadmin.sql
+drizzle/0008_per_learner_pricing.sql
+drizzle/0009_desktop_outbox_idempotency_keys.sql
+
+Also show how:
+
+scripts/start.mjs
+
+interacts with Drizzle's migration journal.
+
+Do not maintain two independent migration authorities that can drift.
+
+Prefer one authoritative migration system.
+
+If bootstrap SQL is still required, explain exactly why and prove it cannot
+conflict with or bypass the Drizzle migration history.
+
+Confirm that migration 0007 cannot repeatedly reset a Super Admin password
+during application startup.
+
+4. SUPER ADMIN SECURITY
+
+The previously used Super Admin credential must now be treated as temporary.
+
+Do not hardcode a replacement password in source code, migrations,
+documentation, GitHub Actions or logs.
+
+Use the existing secure provisioning/password-change process.
+
+After Super Admin production login is confirmed, remove:
+
+src/app/internal/unlock/route.ts
+
+Then verify no emergency authentication bypass remains in the published
+application.
+
+5. PRODUCTION REDEPLOYMENT
+
+After the migration audit passes:
+
+- checkpoint/database backup
+- apply required additive migrations
+- deploy the production Next.js application
+
+Then verify the REAL production URLs:
+
+GET /api/mobile/v1/status
+GET /api/desktop/v1/status
+
+Both must report healthy against the production database.
+
+Test production web login.
+
+Test production Super Admin login.
+
+Test one real school account.
+
+Test rejection of an authenticated account without active school membership.
+
+Test suspended school behavior.
+
+Test package and role entitlement enforcement.
+
+6. WINDOWS BUILD
+
+Only after production API verification passes, trigger:
+
+.github/workflows/desktop-windows.yml
+
+on GitHub Actions windows-latest.
+
+The Windows workflow must successfully:
+
+- install locked dependencies
+- rebuild better-sqlite3-multiple-ciphers for Electron 43.2.0 x64
+- typecheck
+- build renderer
+- build main/preload
+- run automated tests
+- create NSIS installer
+- calculate SHA-256
+
+Expected installer:
+
+AcademiaOS-Desktop-Windows-1.0.0-Setup.exe
+
+7. DO NOT ESTIMATE RESULTS
+
+Return the ACTUAL:
+
+installer filename
+installer byte size
+SHA-256
+GitHub Actions workflow result
+Electron version
+better-sqlite3-multiple-ciphers version
+actual database cipher
+production desktop API status
+production mobile API status
+migration status
+signing status
+installer artifact/download location
+
+Do not invent an installer size or hash.
+
+If the GitHub Actions build fails, return the exact build error and fix it.
+
+8. STOP
+
+Do not start macOS.
+Do not start Linux.
+Do not enable DESKTOP_WINDOWS_URL yet.
+
+Stop after the genuine Windows .exe exists and provide the verification
+report for review.
+
+This is the point where I want to be strict. Do not let Replit jump straight from “code compiles” to “Windows is finished.” We need to see the real GitHub Actions Windows build, the actual .exe, its hash, and a healthy production desktop API first.
