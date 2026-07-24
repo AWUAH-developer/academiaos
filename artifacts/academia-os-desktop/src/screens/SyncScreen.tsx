@@ -14,10 +14,12 @@ export default function SyncScreen({ syncStore }: Props) {
     setInitResult(null);
     const res = await syncApi.initial();
     if (res.ok) {
-      setInitResult(`✓ Downloaded ${(res as { ok: true; data: { data: { counts: Record<string, number> } } }).data?.data?.counts?.learners ?? 0} learners and reference data.`);
+      // res.data is InitialSyncData — { syncCursor, school, classes, ..., counts }
+      // counts comes from the server's counts object and is Record<string, number>
+      setInitResult(`✓ Downloaded ${res.data.counts.learners ?? 0} learners and reference data.`);
       await refreshStatus();
     } else {
-      setInitResult(`✗ Sync failed. ${(res as { ok: false; error?: { message?: string } }).error?.message ?? ''}`);
+      setInitResult(`✗ Sync failed. ${res.error?.message ?? ''}`);
     }
     setInitialising(false);
   }

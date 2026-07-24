@@ -1,12 +1,5 @@
 import { randomUUID } from 'crypto';
 import { boolean, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
-// Note: drizzle-orm 0.45.2's ESM pg-core barrel does not re-export `uuid`.
-// It IS present in the CJS bundle and TypeScript declarations, so production
-// builds (webpack/next compiler) and typechecks resolve correctly.
-// The Turbopack dev server uses the ESM bundle and will show a HMR warning
-// for this specific import — this is a packaging gap in drizzle-orm 0.45.2,
-// not a code error. The fix is upgrading drizzle-orm when a compatible
-// version is available.
 
 const id = () => text('id').primaryKey().$defaultFn(() => randomUUID());
 const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -430,10 +423,14 @@ export const auditLogs = pgTable('audit_logs', {
  * 30 days, so no client will replay an operation older than that.
  */
 export const desktopOutboxIdempotencyKeys = pgTable('desktop_outbox_idempotency_keys', {
-  // uuid("id").defaultRandom().primaryKey() — matches 0009 migration SQL exactly:
-  // uuid PRIMARY KEY DEFAULT gen_random_uuid()
+  // uuid PRIMARY KEY DEFAULT gen_random_uuid() — matches 0009 migration SQL exactly
   id:             uuid('id').defaultRandom().primaryKey(),
-  idempotencyKey: text('idempotency_key').notNull().unique(),
+  // Uniqueness is enforced by the named index doik_idempotency_key_idx declared
+  // in the table options below — not by a column-level .unique() constraint.
+  // Using .unique() here would produce a second, unnamed PostgreSQL unique
+  // constraint alongside the named index from migration 0009, creating two
+  // separate uniqueness constraints on the same column.
+  idempotencyKey: text('idempotency_key').notNull(),
   schoolId:       text('school_id').references(() => schools.id, { onDelete: 'cascade' }),
   userId:         text('user_id').references(() => users.id, { onDelete: 'set null' }),
   operationType:  text('operation_type').notNull(),
@@ -441,5 +438,8 @@ export const desktopOutboxIdempotencyKeys = pgTable('desktop_outbox_idempotency_
   errorMessage:   text('error_message'),
   processedAt:    timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
+  // Named unique index — mirrors migration 0009:
+  // CREATE UNIQUE INDEX doik_idempotency_key_idx ON desktop_outbox_idempotency_keys(idempotency_key)
+  uniqueIndex('doik_idempotency_key_idx').on(t.idempotencyKey),
   index('doik_school_processed_idx').on(t.schoolId, t.processedAt),
 ]);

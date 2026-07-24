@@ -1,5 +1,16 @@
 import React from 'react';
 
+/**
+ * Augment React.CSSProperties to include the Electron-specific
+ * -webkit-app-region CSS property used for native window dragging.
+ * This extension is file-scoped: it only affects this module.
+ */
+declare module 'react' {
+  interface CSSProperties {
+    WebkitAppRegion?: 'drag' | 'no-drag';
+  }
+}
+
 interface Props {
   schoolName?: string;
   userName?: string;
@@ -12,7 +23,7 @@ export default function TitleBar({ schoolName, userName, onLogout }: Props) {
       position: 'fixed', top: 0, left: 0, right: 0, height: 'var(--titlebar-h)',
       background: 'var(--chalk-dark)', color: '#fff', display: 'flex',
       alignItems: 'center', justifyContent: 'space-between', zIndex: 100,
-      WebkitAppRegion: 'drag' as never, userSelect: 'none',
+      WebkitAppRegion: 'drag', userSelect: 'none',
       padding: '0 16px 0 80px', /* 80px left margin for macOS traffic lights */
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -26,7 +37,7 @@ export default function TitleBar({ schoolName, userName, onLogout }: Props) {
           </>
         )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, WebkitAppRegion: 'no-drag' as never }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, WebkitAppRegion: 'no-drag' }}>
         {userName && <span style={{ fontSize: 12, opacity: .65 }}>{userName}</span>}
         <button
           onClick={onLogout}

@@ -12,5 +12,6 @@
     "esModuleInterop": true,
     "noEmit": false
   },
-  "include": ["electron"]
+  "include": ["electron"],
+  "exclude": ["electron/**/*.test.ts", "electron/**/*.spec.ts"]
 }

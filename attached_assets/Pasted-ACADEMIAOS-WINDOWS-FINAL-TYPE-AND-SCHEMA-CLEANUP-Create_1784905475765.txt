@@ -1,0 +1,107 @@
+ACADEMIAOS WINDOWS - FINAL TYPE AND SCHEMA CLEANUP
+
+Create a checkpoint.
+
+DO NOT REPUBLISH YET.
+DO NOT RUN SUPERADMIN RECOVERY YET.
+DO NOT TRIGGER GITHUB ACTIONS.
+DO NOT START MACOS OR LINUX.
+
+Two remaining issues must be resolved.
+
+1. FIX ALL DESKTOP TYPESCRIPT ERRORS
+
+The previous report still shows:
+
+TitleBar.tsx:
+WebkitAppRegion CSS typing error
+
+SyncScreen.tsx:
+InitialSyncData type mismatch
+
+Fix both properly.
+
+For TitleBar:
+use a narrow React CSS type extension or a safe React.CSSProperties cast
+for WebkitAppRegion.
+
+Do not use @ts-ignore.
+
+For SyncScreen:
+inspect the actual response contract of:
+
+POST /api/desktop/v1/sync/initial
+
+Compare it to InitialSyncData.
+
+Correct the interface/type and consuming code so the renderer agrees with
+the real server response.
+
+Do NOT silence the mismatch with:
+any
+unknown as
+@ts-ignore
+@ts-expect-error
+
+After fixing, the following must return ZERO TypeScript errors:
+
+renderer tsc --noEmit
+electron/main/preload tsc --noEmit
+
+GitHub Actions must treat TypeScript errors as build failures.
+
+2. ALIGN THE IDEMPOTENCY UNIQUE INDEX
+
+The current schema reportedly uses:
+
+text('idempotency_key').notNull().unique()
+
+while migration 0009 creates the named unique index:
+
+doik_idempotency_key_idx
+
+Represent the existing database structure exactly in schema.ts.
+
+Use Drizzle's named uniqueIndex declaration equivalent to:
+
+uniqueIndex('doik_idempotency_key_idx')
+  .on(table.idempotencyKey)
+
+Remove column-level .unique() if the named unique index replaces it.
+
+Confirm all three agree:
+
+schema.ts
+drizzle/0009_desktop_outbox_idempotency.sql
+post-migration verification
+
+Do not create two uniqueness constraints for the same column.
+
+3. VERIFY
+
+Run:
+
+Next.js production build
+desktop renderer typecheck
+desktop Electron main/preload typecheck
+
+Return:
+
+TitleBar fix
+InitialSyncData fix and actual API shape
+idempotency unique-index schema definition
+renderer typecheck result
+Electron typecheck result
+Next.js build result
+
+Required result:
+
+0 renderer TypeScript errors
+0 Electron TypeScript errors
+successful Next.js production build
+
+Then STOP.
+
+Do not Republish.
+Do not run recovery.
+Do not trigger Windows CI.
