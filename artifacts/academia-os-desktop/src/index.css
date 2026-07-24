@@ -1,0 +1,76 @@
+/* AcademiaOS Desktop — global styles */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --chalk:        #1f5b45;
+  --chalk-light:  #2a7a5d;
+  --chalk-dark:   #164035;
+  --chalk-50:     #f0f9f4;
+  --chalk-100:    #d1f0e0;
+  --gold:         #c9a84c;
+  --bg:           #f5f4f0;
+  --surface:      #ffffff;
+  --border:       #e2e0d8;
+  --text:         #1a1a18;
+  --text-muted:   #6b6b65;
+  --text-faint:   #9e9e96;
+  --danger:       #dc2626;
+  --warning:      #d97706;
+  --success:      #16a34a;
+  --sidebar-w:    220px;
+  --titlebar-h:   38px;
+  --statusbar-h:  28px;
+  --radius:       10px;
+  --radius-sm:    6px;
+  --shadow:       0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:    0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+}
+
+html, body, #root { height: 100%; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Typography */
+h1 { font-size: 22px; font-weight: 800; }
+h2 { font-size: 17px; font-weight: 700; }
+h3 { font-size: 14px; font-weight: 700; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: background .15s, opacity .15s; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary   { background: var(--chalk); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--chalk-light); }
+.btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { background: var(--bg); }
+.btn-danger    { background: var(--danger); color: #fff; }
+
+/* Inputs */
+.input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); outline: none; transition: border-color .15s; }
+.input:focus { border-color: var(--chalk); }
+.label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+
+/* Badge / status pill */
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.pill-green  { background: #dcfce7; color: #15803d; }
+.pill-amber  { background: #fef3c7; color: #92400e; }
+.pill-red    { background: #fee2e2; color: #991b1b; }
+.pill-blue   { background: #dbeafe; color: #1e40af; }
+.pill-slate  { background: #f1f5f9; color: #475569; }
+
+/* Table */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); border-bottom: 2px solid var(--border); }
+.table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: var(--chalk-50); }
+
+/* Misc */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 48px 16px; color: var(--text-faint); text-align: center; }
+.spin { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

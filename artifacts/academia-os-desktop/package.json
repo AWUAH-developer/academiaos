@@ -1,0 +1,82 @@
+{
+  "name": "academiaos-desktop",
+  "version": "1.0.0",
+  "description": "AcademiaOS — School Command Centre",
+  "author": "AcademiaOS <hello@academiaos.cc>",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "dev:renderer": "vite",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "pnpm run build:renderer && pnpm run build:electron",
+    "electron:dev": "pnpm run build:electron && electron .",
+    "dist": "pnpm run build && electron-builder",
+    "dist:win": "pnpm run build && electron-builder --win",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "keytar": "^7.9.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/keytar": "^4.4.2",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4"
+  },
+  "build": {
+    "appId": "com.academiaos.desktop",
+    "productName": "AcademiaOS",
+    "copyright": "Copyright © 2025 AcademiaOS",
+    "directories": {
+      "output": "release",
+      "buildResources": "build-resources"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "build-resources/icons", "to": "icons" }
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build-resources/icons/icon.ico",
+      "artifactName": "AcademiaOS-Desktop-Windows-${version}-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowDirChange": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AcademiaOS",
+      "uninstallDisplayName": "AcademiaOS Desktop",
+      "installerIcon": "build-resources/icons/icon.ico",
+      "uninstallerIcon": "build-resources/icons/icon.ico",
+      "license": "build-resources/LICENSE.txt"
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "build-resources/icons/icon.icns",
+      "category": "public.app-category.education",
+      "artifactName": "AcademiaOS-Desktop-Mac-${version}.dmg"
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "icon": "build-resources/icons/icon.png",
+      "category": "Education",
+      "artifactName": "AcademiaOS-Desktop-Linux-${version}.AppImage"
+    }
+  }
+}

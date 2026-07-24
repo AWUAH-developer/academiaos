@@ -1,0 +1,5 @@
+AcademiaOS Desktop
+Copyright © 2025 AcademiaOS. All rights reserved.
+
+This software is proprietary and confidential. Unauthorised copying,
+redistribution, or modification is strictly prohibited.

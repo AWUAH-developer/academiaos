@@ -1,0 +1,482 @@
+ACADEMIAOS WINDOWS DESKTOP PRODUCTION BUILD - PHASE 6A
+
+You are working inside the CURRENT production AcademiaOS pnpm monorepo.
+
+DO NOT rebuild AcademiaOS from scratch.
+DO NOT replace the current database.
+DO NOT replace the existing username/password authentication.
+DO NOT replace or break /api/mobile/v1.
+DO NOT introduce Replit Auth, Google login, Supabase Auth, Clerk, Firebase Auth or OAuth.
+
+CREATE A CHECKPOINT BEFORE MAKING CHANGES.
+
+CURRENT IMPORTANT SOURCE LOCATIONS
+
+Main application:
+artifacts/academia-os/
+
+Existing database and migrations:
+artifacts/academia-os/src/db/
+artifacts/academia-os/drizzle/
+
+Existing production security/authentication:
+artifacts/academia-os/src/lib/auth.ts
+artifacts/academia-os/src/lib/mobile-auth-shared.ts
+artifacts/academia-os/src/lib/access.ts
+artifacts/academia-os/src/lib/permissions.ts
+artifacts/academia-os/src/lib/tenant.ts
+artifacts/academia-os/src/lib/credentials.ts
+
+Existing mobile API:
+artifacts/academia-os/src/lib/mobile-api.ts
+artifacts/academia-os/docs/academiaos-mobile-api-v1.openapi.yaml
+
+Shared API/database packages:
+lib/api-client-react/
+lib/api-spec/
+lib/api-zod/
+lib/db/
+
+Existing API artifact:
+artifacts/api-server/
+
+FIRST:
+Inspect these files and explain the current authentication, tenant, role,
+school-membership, subscription, entitlement and device-session architecture.
+
+Do not modify production database structures until the inspection is complete.
+
+==========================================================
+1. CREATE THE DESKTOP ARTIFACT
+==========================================================
+
+Create:
+
+artifacts/academia-os-desktop/
+
+Build a REAL desktop application using:
+
+Electron
+React
+TypeScript
+
+It must NOT be:
+- a browser shortcut
+- a PWA packaged as desktop
+- a WebView-only wrapper
+- a remote website displayed inside Electron
+
+Use the existing AcademiaOS branding.
+
+Product name:
+AcademiaOS
+
+Product description:
+School Command Centre
+
+Version:
+1.0.0
+
+First release platform:
+Windows x64
+
+Prepare architecture for later:
+macOS
+Linux
+
+==========================================================
+2. DESKTOP SECURITY
+==========================================================
+
+Electron security must use:
+
+contextIsolation: true
+nodeIntegration: false
+
+Use a narrow preload/contextBridge API.
+
+Do not expose:
+DATABASE_URL
+database passwords
+Replit secrets
+password hashes
+service keys
+email credentials
+WhatsApp credentials
+SMS credentials
+payment credentials
+
+Do not store access or refresh tokens in renderer localStorage.
+
+Use operating-system protected secure storage for desktop session credentials.
+
+Encrypt the local SQLite database at rest.
+
+Use a separately generated local database encryption key protected using
+the operating system secure-storage facilities.
+
+Block arbitrary external navigation and unexpected window creation.
+
+Production API communication must use HTTPS only.
+
+==========================================================
+3. SAME ACADEMIAOS LOGIN
+==========================================================
+
+Desktop must use the EXISTING AcademiaOS username/password account system.
+
+A user must NOT create a separate desktop account.
+
+Desktop login:
+
+AcademiaOS username
+AcademiaOS password
+desktop device identifier
+device name
+platform = windows
+desktop app version
+
+The authenticated account must use the same:
+
+user
+school membership
+school ID
+role
+permissions
+package
+add-ons
+term subscription
+account status
+feature entitlements
+
+used by the existing web and mobile clients.
+
+Except for AcademiaOS Super Admin and specifically isolated temporary demo
+users, do not grant operational desktop access unless the account has an
+ACTIVE membership relationship to an existing AcademiaOS school.
+
+Server validation must include:
+
+user active status
+school membership
+membership status
+school active status
+role
+term subscription status
+package
+add-ons
+feature entitlement
+tenant scope
+device status
+
+Client-side hiding is NOT authorization.
+
+==========================================================
+4. DESKTOP API
+==========================================================
+
+Create a dedicated production API namespace:
+
+/api/desktop/v1
+
+Reuse the EXISTING authentication/security helpers wherever possible rather
+than implementing a second authentication system.
+
+Required endpoints or equivalent:
+
+GET  /api/desktop/v1/status
+
+POST /api/desktop/v1/auth/login
+POST /api/desktop/v1/auth/refresh
+POST /api/desktop/v1/auth/logout
+
+GET  /api/desktop/v1/session
+GET  /api/desktop/v1/entitlements
+
+POST /api/desktop/v1/sync/initial
+POST /api/desktop/v1/sync/incremental
+POST /api/desktop/v1/sync/outbox
+
+GET  /api/desktop/v1/sync/status
+
+Desktop devices must be individually registered and revocable.
+
+Reuse/generalise existing mobile device/session infrastructure when safe
+instead of creating duplicate concepts.
+
+Do not break /api/mobile/v1.
+
+==========================================================
+5. OFFLINE DATABASE
+==========================================================
+
+Implement encrypted local SQLite.
+
+Required local concepts:
+
+device metadata
+local user/session metadata
+sync cursor
+cached records
+pending operations/outbox
+conflicts
+downloaded report/file metadata
+
+Outbox states:
+
+PENDING
+UPLOADING
+SYNCED
+CONFLICT
+REJECTED
+
+Every offline mutation must contain:
+
+operation ID
+idempotency key
+device ID
+authenticated user ID
+school ID
+created timestamp
+record version when applicable
+operation type
+payload
+
+The server remains authoritative.
+
+==========================================================
+6. OFFLINE WORKFLOWS
+==========================================================
+
+Build the foundation for offline operation for package-authorised users:
+
+learner lookup
+staff lookup
+attendance
+daily-fee drafts
+payment drafts
+marks drafts
+remarks
+announcement drafts
+Smart ID scanning
+gate check-in/check-out
+visitor records
+previously downloaded reports
+
+Do not expose features that the school's package/add-ons do not permit.
+
+HIGH-RISK OPERATIONS MUST REMAIN ONLINE ONLY, including:
+
+final financial posting where required by the current finance rules
+withdrawal/refund approval
+package changes
+school deletion
+elevated-account creation
+proprietor final result approval
+final report publication
+
+==========================================================
+7. EXACTLY-ONCE SYNCHRONISATION
+==========================================================
+
+Offline synchronization must be idempotent.
+
+Repeated clicks, retries, app restarts, network reconnection and duplicate
+HTTP requests must NOT duplicate:
+
+attendance
+daily charges
+payments
+marks
+Smart ID events
+gate events
+visitor events
+
+Use server-side idempotency enforcement.
+
+Do not trust schoolId/userId supplied by the desktop client unless they match
+the authenticated server session.
+
+Financial conflicts must never be silently overwritten.
+
+Conflicts must remain visible for review.
+
+==========================================================
+8. WINDOWS USER EXPERIENCE
+==========================================================
+
+Create a polished AcademiaOS desktop experience using the existing brand
+identity.
+
+Required initial screens:
+
+AcademiaOS splash/startup
+Sign In
+Dashboard
+Learners
+Staff
+Attendance
+Daily Fees
+Academics
+Finance
+Smart ID
+Security
+Reports
+Notifications
+Offline & Sync
+Settings
+
+Navigation must be filtered by server-returned entitlements and role.
+
+Display:
+
+online/offline status
+last successful synchronization
+pending operations
+conflict count
+school name
+current user
+role
+package
+term/subscription status
+
+Do not display permanent demo credentials.
+
+==========================================================
+9. WINDOWS INSTALLER
+==========================================================
+
+Configure a production Windows x64 installer.
+
+Target artifact name:
+
+AcademiaOS-Desktop-Windows-1.0.0-Setup.exe
+
+Use a proper Windows installer such as NSIS through the selected Electron
+packaging system.
+
+Create:
+
+Desktop shortcut
+Start Menu entry
+uninstaller
+
+Application ID should be stable, for example:
+
+com.academiaos.desktop
+
+Do not claim the installer is digitally signed unless an actual Windows
+code-signing certificate has been configured.
+
+Do not delay functional testing merely because signing credentials are not
+yet available.
+
+==========================================================
+10. IMPORTANT PNPM PLATFORM ISSUE
+==========================================================
+
+The current root pnpm-workspace.yaml intentionally excludes several Windows
+and macOS native package variants because the Replit web environment is Linux.
+
+DO NOT blindly remove those production web optimisations.
+
+Design the desktop release/build process so Windows, macOS and Linux runners
+can install the native dependencies appropriate for their own operating
+systems without breaking the existing Replit Linux web deployment.
+
+Document the solution.
+
+==========================================================
+11. WEBSITE DOWNLOAD INTEGRATION
+==========================================================
+
+The public AcademiaOS website already reserves:
+
+DESKTOP_WINDOWS_URL
+DESKTOP_MAC_URL
+DESKTOP_LINUX_URL
+
+For this phase, work only on Windows.
+
+Do NOT expose a fake or placeholder Windows download.
+
+After a genuine Windows installer is produced and stored at a stable HTTPS
+release URL, connect:
+
+DESKTOP_WINDOWS_URL
+
+to the real installer.
+
+The website Desktop page should show:
+
+Download AcademiaOS for Windows
+
+and display:
+version
+supported architecture
+release date
+file size where available
+
+Do not enable macOS or Linux download buttons until their real artifacts are
+available.
+
+==========================================================
+12. TESTS
+==========================================================
+
+Before reporting Windows desktop ready, test:
+
+1. Existing web login still works.
+2. Existing mobile login still works.
+3. /api/mobile/v1/status still works.
+4. /api/desktop/v1/status works.
+5. Existing production schools and users remain intact.
+6. Real subscribed school user can log into Desktop.
+7. Same credentials work on web/mobile/desktop.
+8. Account without active school membership is denied.
+9. Suspended school does not receive normal operational access.
+10. Package restrictions apply on Desktop.
+11. Role restrictions apply on Desktop.
+12. Device can be revoked.
+13. Offline attendance saves locally.
+14. Offline operation uploads after reconnect.
+15. Retrying the same operation creates only one server record.
+16. Financial conflict is not silently overwritten.
+17. Logout clears/revokes the desktop session.
+18. No production secret exists inside the desktop bundle.
+19. No localhost/preview URL exists in the production build.
+20. Windows installer launches without requiring a development server.
+
+==========================================================
+13. STOP POINT
+==========================================================
+
+THIS PHASE IS WINDOWS ONLY.
+
+Do not start macOS yet.
+Do not start Linux yet.
+
+At the end provide:
+
+changed files
+new files
+database migration if any
+API routes added
+desktop architecture
+security changes
+test results
+typecheck result
+production web build result
+desktop build result
+Windows installer artifact path
+installer size
+SHA-256 checksum
+signing status
+actual HTTPS installer URL if uploaded
+DESKTOP_WINDOWS_URL value
+remaining external dependencies
+
+Create a checkpoint.
+
+Do not describe the Windows desktop app as production-ready unless the real
+installer exists and the tests above pass.

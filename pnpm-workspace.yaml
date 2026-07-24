@@ -35,7 +35,8 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 packages:
-  - artifacts/*
+  - 'artifacts/*'
+  - '!artifacts/academia-os-desktop'   # Electron app — built independently on Windows
   - lib/*
   - lib/integrations/*
   - scripts

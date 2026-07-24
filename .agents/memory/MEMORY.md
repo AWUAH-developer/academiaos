@@ -1,0 +1,1 @@
+- [Desktop app architecture](desktop-app-architecture.md) — Electron app is excluded from pnpm workspace; must be built independently on Windows; full security model and DB design documented here.
