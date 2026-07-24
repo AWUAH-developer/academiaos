@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   BadgeCheck, BookOpenCheck, BusFront, CircleDollarSign, ClipboardCheck, CreditCard, FileBarChart, Gauge,
-  GraduationCap, Headphones, Inbox, KeyRound, LogOut, Mail, School, ScrollText, Settings2,
+  GraduationCap, Headphones, Inbox, KeyRound, LogOut, Mail, Package, School, ScrollText, Settings2,
   Users, UsersRound, UserCheck
 } from 'lucide-react';
 import { logoutAction } from '@/app/actions/auth';
@@ -20,7 +20,8 @@ const navItems = {
   messages: { href: '/messages', label: 'Messages', icon: Mail }, helpdesk: { href: '/helpdesk', label: 'Help desk', icon: Headphones },
   audit: { href: '/audit', label: 'Audit log', icon: ScrollText },
   'id-cards': { href: '/id-cards', label: 'ID cards', icon: CreditCard },
-  'demo-requests': { href: '/demo-requests', label: 'Demo requests', icon: Inbox }
+  'demo-requests': { href: '/demo-requests', label: 'Demo requests', icon: Inbox },
+  packages: { href: '/packages', label: 'Packages & add-ons', icon: Package }
 } as const;
 
 type ShellUser = { name: string; role: UserRole; photoUrl?: string | null; school: { name: string; logoUrl?: string | null } | null };

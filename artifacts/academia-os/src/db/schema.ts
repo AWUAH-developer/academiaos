@@ -290,6 +290,67 @@ export const supportTickets = pgTable('support_tickets', {
 }, (t) => [index('ticket_status_idx').on(t.schoolId, t.status, t.priority)]);
 
 
+// ── Platform packages & subscriptions ────────────────────────────────────────
+export const packages = pgTable('packages', {
+  id: id(),
+  name: text('name').notNull(),
+  description: text('description'),
+  pricePerTerm: numeric('price_per_term', { precision: 12, scale: 2 }).notNull().default('0'),
+  maxLearners: integer('max_learners'),      // null = unlimited
+  maxStaff: integer('max_staff'),            // null = unlimited
+  features: jsonb('features').notNull().default([]), // string[]
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: created(), updatedAt: updated()
+});
+
+export const packageAddons = pgTable('package_addons', {
+  id: id(),
+  name: text('name').notNull(),
+  description: text('description'),
+  pricePerTerm: numeric('price_per_term', { precision: 12, scale: 2 }).notNull().default('0'),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: created(), updatedAt: updated()
+});
+
+export const schoolSubscriptions = pgTable('school_subscriptions', {
+  id: id(),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  packageId: text('package_id').notNull().references(() => packages.id),
+  academicYear: text('academic_year').notNull(),    // e.g. "2024/2025"
+  term: text('term').notNull(),                     // TERM_1 | TERM_2 | TERM_3
+  startDate: timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: timestamp('end_date', { withTimezone: true }).notNull(),
+  baseAmount: numeric('base_amount', { precision: 12, scale: 2 }).notNull(),
+  addonsAmount: numeric('addons_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  totalAmount: numeric('total_amount', { precision: 12, scale: 2 }).notNull(),
+  paidAmount: numeric('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  status: text('status').notNull().default('PENDING'), // PENDING | ACTIVE | GRACE | SUSPENDED | EXPIRED
+  notes: text('notes'),
+  createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: created(), updatedAt: updated()
+}, (t) => [index('sub_school_idx').on(t.schoolId, t.term, t.academicYear)]);
+
+export const subscriptionAddons = pgTable('subscription_addons', {
+  subscriptionId: text('subscription_id').notNull().references(() => schoolSubscriptions.id, { onDelete: 'cascade' }),
+  addonId: text('addon_id').notNull().references(() => packageAddons.id, { onDelete: 'cascade' }),
+  priceAtTime: numeric('price_at_time', { precision: 12, scale: 2 }).notNull(),
+  createdAt: created()
+}, (t) => [uniqueIndex('sub_addon_uq').on(t.subscriptionId, t.addonId)]);
+
+export const subscriptionPayments = pgTable('subscription_payments', {
+  id: id(),
+  subscriptionId: text('subscription_id').notNull().references(() => schoolSubscriptions.id, { onDelete: 'cascade' }),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  method: text('method').notNull(), // CASH | MOBILE_MONEY | BANK_TRANSFER | CHEQUE
+  reference: text('reference'),
+  notes: text('notes'),
+  recordedById: text('recorded_by_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: created()
+});
+
 export const demoRequests = pgTable('demo_requests', {
   id: id(),
   schoolName: text('school_name').notNull(),

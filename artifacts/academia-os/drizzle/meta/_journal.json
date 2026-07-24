@@ -43,6 +43,13 @@
       "when": 1784888800000,
       "tag": "0005_demo_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784889600000,
+      "tag": "0006_subscriptions",
+      "breakpoints": true
     }
   ]
 }
