@@ -2,88 +2,16 @@ uploads = []
 generated = []
 
 [[outputs]]
-id = "FZzaUcpnG6PwNePAxrjzb"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-aa"
-type = "unspecified"
-title = "AcademiaOS Source — part-aa"
-
-[[outputs]]
-id = "I35hFV2eHc9OQGE8pP5Lx"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ab"
-type = "unspecified"
-title = "AcademiaOS Source — part-ab"
-
-[[outputs]]
-id = "wb63fIeI8-s_z1hh25_ki"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ac"
-type = "unspecified"
-title = "AcademiaOS Source — part-ac"
-
-[[outputs]]
-id = "i3N5kpQB03hGtL006n8IJ"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ad"
-type = "unspecified"
-title = "AcademiaOS Source — part-ad"
-
-[[outputs]]
 id = "Piwo_rFqK9pnHnazaMj_7"
 uri = "file://AcademiaOS-CURRENT-SOURCE.part-ae"
 type = "unspecified"
 title = "AcademiaOS Source — part-ae"
 
 [[outputs]]
-id = "LWF9fA1U3aP1ZzXfxNh-q"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-af"
-type = "unspecified"
-title = "AcademiaOS Source — part-af"
-
-[[outputs]]
 id = "6lj4VHnxUPzHc-n0Uapmh"
 uri = "file://AcademiaOS-CURRENT-SOURCE.part-ag"
 type = "unspecified"
 title = "AcademiaOS Source — part-ag"
-
-[[outputs]]
-id = "ON0ANZqUfv_GWf2uirFk8"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ah"
-type = "unspecified"
-title = "AcademiaOS Source — part-ah"
-
-[[outputs]]
-id = "0i3kSXj7S9qfE9L67GSRe"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ai"
-type = "unspecified"
-title = "AcademiaOS Source — part-ai"
-
-[[outputs]]
-id = "L0pAWwBU3ChZzGbxfCFl6"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-aj"
-type = "unspecified"
-title = "AcademiaOS Source — part-aj"
-
-[[outputs]]
-id = "EZMEsYmfi7wyUh-SQYLkj"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ak"
-type = "unspecified"
-title = "AcademiaOS Source — part-ak"
-
-[[outputs]]
-id = "kKk1-lxxWmxSLukfW8Q2Z"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-al"
-type = "unspecified"
-title = "AcademiaOS Source — part-al"
-
-[[outputs]]
-id = "o5PVMbxi05LCZCzK6q1lo"
-uri = "file://ACADEMIAOS_SOURCE_MAP.txt"
-type = "text"
-title = "AcademiaOS Source Map"
-
-[[outputs]]
-id = "QXiGXkmooj2y7yvxoEazL"
-uri = "file://AcademiaOS-CORE-SOURCE.zip"
-type = "unspecified"
-title = "AcademiaOS Core Source (8.1 MB)"
 
 [[outputs]]
 id = "P6PgwMz7vJrITHNySW0fe"
