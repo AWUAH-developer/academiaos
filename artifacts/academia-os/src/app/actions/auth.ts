@@ -39,7 +39,7 @@ export async function loginAction(formData: FormData) {
     username: formData.get('username'),
     password: formData.get('password')
   });
-  if (!parsed.success) redirect('/?error=Enter+a+valid+username+and+password');
+  if (!parsed.success) redirect('/login?error=Enter+a+valid+username+and+password');
 
   const username = cleanText(parsed.data.username, 100).toLowerCase();
   const headerStore = await headers();
@@ -57,7 +57,7 @@ export async function loginAction(formData: FormData) {
       ipAddress,
       userAgent: cleanText(headerStore.get('user-agent'), 512)
     });
-    redirect('/?error=Too+many+login+attempts.+Try+again+in+15+minutes');
+    redirect('/login?error=Too+many+login+attempts.+Try+again+in+15+minutes');
   }
 
   const user = (await db.select().from(users).where(eq(users.username, username)).limit(1))[0];
@@ -104,9 +104,9 @@ export async function loginAction(formData: FormData) {
       });
     }
     if (temporaryPasswordExpired) {
-      redirect('/?error=Temporary+password+expired.+Ask+an+administrator+to+reset+it');
+      redirect('/login?error=Temporary+password+expired.+Ask+an+administrator+to+reset+it');
     }
-    redirect('/?error=Invalid+login+details+or+account+temporarily+locked');
+    redirect('/login?error=Invalid+login+details+or+account+temporarily+locked');
   }
 
   await db.transaction(async (tx) => {
