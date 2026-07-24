@@ -1,16 +1,16 @@
 import type { UserRole } from '@/lib/types';
 
 export const navigationByRole: Record<UserRole, string[]> = {
-  SUPER_ADMIN: ['dashboard','schools','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit'],
-  SCHOOL_ADMIN: ['dashboard','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit'],
+  SUPER_ADMIN: ['dashboard','schools','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
+  SCHOOL_ADMIN: ['dashboard','users','setup','learners','attendance','staff-attendance','fees','academics','homework','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
   PROPRIETOR: ['dashboard','staff-attendance','learners','academics','homework','approvals','reports','messages','helpdesk','audit'],
-  HEADTEACHER: ['dashboard','setup','learners','attendance','staff-attendance','academics','homework','approvals','reports','messages','helpdesk'],
-  ACADEMIC_ADMIN: ['dashboard','setup','learners','attendance','staff-attendance','academics','homework','approvals','reports','messages','helpdesk'],
+  HEADTEACHER: ['dashboard','setup','learners','attendance','staff-attendance','academics','homework','approvals','reports','messages','helpdesk','id-cards'],
+  ACADEMIC_ADMIN: ['dashboard','setup','learners','attendance','staff-attendance','academics','homework','approvals','reports','messages','helpdesk','id-cards'],
   TEACHER: ['dashboard','learners','attendance','academics','homework','reports','messages','helpdesk'],
   ACCOUNTS: ['dashboard','staff-attendance','learners','fees','reports','messages','helpdesk'],
   TRANSPORT: ['dashboard','learners','attendance','staff-attendance','transport','messages','helpdesk'],
   SECURITY: ['dashboard','attendance','staff-attendance','transport','helpdesk'],
-  RECEPTIONIST: ['dashboard','learners','attendance','staff-attendance','messages','helpdesk'],
+  RECEPTIONIST: ['dashboard','learners','attendance','staff-attendance','messages','helpdesk','id-cards'],
   LIBRARIAN: ['dashboard','staff-attendance','learners','messages','helpdesk'],
   CANTEEN: ['dashboard','attendance','staff-attendance','fees','helpdesk'],
   PARENT: ['dashboard','learners','attendance','fees','homework','reports','messages','helpdesk'],
