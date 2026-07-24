@@ -1,0 +1,131 @@
+Step 1: Republish AcademiaOS now
+
+In the main Replit project, click Republish at the top right.
+
+Before confirming, make sure the latest checkpoint exists. Replit has already been creating checkpoints in your screenshots.
+
+Do not run SUPERADMIN_RECOVERY_PASSWORD yet.
+
+The deployment should run the Drizzle migrations, including:
+
+0007  Clear Super Admin lockout and require password change
+0008  Per-learner pricing
+0009  Desktop outbox idempotency
+
+Migration 0007 no longer assigns a known password, which is what we wanted.
+
+Step 2: Test the live production APIs
+
+After Republish says deployment succeeded, open these two addresses in separate browser tabs:
+
+https://academiaos.cc/api/mobile/v1/status
+
+and
+
+https://academiaos.cc/api/desktop/v1/status
+
+I want both to return a healthy response.
+
+Take screenshots of both results and send them here.
+
+Step 3: Test your normal Super Admin login
+
+Then go to:
+
+https://academiaos.cc/login
+
+Use your existing Super Admin credentials.
+
+Do not send the password to me.
+
+There are two possible results:
+
+Login works
+
+Excellent. Since migration 0007 sets:
+
+must_change_password = true
+
+AcademiaOS may require you to change the password.
+
+Create a completely new strong password through the application and keep it private.
+
+In this case do not use the recovery script at all.
+
+Login still fails
+
+Only then do we use:
+
+SUPERADMIN_RECOVERY_PASSWORD
+
+through the one-time recovery script Replit created.
+
+Do not create that secret unless it is actually needed.
+
+Step 4: Test a real school account
+
+After Super Admin is confirmed, test one normal school administrator/proprietor account.
+
+We need to confirm:
+
+same production school
+correct role
+correct package
+correct subscription
+correct permissions
+
+Also make sure ordinary users are not gaining Super Admin access.
+
+Step 5: Remove the emergency unlock route
+
+Once your normal Super Admin login is definitely working, tell Replit:
+
+Super Admin production login is confirmed.
+
+Delete:
+
+artifacts/academia-os/src/app/internal/unlock/route.ts
+
+Remove the emergency unlock route completely.
+
+Search the project for any references to /internal/unlock and remove any
+remaining UI links, calls, documentation or production references that
+could expose or invoke it.
+
+Run the Next.js production build.
+
+Do not modify normal AcademiaOS authentication.
+
+Create a checkpoint and return the changed files and build result.
+
+Do not start macOS/Linux.
+
+Then Republish once more.
+
+That second deployment is important because it removes the emergency bypass from the live application.
+
+Then we build the actual Windows .exe
+
+Once production passes all those checks, the next stage is GitHub Actions.
+
+The source is ready for:
+
+windows-latest
+Node 24
+Electron 43.2.0
+SQLEET 12.11.1
+renderer typecheck
+Electron typecheck
+test-file typecheck
+Vitest tests
+native module rebuild
+Vite build
+Electron build
+NSIS installer
+SHA-256
+
+The expected output remains:
+
+AcademiaOS-Desktop-Windows-1.0.0-Setup.exe
+
+Do not start the Windows GitHub build until we confirm the Republish succeeded and both production API status pages are healthy.
