@@ -47,21 +47,17 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
         <Link href="/" className="flex items-center gap-3 group">
           <div
             ref={logoRef}
-            className="relative h-9 w-9 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+            className="relative h-9 w-9 transition-transform duration-300 group-hover:scale-105"
           >
-            {/* Continuous ambient pulse ring */}
-            <span className="absolute -inset-1 rounded-xl bg-amber-400/20 animate-ping" style={{ animationDuration: '2.4s' }} />
             <Image
               src="/brand-logo.jpg"
               alt="AcademiaOS"
               fill
               unoptimized
-              className="rounded-xl object-cover shadow relative z-10"
+              className="rounded-xl object-cover shadow"
             />
-            {/* Hover glow ring */}
-            <span className="absolute inset-0 rounded-xl ring-2 ring-amber-400/0 transition-all duration-300 group-hover:ring-amber-400/70 z-20" />
           </div>
-          <span className="text-lg font-black tracking-tight text-white transition-colors group-hover:text-amber-300">
+          <span className="shimmer-text text-lg font-black tracking-tight">
             AcademiaOS
           </span>
         </Link>
