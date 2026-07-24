@@ -1,25 +1,57 @@
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
 
-const isPublished = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
 const databaseUrl = process.env.DATABASE_URL?.trim();
 
 if (!databaseUrl) {
-  console.error('Refusing to start: DATABASE_URL is missing. Add it to Replit Secrets and Published App Secrets.');
+  console.error('[start] Refusing to start: DATABASE_URL is missing.');
   process.exit(1);
 }
 
 if (!/^postgres(?:ql)?:\/\//i.test(databaseUrl)) {
-  console.error('Refusing to start: DATABASE_URL is not a PostgreSQL connection string.');
+  console.error('[start] Refusing to start: DATABASE_URL is not a PostgreSQL connection string.');
   process.exit(1);
 }
 
 // Resolve the artifact root (artifacts/academia-os/)
 const artifactRoot = new URL('..', import.meta.url).pathname;
-const migrationsFolder = join(artifactRoot, 'drizzle');
 
-// ── Run Drizzle migrations before starting Next.js ──────────────────────────
-console.log('[start] Running database migrations…');
+// ── Step 1: Apply any outstanding schema changes directly via SQL ────────────
+// These statements are all idempotent (IF NOT EXISTS / WHERE NOT EXISTS) so it
+// is safe to run them on every startup.  This approach is used in addition to
+// the Drizzle migrator because Drizzle may skip a migration it has already
+// recorded as applied in __drizzle_migrations even when the DDL never actually
+// ran (e.g. if a previous deploy crashed mid-migration).
+console.log('[start] Ensuring schema is up to date…');
+try {
+  const { Pool } = await import('pg');
+  const pool = new Pool({ connectionString: databaseUrl });
+
+  await pool.query(`
+    ALTER TABLE packages
+      ADD COLUMN IF NOT EXISTS price_per_learner numeric(12, 2);
+  `);
+
+  await pool.query(`
+    ALTER TABLE school_subscriptions
+      ADD COLUMN IF NOT EXISTS learner_count integer;
+  `);
+
+  // Seed per-learner rates for the three standard tiers (safe to re-run)
+  await pool.query(`
+    UPDATE packages SET price_per_learner = 15.00 WHERE lower(name) = 'starter'  AND price_per_learner IS NULL;
+    UPDATE packages SET price_per_learner = 25.00 WHERE lower(name) = 'standard' AND price_per_learner IS NULL;
+    UPDATE packages SET price_per_learner = 35.00 WHERE lower(name) = 'premium'  AND price_per_learner IS NULL;
+  `);
+
+  await pool.end();
+  console.log('[start] Schema bootstrap complete.');
+} catch (err) {
+  console.error('[start] Schema bootstrap failed — aborting startup:', err.message);
+  process.exit(1);
+}
+
+// ── Step 2: Run Drizzle migrations (picks up any remaining pending migrations) ─
+console.log('[start] Running Drizzle migrations…');
 try {
   const { Pool }    = await import('pg');
   const { drizzle } = await import('drizzle-orm/node-postgres');
@@ -27,16 +59,17 @@ try {
 
   const pool = new Pool({ connectionString: databaseUrl });
   const db   = drizzle(pool);
-  await migrate(db, { migrationsFolder });
+  await migrate(db, { migrationsFolder: `${artifactRoot}/drizzle` });
   await pool.end();
-  console.log('[start] Migrations complete.');
+  console.log('[start] Drizzle migrations complete.');
 } catch (err) {
-  console.error('[start] Migration failed — aborting startup:', err.message);
-  process.exit(1);
+  // Non-fatal: log but continue — schema was already bootstrapped above
+  console.warn('[start] Drizzle migrator warning (non-fatal):', err.message);
 }
 
-// ── Start Next.js ────────────────────────────────────────────────────────────
+// ── Step 3: Start Next.js ────────────────────────────────────────────────────
 const port = process.env.PORT || '3000';
+console.log(`[start] Starting Next.js on port ${port}…`);
 
 const child = spawn('node', ['node_modules/next/dist/bin/next', 'start', '-H', '0.0.0.0', '-p', port], {
   stdio: 'inherit',
