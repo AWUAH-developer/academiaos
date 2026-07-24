@@ -72,3 +72,9 @@ id = "kKk1-lxxWmxSLukfW8Q2Z"
 uri = "file://AcademiaOS-CURRENT-SOURCE.part-al"
 type = "unspecified"
 title = "AcademiaOS Source — part-al"
+
+[[outputs]]
+id = "o5PVMbxi05LCZCzK6q1lo"
+uri = "file://ACADEMIAOS_SOURCE_MAP.txt"
+type = "text"
+title = "AcademiaOS Source Map"
