@@ -8,8 +8,9 @@ import {
 import { currentUser } from '@/lib/auth';
 import { DemoRequestForm } from '@/components/DemoRequestForm';
 import { HeroCards } from '@/components/marketing/HeroCards';
-import { ScrollReveal, StaggerReveal } from '@/components/marketing/ScrollReveal';
+import { ScrollReveal } from '@/components/marketing/ScrollReveal';
 import { RolesMarquee } from '@/components/marketing/RolesMarquee';
+import { AnimatedNav, HeroText } from '@/components/marketing/HeroEntrance';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'AcademiaOS — School Command Centre' };
@@ -37,33 +38,7 @@ export default async function HomePage() {
     <div className="min-h-screen bg-[#fffdf7] font-sans antialiased">
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-black/10 bg-[#2f1d14]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <Image src="/brand-logo.jpg" alt="AcademiaOS" width={38} height={38} unoptimized className="h-9 w-9 rounded-xl object-cover shadow" />
-            <span className="text-lg font-black tracking-tight text-white">AcademiaOS</span>
-          </Link>
-
-          <nav className="hidden items-center gap-6 md:flex">
-            {([['#features','Features'],['#daily-fees','Daily fees'],['#id-cards','Smart ID'],['#request','Request demo']] as const).map(([href, label]) => (
-              <a key={href} href={href} className="text-sm font-bold text-white/70 transition hover:text-white">{label}</a>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {user ? (
-              <Link href="/dashboard" className="btn-primary text-sm px-5 py-2.5">Open dashboard</Link>
-            ) : (
-              <>
-                <Link href="/login" className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-white/70 transition hover:text-white sm:block">
-                  School sign in
-                </Link>
-                <a href="#request" className="btn-primary text-sm px-5 py-2.5">Request demo</a>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <AnimatedNav user={user} />
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="wood-grain relative overflow-hidden px-5 py-20 text-white sm:px-8 sm:py-28 lg:py-32">
@@ -75,47 +50,42 @@ export default async function HomePage() {
         <div className="relative mx-auto max-w-7xl lg:grid lg:grid-cols-[1fr_460px] lg:items-center lg:gap-16">
           {/* Left — copy */}
           <div>
-            <div
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300"
-              style={{ animation: 'fade-up .6s cubic-bezier(.16,1,.3,1) both' }}
-            >
-              School command centre · v1.3.0
-            </div>
-            <h1
-              className="mt-6 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl"
-              style={{ animation: 'fade-up .7s .1s cubic-bezier(.16,1,.3,1) both' }}
-            >
-              Run every aspect of your school
-              <br />
-              <span className="text-[#d9a441]">from one secure platform.</span>
-            </h1>
-            <p
-              className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-white/75"
-              style={{ animation: 'fade-up .7s .2s cubic-bezier(.16,1,.3,1) both' }}
-            >
-              AcademiaOS connects admissions, attendance, daily fees, academic results, Smart ID cards, parent communication and mobile access — all under one login, with role-based security for every member of staff.
-            </p>
-            <div
-              className="mt-10 flex flex-wrap items-center gap-4"
-              style={{ animation: 'fade-up .7s .3s cubic-bezier(.16,1,.3,1) both' }}
-            >
-              <a href="#request" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#d9a441] px-7 py-3 text-base font-black text-[#2f1d14] shadow-lg transition hover:bg-amber-400 hover:scale-105 active:scale-100" style={{ transition: 'background .2s, transform .2s' }}>
-                Request a demo for your school
-              </a>
-              <Link href="/login" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-7 py-3 text-base font-bold text-white transition hover:bg-white/20">
-                <LockKeyhole size={17} /> School sign in
-              </Link>
-            </div>
-            <div
-              className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-bold text-white/60"
-              style={{ animation: 'fade-up .7s .4s cubic-bezier(.16,1,.3,1) both' }}
-            >
-              {['Ghanaian curriculum ready','GHS & multi-currency','Works offline on desktop','Android & iOS apps'].map(f => (
-                <span key={f} className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#d9a441]"/>{f}
-                </span>
-              ))}
-            </div>
+            <HeroText delay={0}>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
+                School command centre · v1.3.0
+              </div>
+            </HeroText>
+            <HeroText delay={100}>
+              <h1 className="mt-6 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+                Run every aspect of your school
+                <br />
+                <span className="text-[#d9a441]">from one secure platform.</span>
+              </h1>
+            </HeroText>
+            <HeroText delay={200}>
+              <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-white/75">
+                AcademiaOS connects admissions, attendance, daily fees, academic results, Smart ID cards, parent communication and mobile access — all under one login, with role-based security for every member of staff.
+              </p>
+            </HeroText>
+            <HeroText delay={300}>
+              <div className="mt-10 flex flex-wrap items-center gap-4">
+                <a href="#request" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#d9a441] px-7 py-3 text-base font-black text-[#2f1d14] shadow-lg transition-all duration-200 hover:bg-amber-400 hover:scale-105 active:scale-100">
+                  Request a demo for your school
+                </a>
+                <Link href="/login" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-7 py-3 text-base font-bold text-white transition hover:bg-white/20">
+                  <LockKeyhole size={17} /> School sign in
+                </Link>
+              </div>
+            </HeroText>
+            <HeroText delay={400}>
+              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-bold text-white/60">
+                {['Ghanaian curriculum ready','GHS & multi-currency','Works offline on desktop','Android & iOS apps'].map(f => (
+                  <span key={f} className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#d9a441]"/>{f}
+                  </span>
+                ))}
+              </div>
+            </HeroText>
           </div>
 
           {/* Right — floating notification cards */}
