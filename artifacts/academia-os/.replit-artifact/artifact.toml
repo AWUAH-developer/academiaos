@@ -23,8 +23,6 @@ args = ["sh", "-c", "pnpm --filter @workspace/academia-os run db:migrate && pnpm
 
 [services.production.build.env]
 NODE_ENV = "production"
-ACADEMIAOS_DEMO_MODE = "true"
-NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS = "true"
 NEXT_TELEMETRY_DISABLED = "1"
 
 [services.production.run]
@@ -32,8 +30,6 @@ args = ["node", "artifacts/academia-os/scripts/start.mjs"]
 
 [services.production.run.env]
 NODE_ENV = "production"
-ACADEMIAOS_DEMO_MODE = "true"
-NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS = "true"
 NEXT_TELEMETRY_DISABLED = "1"
 
 [services.production.health.startup]
