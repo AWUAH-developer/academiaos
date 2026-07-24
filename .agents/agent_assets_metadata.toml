@@ -84,3 +84,9 @@ id = "QXiGXkmooj2y7yvxoEazL"
 uri = "file://AcademiaOS-CORE-SOURCE.zip"
 type = "unspecified"
 title = "AcademiaOS Core Source (8.1 MB)"
+
+[[outputs]]
+id = "P6PgwMz7vJrITHNySW0fe"
+uri = "file://academia-os-desktop.zip"
+type = "unspecified"
+title = "academia-os-desktop.zip"
