@@ -1,0 +1,1149 @@
+Public AcademiaOS website
+├── Animated home page
+├── Features
+├── Packages and comparison table
+├── Request a demo
+├── School sign-up enquiry
+├── Contact and WhatsApp
+├── FAQ
+├── Desktop download
+├── Google Play link
+├── App Store link
+└── Secure sign-in
+
+Secure AcademiaOS platform
+├── Super Admin portal
+├── School portals
+├── Staff portal
+├── Parent and guardian portal
+├── Learner portal
+├── Package restrictions
+├── Enquiry management
+├── Mobile API
+└── Desktop synchronization API
+
+Products
+├── Browser-based web application
+├── Android application
+├── iOS application
+└── Offline desktop application
+
+Replit multi-artifacts are suitable for the website and mobile application because related artifacts can share the same backend, database, storage, and services. Publishing deploys all artifacts in a project together.
+
+The desktop application can live in the same source project, but it should be treated as a separately built Electron application rather than a normal Replit web artifact.
+
+Package system
+
+Do not hardcode package checks throughout individual pages. Replit should create a central entitlement system.
+
+Each school receives:
+
+Package
+Add-ons
+Feature entitlements
+Usage limits
+Subscription dates
+Account status
+Desktop access
+Mobile access
+Suggested packages
+Standard
+
+For schools beginning digital administration:
+
+Learner records
+Staff records
+Parent and guardian contacts
+Classes and subjects
+Basic attendance
+Fee setup and collection
+Daily-fee carry-forward
+Basic reports
+Announcements
+Web access
+Limited mobile access
+Defined learner and staff limits
+Premium
+
+Everything in Standard, plus:
+
+Exams and mark entry
+Terminal reports
+Proprietor approval workflow
+Advanced finance reports
+Canteen management
+Transport management
+Payroll
+Homework and classwork
+SMS, email, WhatsApp and push notifications
+Full parent and guardian mobile portal
+Full staff mobile tools
+Offline desktop application
+Advanced analytics
+Higher or unlimited usage limits
+Smart ID
+
+This can be purchased alone or added to Standard or Premium:
+
+Learner and staff ID cards
+QR and barcode generation
+Badge printing
+Card replacement
+ID scanning
+Check-in and check-out
+Identity verification
+Limited Smart ID web dashboard
+Smart ID mobile scanning mode
+Security
+
+This can also be purchased separately:
+
+Gate entry and exit
+Visitor management
+Pickup authorisation
+Approved guardian verification
+Security alerts
+Incident recording
+QR scanning
+Arrival and departure notifications
+Restricted security mobile interface
+Security audit reports
+Smart ID + Security
+
+A school buying only this package should see only:
+
+Dashboard
+Learners
+Staff
+ID cards
+QR scanning
+Gate activity
+Visitors
+Pickup authorisation
+Security incidents
+Notifications
+Settings
+
+It should not see academics, payroll, full finance, exams, or unrelated modules.
+
+Package switching
+
+As Super Admin, you should be able to open a school and change:
+
+Standard → Premium
+Premium → Standard
+Standard + Smart ID
+Standard + Security
+Premium + Smart ID + Security
+Smart ID only
+Security only
+Smart ID + Security only
+
+Upgrades should activate features immediately.
+
+Downgrades should not delete data. Restricted information must remain safely stored but become read-only or hidden until the package is restored.
+
+Daily-fee requirements
+
+This deserves its own entitlement and settings module.
+
+Each school should be able to choose:
+
+Charge only on attendance
+Charge every scheduled school day
+Carry unpaid fee forward after absence
+Waive fee when absent
+Carry canteen fee separately
+Exclude holidays
+Exclude weekends
+Allow authorised manual waiver
+
+A safe daily-fee process should work like this:
+
+Scheduled fee today: GHS 5.00
+Learner absent: Yes
+School rule: Carry forward
+Today collected: GHS 0.00
+Outstanding carried forward: GHS 5.00
+New balance: Previous balance + GHS 5.00
+
+The system must prevent duplicate charging when administrators refresh, reconnect, or sync an offline desktop.
+
+Every daily charge should have an immutable identifier based on:
+
+school + learner + fee type + date
+Offline desktop design
+
+The desktop application should not merely display the website in a window.
+
+Use:
+
+Electron
+React
+TypeScript
+Encrypted local SQLite
+Secure sync API
+Background synchronization
+
+The desktop application should support offline work for:
+
+Learner and staff lookup
+Attendance
+Daily-fee entry
+Payment drafts
+Mark-entry drafts
+Remarks
+Announcements drafts
+ID scanning
+Security check-in
+Reports previously downloaded
+Basic administrative records
+
+High-risk actions should require an internet connection:
+
+Final financial posting
+Withdrawal or refund approval
+Proprietor result approval
+Account creation with elevated privileges
+Package changes
+School deletion
+Final report publication
+Synchronization rules
+
+Every offline change should enter an outbox:
+
+Pending
+Uploading
+Synced
+Conflict
+Rejected
+
+The server must recognise each operation by a unique idempotency key so reconnecting cannot create duplicate payments, fees, attendance, or marks.
+
+Conflict handling should use:
+
+Server timestamps
+Record versions
+User identity
+Device identity
+School identity
+Clear conflict messages
+Manual review for financial conflicts
+
+The local desktop database must be encrypted and must not contain database passwords, service-role keys, or Replit secrets.
+
+Public enquiry workflow
+
+A visitor should never see demo usernames or passwords publicly.
+
+The public website should provide:
+
+Request a Demo
+Request Pricing
+Sign Up Your School
+Talk to Sales
+WhatsApp Us
+
+The form should collect:
+
+Contact name
+School name
+Position
+Country
+Region or city
+Telephone number
+WhatsApp number
+Email
+Estimated learner count
+Estimated staff count
+Preferred package
+Required add-ons
+Preferred contact method
+Preferred demonstration date
+Message
+Consent checkbox
+
+After submission:
+
+Save the enquiry.
+Create a Super Admin notification.
+Send you an email.
+Optionally send you a WhatsApp notification.
+Send the visitor an acknowledgement email.
+Add the enquiry to a sales pipeline.
+Allow you to assign a follow-up date.
+Allow you to generate a private demo invitation.
+Record every communication.
+
+Suggested pipeline:
+
+New
+Contacted
+Demo scheduled
+Demo completed
+Proposal sent
+Trial active
+Won
+Lost
+Follow up later
+Private demo access
+
+Demo accounts should be issued only through expiring invitations.
+
+Each demo invitation should include:
+
+Prospect name
+School name
+Assigned package
+Expiry date
+Maximum logins
+Demo username
+Temporary password
+Forced password change if required
+Activity log
+Disable button
+
+Do not reuse one public demo password for everyone.
+
+Replit master instruction
+
+Attach both AcademiaOS logos and paste the following into Replit Agent inside a duplicate or checkpointed copy of the current working project.
+
+ACADEMIAOS PLATFORM EXPANSION
+
+You are extending the existing, published AcademiaOS platform.
+
+This is an established production application. Do not rebuild it from
+scratch. Do not replace its existing database, authentication, mobile
+API, school records, users, custom domain, publishing configuration,
+or working features.
+
+Before editing anything:
+
+1. Create a checkpoint.
+2. Inspect the current project structure, database schema, migrations,
+   mobile artifact, API routes, authentication and publishing commands.
+3. Show me a written implementation plan and proposed structural
+   changes.
+4. Identify any migration risks.
+5. Do not proceed until the existing web application can be preserved.
+6. Apply work in phases with a checkpoint after each phase.
+7. Never run destructive database migrations.
+8. Never expose demo credentials, database credentials or secret keys.
+
+Use the attached AcademiaOS logos as the official brand assets.
+Create optimised light, dark, square app-icon and favicon variants
+without changing the identity of the logos.
+
+==================================================
+A. PUBLIC MARKETING WEBSITE
+==================================================
+
+Create a premium, animated, responsive public website for AcademiaOS
+that appears before the secure school application.
+
+The style should be modern, polished and motion-driven, inspired by the
+structure demonstrated in the supplied SchoolDesk screen recording,
+but must be an original AcademiaOS design and must not copy its text,
+branding, layout or assets.
+
+Use the AcademiaOS blue, gold, deep brown and cream branding.
+
+The public navigation must include:
+
+- Home
+- Features
+- Solutions
+- Packages
+- Desktop
+- Mobile Apps
+- FAQ
+- Contact
+- Request a Demo
+- Sign In
+
+Create an animated hero section with:
+
+- AcademiaOS logo
+- “School Command Centre”
+- A strong headline
+- Web, desktop, Android and iOS device mockups
+- Animated cards showing attendance, fees, results and notifications
+- Request a Demo button
+- View Packages button
+- Sign In button
+
+Use professional motion effects:
+
+- Smooth section reveals
+- Subtle parallax
+- Animated counters
+- Floating dashboard cards
+- Staggered feature cards
+- Package-card transitions
+- Animated device mockups
+- Smooth scrolling
+- Accessible reduced-motion support
+
+Do not make animation heavy enough to reduce mobile performance.
+
+Create sections for:
+
+- Complete school administration
+- Academic management
+- Attendance
+- Daily fees
+- Finance
+- Parents and guardians
+- Smart ID
+- Security
+- Mobile applications
+- Offline desktop application
+- Multi-school administration
+- Reports and analytics
+- Data security
+- Testimonials placeholder
+- Frequently asked questions
+- Final contact call to action
+
+The root public URL must display this marketing website.
+
+The secure application should remain accessible through a clear
+“Sign In” button and an appropriate protected route or subdomain.
+
+Unauthenticated visitors must never see:
+
+- Demo usernames
+- Demo passwords
+- School dashboards
+- Learner records
+- Staff records
+- Parent information
+- Internal API information
+- Super Admin pages
+
+==================================================
+B. SALES ENQUIRY AND DEMO REQUEST SYSTEM
+==================================================
+
+Create forms for:
+
+- Request a Demo
+- Request Pricing
+- Sign Up a School
+- Contact Sales
+- General Contact
+
+Collect and validate:
+
+- Contact name
+- School name
+- Position
+- Country
+- Region or city
+- Telephone
+- WhatsApp number
+- Email
+- Estimated learner count
+- Estimated staff count
+- Package interest
+- Add-ons
+- Preferred contact method
+- Preferred demonstration date
+- Message
+- Consent to be contacted
+
+Add bot protection, server-side validation and rate limiting.
+
+Store enquiries in the database.
+
+Create the following enquiry statuses:
+
+- NEW
+- CONTACTED
+- DEMO_SCHEDULED
+- DEMO_COMPLETED
+- PROPOSAL_SENT
+- TRIAL_ACTIVE
+- WON
+- LOST
+- FOLLOW_UP_LATER
+
+Create a Super Admin sales dashboard with:
+
+- New enquiry count
+- Enquiry list
+- Search and filters
+- Package interest
+- Assigned owner
+- Follow-up date
+- Notes
+- Communication history
+- Status changes
+- Export
+- Archive
+- Convert enquiry to school
+- Create private demo invitation
+
+When an enquiry is submitted:
+
+1. Save it.
+2. Create an in-app Super Admin notification.
+3. Send a notification email to the configured company address.
+4. Optionally trigger a WhatsApp notification through a backend
+   provider when credentials are configured.
+5. Send an acknowledgement email to the enquirer.
+6. Record delivery success or failure.
+
+Use environment variables for company details:
+
+COMPANY_NAME
+COMPANY_EMAIL
+COMPANY_PHONE
+COMPANY_WHATSAPP
+SALES_NOTIFICATION_EMAIL
+SUPPORT_EMAIL
+WHATSAPP_BUSINESS_NUMBER
+PUBLIC_WEBSITE_URL
+PUBLIC_APP_URL
+PLAY_STORE_URL
+APP_STORE_URL
+DESKTOP_WINDOWS_URL
+DESKTOP_MAC_URL
+DESKTOP_LINUX_URL
+
+Do not hardcode private credentials.
+
+Create a company settings page so Super Admin can update public
+contact details without code changes.
+
+==================================================
+C. PRIVATE DEMO INVITATIONS
+==================================================
+
+Remove all public display of demo credentials.
+
+Create private demo invitations controlled by Super Admin.
+
+Each invitation must support:
+
+- Prospect name
+- Prospect email
+- School name
+- Assigned package
+- Assigned add-ons
+- Expiry date
+- Maximum login count
+- Temporary username
+- Secure temporary password
+- Revocation
+- Usage log
+- Invitation email
+- Resend invitation
+- Disable demo
+- Convert demo to a subscribed school
+
+Use unique demo credentials per prospect.
+
+Demo links and credentials must expire.
+
+Do not use one permanent public demo account.
+
+==================================================
+D. PACKAGE, SUBSCRIPTION AND ENTITLEMENT SYSTEM
+==================================================
+
+Create a central package and entitlement system.
+
+Do not scatter package-name comparisons across pages.
+
+Create database entities equivalent to:
+
+subscription_packages
+package_features
+package_limits
+school_subscriptions
+school_addons
+school_entitlement_overrides
+subscription_history
+subscription_events
+
+Packages must initially include:
+
+1. STANDARD
+2. PREMIUM
+3. SMART_ID
+4. SECURITY
+5. SMART_ID_SECURITY
+
+Allow Super Admin to create and edit future packages without requiring
+code changes.
+
+Each feature must use a stable feature key, for example:
+
+LEARNERS
+STAFF
+PARENTS
+CLASSES
+ATTENDANCE_BASIC
+ATTENDANCE_ADVANCED
+DAILY_FEES
+FINANCE_BASIC
+FINANCE_ADVANCED
+EXAMS
+RESULTS
+TERMINAL_REPORTS
+PROPRIETOR_APPROVAL
+CANTEEN
+TRANSPORT
+PAYROLL
+HOMEWORK
+SMS
+EMAIL
+WHATSAPP
+PUSH_NOTIFICATIONS
+ANALYTICS
+MOBILE_PARENT
+MOBILE_STAFF
+DESKTOP_OFFLINE
+SMART_ID_CARDS
+QR_SCANNING
+GATE_SECURITY
+VISITOR_MANAGEMENT
+PICKUP_AUTHORIZATION
+SECURITY_INCIDENTS
+AUDIT_LOGS
+API_ACCESS
+
+Every protected module, API route, navigation item and mobile screen
+must check entitlements on the server.
+
+Client-side hiding alone is not sufficient.
+
+Create configurable limits such as:
+
+- Maximum learners
+- Maximum staff
+- Maximum guardians
+- Maximum campuses
+- Maximum active devices
+- Monthly SMS
+- Monthly email
+- File storage
+- ID cards
+- Security users
+- Desktop devices
+
+The Super Admin school page must allow:
+
+- View current package
+- Change package
+- Add or remove Smart ID
+- Add or remove Security
+- Apply a temporary trial
+- Set an expiry date
+- Suspend service
+- Reactivate service
+- Override one feature
+- Override one limit
+- View package history
+- Preview the school’s permitted navigation
+
+Upgrades must become available immediately.
+
+Downgrades must never delete data.
+
+On downgrade:
+
+- Preserve all records
+- Hide or lock restricted modules
+- Make appropriate records read-only
+- Show a clear upgrade-required message
+- Prevent restricted API operations
+
+Schools assigned only SMART_ID, SECURITY or SMART_ID_SECURITY must
+receive a reduced portal containing only their permitted functions.
+
+Apply identical entitlements across:
+
+- Web application
+- Android application
+- iOS application
+- Desktop application
+- Mobile API
+- Background jobs
+- Exports
+- Reports
+
+==================================================
+E. DAILY FEES AND CARRY-FORWARD RULES
+==================================================
+
+Preserve and extend the current daily-fee implementation.
+
+Create school-configurable daily-fee policies:
+
+- CHARGE_ON_ATTENDANCE_ONLY
+- CHARGE_EVERY_SCHEDULED_DAY
+- CARRY_FORWARD_WHEN_ABSENT
+- WAIVE_WHEN_ABSENT
+- MANUAL_REVIEW_WHEN_ABSENT
+
+Allow separate policies for:
+
+- Tuition
+- Canteen
+- Transport
+- Other daily services
+
+Exclude:
+
+- Weekends
+- Public holidays
+- School holidays
+- Non-school days
+- Explicitly exempt learners
+
+Each generated daily charge must be idempotent and uniquely protected
+by school, learner, charge type and date.
+
+The same day must never be charged twice because of:
+
+- Browser refresh
+- Repeated button tap
+- Mobile reconnection
+- Desktop synchronization
+- Background-job retry
+
+When a learner is absent and carry-forward is enabled:
+
+- Record the scheduled charge
+- Record absence
+- Mark the amount as carried forward
+- Add it to the outstanding balance
+- Preserve a full audit trail
+- Show it clearly to accounts staff and parents
+
+Allow authorised staff to waive or reverse a daily charge with:
+
+- Reason
+- User
+- Timestamp
+- Approval status
+- Original charge reference
+- Audit entry
+
+Do not permanently delete financial records.
+
+==================================================
+F. OFFLINE DESKTOP APPLICATION
+==================================================
+
+Create a real cross-platform Electron desktop application using:
+
+- Electron
+- React
+- TypeScript
+- Encrypted local SQLite
+- Secure synchronization API
+- Background sync
+- Automatic updates architecture
+
+Do not create a simple webview wrapper.
+
+The desktop application should support Windows first, followed by
+macOS and Linux.
+
+Offline-capable modules:
+
+- Learner lookup
+- Staff lookup
+- Attendance
+- Daily-fee drafts
+- Payment drafts
+- Marks drafts
+- Remarks drafts
+- Smart ID scanning
+- Gate check-in and check-out
+- Visitor records
+- Previously downloaded reports
+- Previously downloaded school information
+
+Create local tables for:
+
+- Cached server records
+- Pending operations
+- Sync cursor
+- Device registration
+- Conflict records
+- Downloaded files
+- Secure session state
+
+Every offline write must enter an outbox with statuses:
+
+- PENDING
+- UPLOADING
+- SYNCED
+- CONFLICT
+- REJECTED
+
+Every mutation must include:
+
+- Idempotency key
+- Device ID
+- User ID
+- School ID
+- Created timestamp
+- Record version
+- Operation type
+- Encrypted payload
+
+Create secure API routes for:
+
+- Desktop device registration
+- Initial sync
+- Incremental sync
+- Outbox upload
+- Conflict resolution
+- Device revocation
+- Sync status
+- Required application version
+
+Conflict rules:
+
+- Never silently overwrite financial transactions
+- Never duplicate attendance
+- Never duplicate daily charges
+- Never duplicate payments
+- Send financial conflicts to manual review
+- Preserve both versions where needed
+- Record every resolution in the audit log
+
+Require internet for:
+
+- Final payment posting
+- Refund approval
+- Package changes
+- Proprietor final approval
+- Final report publication
+- Elevated user creation
+- Destructive administration
+
+Encrypt the local database.
+
+Never package:
+
+- DATABASE_URL
+- PostgreSQL credentials
+- Replit secrets
+- Service-role keys
+- SMS secrets
+- WhatsApp secrets
+
+Create a desktop downloads page on the public website.
+
+Show platform-specific buttons for:
+
+- Download for Windows
+- Download for macOS
+- Download for Linux
+
+Use configurable URL fields until signed installers are available.
+
+Create build workflows and documentation for signed installers.
+Do not claim installers are signed unless signing certificates are
+actually configured.
+
+==================================================
+G. MOBILE APPLICATION AND STORE LINKS
+==================================================
+
+Preserve the existing Expo mobile application and its Expo project ID:
+
+62b3f358-b534-40f1-b1a9-0027db800301
+
+Do not create a new Expo project.
+
+Apply the same package entitlements to every mobile screen and API.
+
+Create a public mobile-app section with:
+
+- Android screenshots placeholder
+- iOS screenshots placeholder
+- Google Play button
+- App Store button
+- QR codes generated from the configured store URLs
+
+When store URLs are missing, display “Coming soon” rather than a
+broken link.
+
+==================================================
+H. SUPER ADMIN COMMAND CENTRE
+==================================================
+
+Extend the Super Admin portal with:
+
+- Sales enquiries
+- Demo invitations
+- Package management
+- Feature management
+- Limit management
+- School subscriptions
+- Trials and expiries
+- Upgrade and downgrade history
+- Add-on management
+- Desktop-device management
+- Mobile-device management
+- Notification centre
+- Sales analytics
+- Subscription analytics
+- Enquiry conversion rate
+- Schools by package
+- Expiring subscriptions
+- Suspended schools
+- Failed emails
+- Failed WhatsApp notifications
+- Sync conflicts
+- Desktop version adoption
+- Audit logs
+
+Create visible Super Admin notification badges for:
+
+- New enquiry
+- Demo request
+- Trial expiration
+- Subscription expiration
+- Failed notification
+- Desktop sync conflict
+- Security incident
+- Suspicious login
+- Package limit reached
+
+==================================================
+I. DESIGN AND ACCESSIBILITY
+==================================================
+
+Use the attached AcademiaOS brand assets.
+
+Create an original premium design.
+
+Use:
+
+- Deep navy or brown
+- Gold
+- Cream
+- White
+- Accessible contrast
+- Responsive typography
+- Rounded but professional cards
+- High-quality spacing
+- Clear information hierarchy
+- Subtle animation
+- Reduced-motion support
+- Keyboard navigation
+- Accessible form labels
+- Mobile optimisation
+
+Do not copy SchoolDesk’s exact visual design.
+
+Use it only as a reference for the concept of:
+
+- Public website before app login
+- Animated marketing presentation
+- Feature explanation
+- Package comparison
+- Contact flow
+- FAQ
+- Clear sign-in access
+
+==================================================
+J. SECURITY
+==================================================
+
+Maintain the existing AcademiaOS username-and-password authentication.
+
+Do not introduce Replit Auth, OAuth or browser authentication
+redirection.
+
+Require:
+
+- Server-side role checks
+- Server-side entitlement checks
+- School isolation
+- Input validation
+- Rate limiting
+- CSRF protection where applicable
+- Secure cookies
+- Token security
+- Audit logs
+- Encrypted offline storage
+- Revocable mobile and desktop devices
+- No secrets in browser, mobile or desktop bundles
+
+The public marketing website must be public.
+
+The secure application must remain protected by AcademiaOS
+authentication.
+
+==================================================
+K. DATABASE AND MIGRATIONS
+==================================================
+
+Create additive, reversible migrations only.
+
+Do not rename or delete existing production tables without a written
+migration and rollback plan.
+
+Before every migration:
+
+- Back up the current schema
+- Show the proposed migration
+- Identify affected rows
+- Confirm no data will be deleted
+
+Seed package definitions and feature definitions without overwriting
+existing school records.
+
+==================================================
+L. TESTING AND ACCEPTANCE
+==================================================
+
+Add automated tests for:
+
+- Standard feature restrictions
+- Premium feature access
+- Smart ID-only access
+- Security-only access
+- Smart ID + Security access
+- Add-on activation
+- Package upgrade
+- Package downgrade
+- Data preservation after downgrade
+- API entitlement enforcement
+- Mobile entitlement enforcement
+- Daily-fee carry forward
+- Daily-fee waiver
+- Duplicate-charge prevention
+- Duplicate-payment prevention
+- Offline outbox retry
+- Desktop conflict handling
+- Cross-school isolation
+- Demo invitation expiry
+- Enquiry submission
+- Super Admin notifications
+
+Acceptance requirements:
+
+1. Existing web login still works.
+2. Existing schools and users remain intact.
+3. Mobile API remains connected.
+4. Public visitors see the marketing website.
+5. Visitors never see demo credentials.
+6. Demo requests create Super Admin notifications.
+7. Super Admin can assign and change packages.
+8. Restricted schools cannot call restricted APIs.
+9. Upgrading activates modules.
+10. Downgrading preserves data.
+11. Daily fees carry forward correctly.
+12. Offline desktop work syncs once without duplicates.
+13. Mobile screens follow package entitlements.
+14. Store and desktop links are configurable.
+15. All builds, type checks, migrations and tests pass.
+
+==================================================
+M. IMPLEMENTATION PHASES
+==================================================
+
+Complete the work in these phases:
+
+Phase 1:
+- Audit
+- Checkpoint
+- Database design
+- Package and entitlement engine
+- Tests
+
+Phase 2:
+- Public animated website
+- Contact and enquiry forms
+- Super Admin enquiry dashboard
+- Notification centre
+
+Phase 3:
+- Packages and add-ons
+- Package comparison
+- Upgrade and downgrade controls
+- Demo invitations
+
+Phase 4:
+- Daily-fee policy expansion
+- Carry-forward audit workflow
+- Duplicate protection
+
+Phase 5:
+- Apply entitlements to web and API
+- Apply entitlements to mobile
+
+Phase 6:
+- Desktop application foundation
+- Local encrypted SQLite
+- Offline outbox
+- Sync API
+- Conflict handling
+
+Phase 7:
+- Desktop download page
+- Play Store and App Store links
+- Final testing
+- Production launch checklist
+
+At the end of each phase:
+
+- Run migrations
+- Run typecheck
+- Run lint
+- Run tests
+- Run production build
+- Show changed files
+- Show database changes
+- Confirm existing web login still works
+- Confirm mobile API status still works
+- Create a checkpoint
+- Wait for approval before the next phase
+Shell commands after Replit creates the changes
+
+Do not run these until Agent has updated the scripts and shown you what they do.
+
+A typical verification sequence should be:
+
+npm ci
+npm run db:migrate
+npm run typecheck
+npm run lint
+npm test
+npm run mobile:api:check
+npm run build
+
+For development:
+
+npm run dev
+
+For the mobile artifact:
+
+npx expo-doctor
+npx expo start
+
+For the existing Expo project:
+
+npx eas-cli@latest init \
+  --id 62b3f358-b534-40f1-b1a9-0027db800301
+
+Replit can preview Expo mobile artifacts through Expo Go, an iOS simulator, or an Android emulator. Hardware features should still be tested on an actual phone.
+
+Important instruction before submitting the prompt
+
+Because your AcademiaOS project has custom workflows and has already been published, create a checkpoint and export a backup first.
+
+Older Replit projects may require a one-time structural update before accepting another artifact. Replit says this update preserves the URL, database, secrets and domains, but heavily customised .replit workflows can prevent automatic conversion.
+
+Do not tell Agent to complete everything in one uncontrolled task. Approve it phase by phase, beginning with the package and entitlement engine. The public website should follow only after the access restrictions are working.
