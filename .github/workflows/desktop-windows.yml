@@ -1,0 +1,175 @@
+name: Desktop Windows Release
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Node.js ───────────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 3. pnpm ──────────────────────────────────────────────────────────────
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-desktop-${{ hashFiles('artifacts/academia-os-desktop/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-desktop-
+
+      # ── 4. Install dependencies ───────────────────────────────────────────────
+      - name: Install desktop dependencies
+        working-directory: artifacts/academia-os-desktop
+        run: pnpm install --frozen-lockfile
+
+      # ── 5. Rebuild native modules for Electron 43 ────────────────────────────
+      - name: Rebuild native modules
+        working-directory: artifacts/academia-os-desktop
+        run: |
+          pnpm exec electron-rebuild -f -w better-sqlite3-multiple-ciphers --arch x64
+        env:
+          npm_config_target: '43.2.0'
+          npm_config_arch: x64
+          npm_config_target_arch: x64
+          npm_config_disturl: 'https://electronjs.org/headers'
+          npm_config_runtime: electron
+          npm_config_build_from_source: true
+
+      # ── 6. TypeScript check ───────────────────────────────────────────────────
+      - name: TypeScript typecheck
+        working-directory: artifacts/academia-os-desktop
+        run: pnpm typecheck
+
+      # ── 7. Build renderer (Vite) ──────────────────────────────────────────────
+      - name: Build renderer
+        working-directory: artifacts/academia-os-desktop
+        run: pnpm build:renderer
+
+      # ── 8. Build main / preload (tsc) ─────────────────────────────────────────
+      - name: Build Electron main process
+        working-directory: artifacts/academia-os-desktop
+        run: pnpm build:electron
+
+      # ── 9. electron-builder Windows x64 ──────────────────────────────────────
+      - name: Build Windows installer
+        working-directory: artifacts/academia-os-desktop
+        run: pnpm exec electron-builder --win --x64
+        env:
+          # Code signing — supply via repository secrets for signed builds
+          # WIN_CSC_LINK:         ${{ secrets.WIN_CERT_PFX_BASE64 }}
+          # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 10. SHA-256 hash ──────────────────────────────────────────────────────
+      - name: Compute SHA-256
+        working-directory: artifacts/academia-os-desktop/release
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem -Filter "*.exe" | Select-Object -First 1
+          if (-not $file) { Write-Error "No .exe found in release/"; exit 1 }
+          $hash = Get-FileHash $file.FullName -Algorithm SHA256
+          Write-Output "FILE=$($file.Name)" >> $env:GITHUB_ENV
+          Write-Output "SHA256=$($hash.Hash)" >> $env:GITHUB_ENV
+          Write-Output "SIZE=$($file.Length)" >> $env:GITHUB_ENV
+          "$($hash.Hash)  $($file.Name)" | Out-File "SHA256SUMS.txt"
+          Write-Host "Installer: $($file.Name)"
+          Write-Host "Size:      $($file.Length) bytes"
+          Write-Host "SHA-256:   $($hash.Hash)"
+
+      # ── 11. Upload artifacts ──────────────────────────────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AcademiaOS-Windows-Installer
+          path: |
+            artifacts/academia-os-desktop/release/*.exe
+            artifacts/academia-os-desktop/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      # ── 12. Create GitHub Release (on tag push only) ──────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AcademiaOS Desktop ${{ github.ref_name }}
+          body: |
+            ## AcademiaOS Desktop for Windows
+
+            **Installer:** `${{ env.FILE }}`
+            **SHA-256:** `${{ env.SHA256 }}`
+            **Size:** ${{ env.SIZE }} bytes
+
+            ### Windows signing status
+            WINDOWS SIGNING STATUS: UNSIGNED
+
+            > This release is unsigned. A valid EV code-signing certificate must be
+            > configured (WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD secrets) before the
+            > public website download link is enabled.
+
+            ### Requirements
+            - Windows 10 / 11 (64-bit)
+            - No additional runtime required
+
+            ### Verification
+            ```powershell
+            Get-FileHash AcademiaOS-Desktop-Windows-1.0.0-Setup.exe -Algorithm SHA256
+            ```
+          files: |
+            artifacts/academia-os-desktop/release/*.exe
+            artifacts/academia-os-desktop/release/SHA256SUMS.txt
+          draft: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 13. Build summary ─────────────────────────────────────────────────────
+      - name: Print build summary
+        shell: pwsh
+        run: |
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host "AcademiaOS Desktop Windows Build Summary" -ForegroundColor Green
+          Write-Host "========================================" -ForegroundColor Green
+          Write-Host "Electron version : 43.2.0"
+          Write-Host "SQLite library   : better-sqlite3-multiple-ciphers"
+          Write-Host "Encryption       : SQLCipher (safeStorage key)"
+          Write-Host "Secure storage   : Electron safeStorage (DPAPI on Windows)"
+          Write-Host "Signing status   : UNSIGNED"
+          Write-Host "Installer        : $env:FILE"
+          Write-Host "SHA-256          : $env:SHA256"
+          Write-Host "Size             : $env:SIZE bytes"

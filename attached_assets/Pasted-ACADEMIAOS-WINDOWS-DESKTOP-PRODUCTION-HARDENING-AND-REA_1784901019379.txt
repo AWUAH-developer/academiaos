@@ -1,0 +1,376 @@
+ACADEMIAOS WINDOWS DESKTOP - PRODUCTION HARDENING AND REAL RELEASE
+
+The Windows desktop source has been created successfully.
+
+DO NOT start macOS or Linux yet.
+
+Do not declare Windows production-ready yet.
+
+Create a checkpoint before continuing.
+
+We now need to turn the written Windows desktop application into a REAL,
+tested production Windows release.
+
+==================================================
+1. UPGRADE ELECTRON BEFORE RELEASE
+==================================================
+
+The desktop project currently uses Electron 31.
+
+Electron 31 is end-of-support and must NOT be used for the production
+AcademiaOS release.
+
+Upgrade the desktop project to the current supported Electron 43 stable
+release line.
+
+At the time of this instruction, target Electron 43.2.0 unless compatibility
+testing identifies a documented blocking issue.
+
+After upgrading:
+
+- update Electron-related dependencies as required
+- rebuild native modules against the Electron version actually shipped
+- fix any breaking API changes properly
+- run TypeScript checks
+- run Electron startup tests
+- verify contextIsolation remains true
+- verify nodeIntegration remains false
+- verify renderer sandboxing remains enabled
+- verify navigation/window restrictions remain enabled
+
+Do not downgrade security settings simply to make a dependency work.
+
+==================================================
+2. REMOVE KEYTAR DEPENDENCY
+==================================================
+
+Do not ship new AcademiaOS production releases depending on the archived
+keytar package.
+
+Replace keytar with Electron's built-in safeStorage API for protection of:
+
+- refresh/session secrets where local persistence is required
+- the random local SQLite encryption key
+- other small machine-local confidential values
+
+Use the asynchronous safeStorage APIs where supported by the Electron
+version being shipped.
+
+Windows must use the OS-protected DPAPI-backed storage provided by Electron.
+
+Never hardcode the SQLite encryption key.
+
+Never derive the database encryption key directly from username, school ID,
+device ID or password.
+
+Generate a cryptographically random key on first secure setup and protect it
+using safeStorage.
+
+==================================================
+3. ENCRYPT SQLITE BEFORE ANY WINDOWS RELEASE
+==================================================
+
+The current better-sqlite3 implementation is NOT acceptable for production.
+
+Replace it with:
+
+better-sqlite3-multiple-ciphers
+
+Use a current compatible stable release and test it against the chosen
+Electron version.
+
+Open the database and apply the encryption key BEFORE any schema read,
+migration, query or write that requires access to the encrypted database.
+
+The finished local database must not be readable as ordinary plaintext
+SQLite.
+
+Test this explicitly:
+
+1. Sign in.
+2. Create cached/offline records.
+3. Close AcademiaOS.
+4. Attempt to open the local .db file using ordinary unencrypted SQLite.
+5. Confirm the protected database contents cannot be read.
+6. Reopen AcademiaOS.
+7. Confirm safeStorage retrieves the protected key and the app can open the
+   database normally.
+
+Also provide a safe migration strategy in case a development plaintext local
+database already exists.
+
+Development databases must never silently become a production security
+weakness.
+
+==================================================
+4. VERIFY THE DESKTOP SERVER API ACTUALLY EXISTS
+==================================================
+
+The desktop renderer/main-process implementation alone is not enough.
+
+Verify the current main AcademiaOS backend contains and implements the
+production desktop API.
+
+Required namespace:
+
+/api/desktop/v1
+
+At minimum verify equivalent production functionality for:
+
+GET  /api/desktop/v1/status
+
+POST /api/desktop/v1/auth/login
+POST /api/desktop/v1/auth/refresh
+POST /api/desktop/v1/auth/logout
+
+GET  /api/desktop/v1/session
+GET  /api/desktop/v1/entitlements
+
+POST /api/desktop/v1/sync/initial
+POST /api/desktop/v1/sync/incremental
+POST /api/desktop/v1/sync/outbox
+
+GET  /api/desktop/v1/sync/status
+
+If any are not implemented, implement them now using the EXISTING AcademiaOS
+authentication, tenant, membership, role, subscription and entitlement
+helpers.
+
+Do not build a second user/account system.
+
+Do not allow normal users to override schoolId.
+
+Do not break /api/mobile/v1.
+
+==================================================
+5. SERVER AUTHORIZATION TEST
+==================================================
+
+A successful desktop login must NOT depend only on valid username/password.
+
+The server must verify:
+
+- active user
+- active school membership
+- membership status
+- school status
+- user role
+- permissions
+- package
+- add-ons
+- feature entitlement
+- term subscription status
+- device status
+
+Except for platform Super Admin and isolated approved demo access, reject a
+user who has valid credentials but no active membership in an AcademiaOS
+school.
+
+==================================================
+6. VERIFY IDEMPOTENT OFFLINE SYNC
+==================================================
+
+Test the actual backend, not only the local outbox.
+
+For every mutable offline operation use a server-recognised idempotency key.
+
+Prove that sending the SAME outbox operation twice produces one logical
+server operation only.
+
+Specifically test:
+
+- attendance
+- daily fees
+- payment drafts/posting where permitted
+- marks
+- Smart ID events
+- gate activity
+- visitor activity
+
+Financial conflicts must never use silent last-write-wins.
+
+Return CONFLICT and preserve the conflict for review where appropriate.
+
+==================================================
+7. FIX CURRENT WEB PRODUCTION ITEMS
+==================================================
+
+Before Desktop is connected to production:
+
+A. Confirm Super Admin access works in production.
+
+Only after successful confirmation:
+remove:
+
+src/app/internal/unlock/route.ts
+
+There must be no hidden emergency authentication bypass in the normal
+production application.
+
+B. Apply and verify migration 0008 safely.
+
+Do not destroy or recreate the database.
+
+Back up/checkpoint first.
+
+Run the migration using the existing production migration process.
+
+Confirm the per-learner pricing columns exist.
+
+Confirm existing schools, users, fees, subscriptions and records remain
+intact.
+
+C. Redeploy the current Next.js application after the migration/start.mjs
+changes.
+
+Then verify:
+
+- public website
+- production Sign In
+- Super Admin login
+- school login
+- /api/mobile/v1/status
+- /api/desktop/v1/status
+
+==================================================
+8. WINDOWS CI RELEASE PIPELINE
+==================================================
+
+Create a reproducible Windows production build workflow.
+
+Preferred build environment:
+
+GitHub Actions windows-latest
+
+Do not rely on the Replit Linux runtime to pretend that a Windows-native
+Electron installer was tested.
+
+Create a Windows release workflow that:
+
+1. Checks out the production source.
+2. Installs the required supported Node/pnpm versions.
+3. Enters artifacts/academia-os-desktop.
+4. Installs locked dependencies.
+5. Rebuilds native modules for the Electron version being shipped.
+6. Runs typecheck/tests.
+7. Builds renderer/main/preload.
+8. Runs electron-builder for Windows x64.
+9. Produces:
+
+AcademiaOS-Desktop-Windows-1.0.0-Setup.exe
+
+10. Calculates SHA-256.
+11. Stores the .exe as a release artifact.
+
+Do not commit production secrets or signing certificates to the repository.
+
+==================================================
+9. INSTALLER PRODUCTION TEST
+==================================================
+
+Test the actual generated Setup.exe on a clean Windows environment.
+
+Verify:
+
+- installer opens
+- AcademiaOS installs
+- Start Menu entry works
+- Desktop shortcut works
+- app starts without Node/Vite/dev server
+- no localhost dependency
+- production HTTPS API only
+- real AcademiaOS login works
+- wrong password is rejected
+- user without school membership is rejected
+- correct school and role are returned
+- correct package features appear
+- restricted modules remain unavailable
+- offline mode works
+- reconnect synchronization works
+- duplicated outbox transmission does not duplicate server records
+- logout clears protected session
+- reinstall/upgrade does not expose secrets
+- uninstall works
+
+==================================================
+10. CODE SIGNING STATUS
+==================================================
+
+Code signing is desirable but do not fake it.
+
+If no genuine Windows code-signing certificate is currently configured:
+
+report:
+
+WINDOWS SIGNING STATUS: UNSIGNED
+
+Do not describe it as digitally signed.
+
+The unsigned installer may be used for controlled internal acceptance
+testing, but the final public website release should preferably use the
+properly signed installer once certificate credentials are supplied.
+
+==================================================
+11. REAL WEBSITE DOWNLOAD
+==================================================
+
+Do not put a download button on academiaos.cc until the installer actually
+exists.
+
+Once the genuine tested installer has been uploaded to a stable HTTPS
+location:
+
+set:
+
+DESKTOP_WINDOWS_URL=<REAL HTTPS INSTALLER URL>
+
+Update the AcademiaOS Desktop website section to show:
+
+AcademiaOS for Windows
+Version 1.0.0
+Windows 10/11 64-bit
+Download for Windows
+
+Use the real installer URL.
+
+Do not point it to a Replit workspace file, development artifact or temporary
+preview URL.
+
+Do not enable macOS/Linux downloads yet.
+
+==================================================
+12. FINAL WINDOWS REPORT
+==================================================
+
+Return an exact report containing:
+
+Electron version actually shipped
+SQLite library and version
+proof local DB encryption is active
+secure-storage implementation
+desktop API endpoints verified
+database migration status
+web deployment status
+mobile API regression-test status
+desktop API test status
+offline idempotency test results
+Windows build workflow
+Windows installer filename
+installer byte size
+SHA-256
+code-signing status
+installer clean-machine test result
+stable HTTPS installer URL
+DESKTOP_WINDOWS_URL
+remaining blockers
+
+Do NOT respond with only:
+"the app is fully written"
+or
+"ready to build".
+
+The phase is complete only when the actual Windows installer has been
+generated and tested.
+
+STOP after Windows.
+Do not begin macOS or Linux.

@@ -1,31 +1,51 @@
+/**
+ * AcademiaOS Desktop — Electron main process
+ *
+ * Startup order (security-critical — do not reorder):
+ *   1. app.whenReady()
+ *   2. ensureDbKey()        — generate/retrieve AES key from OS DPAPI vault
+ *   3. initializeDb(key)    — open SQLCipher DB, apply key, create schema
+ *   4. setupIpcHandlers()   — register IPC channels (DB is ready at this point)
+ *   5. createWindow()       — create BrowserWindow with contextIsolation + sandbox
+ *
+ * Security properties:
+ *   - contextIsolation: true   (renderer cannot access Node.js)
+ *   - nodeIntegration:  false  (renderer has no Node.js APIs)
+ *   - sandbox:          true   (renderer process is sandboxed)
+ *   - safeStorage DPAPI vault  (no plaintext tokens on disk)
+ *   - SQLCipher at-rest encryption
+ *   - CSP blocks inline scripts in production
+ *   - Navigation allowlist rejects unexpected origins
+ *   - New windows always open in external browser, never in-app
+ */
 import { app, BrowserWindow, ipcMain, shell, session } from 'electron';
 import path from 'path';
 import { setupIpcHandlers } from './ipc-handlers';
+import { ensureDbKey } from './secure-storage';
+import { initializeDb } from './sqlite';
 
 const isDev  = process.env.NODE_ENV === 'development';
 const isProd = !isDev;
 
-// ── Security: restrict navigation & new windows ───────────────────────────────
+// ── Security: restrict navigation & new windows ────────────────────────────────
 app.on('web-contents-created', (_, contents) => {
-  // Block navigation to unexpected origins
   contents.on('will-navigate', (event, url) => {
     const allowed = isDev
       ? ['http://localhost:5173']
-      : ['app://.']; // custom protocol in prod
-    const origin = new URL(url).origin;
+      : ['app://.'];
     if (!allowed.some((a) => url.startsWith(a))) {
       event.preventDefault();
     }
   });
 
-  // Block new window creation (open in browser instead)
   contents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url);
     return { action: 'deny' };
   });
 });
 
-function createWindow() {
+// ── Window factory ─────────────────────────────────────────────────────────────
+function createWindow(): BrowserWindow {
   const preloadPath = path.join(__dirname, 'preload.js');
 
   const win = new BrowserWindow({
@@ -39,30 +59,41 @@ function createWindow() {
     show:            false,
     webPreferences: {
       preload:          preloadPath,
-      contextIsolation: true,
-      nodeIntegration:  false,
-      sandbox:          true,
+      contextIsolation: true,   // ← MUST remain true
+      nodeIntegration:  false,  // ← MUST remain false
+      sandbox:          true,   // ← MUST remain true
       webSecurity:      true,
       allowRunningInsecureContent: false,
-      // Never expose the renderer to node APIs — all IPC through contextBridge
     },
   });
 
-  // Set Content-Security-Policy
+  // Content-Security-Policy
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           isProd
-            ? "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://academiaos.cc https://*.academiaos.cc"
-            : "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 ws://localhost:5173; img-src * data:; connect-src *",
+            ? [
+                "default-src 'self'",
+                "script-src 'self'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: https:",
+                "connect-src https://academiaos.cc https://*.academiaos.cc",
+                "font-src 'self' data:",
+                "frame-src 'none'",
+                "object-src 'none'",
+              ].join('; ')
+            : [
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 ws://localhost:5173",
+                "img-src * data:",
+                "connect-src *",
+              ].join('; '),
         ],
       },
     });
   });
 
-  // Load the renderer
   if (isDev) {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
@@ -70,17 +101,23 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
-  // Show window after it finishes loading (prevents white flash)
   win.once('ready-to-show', () => win.show());
 
   return win;
 }
 
-// ── IPC handlers ──────────────────────────────────────────────────────────────
-setupIpcHandlers(ipcMain);
+// ── App lifecycle ──────────────────────────────────────────────────────────────
+app.whenReady().then(async () => {
+  // Step 1 — get or create the database encryption key (stored in OS DPAPI vault)
+  const dbKey = await ensureDbKey();
 
-// ── App lifecycle ─────────────────────────────────────────────────────────────
-app.whenReady().then(() => {
+  // Step 2 — open the SQLCipher database (applies key, creates/migrates schema)
+  initializeDb(dbKey);
+
+  // Step 3 — register all IPC handlers (DB is fully open now)
+  setupIpcHandlers(ipcMain);
+
+  // Step 4 — create the browser window
   createWindow();
 
   app.on('activate', () => {
@@ -92,11 +129,12 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Block requests to localhost/internal URLs in production
+// Block localhost in production (dev server must not be reachable)
 if (isProd) {
   app.on('ready', () => {
-    session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://localhost/*', 'http://127.0.0.1/*'] }, (_, cb) => {
-      cb({ cancel: true });
-    });
+    session.defaultSession.webRequest.onBeforeRequest(
+      { urls: ['http://localhost/*', 'http://127.0.0.1/*'] },
+      (_, cb) => cb({ cancel: true }),
+    );
   });
 }

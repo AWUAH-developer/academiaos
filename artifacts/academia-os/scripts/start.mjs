@@ -43,6 +43,28 @@ try {
     UPDATE packages SET price_per_learner = 35.00 WHERE lower(name) = 'premium'  AND price_per_learner IS NULL;
   `);
 
+  // Migration 0009: Desktop outbox idempotency keys (DB-persisted, restart-safe)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "desktop_outbox_idempotency_keys" (
+      "id"               uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "idempotency_key"  uuid NOT NULL,
+      "school_id"        text REFERENCES "schools"("id") ON DELETE CASCADE,
+      "user_id"          text REFERENCES "users"("id") ON DELETE SET NULL,
+      "operation_type"   text NOT NULL,
+      "result"           text NOT NULL,
+      "error_message"    text,
+      "processed_at"     timestamp with time zone NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "doik_idempotency_key_idx"
+      ON "desktop_outbox_idempotency_keys"("idempotency_key");
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS "doik_school_processed_idx"
+      ON "desktop_outbox_idempotency_keys"("school_id", "processed_at");
+  `);
+
   await pool.end();
   console.log('[start] Schema bootstrap complete.');
 } catch (err) {

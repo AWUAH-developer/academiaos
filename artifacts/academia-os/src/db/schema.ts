@@ -415,3 +415,22 @@ export const auditLogs = pgTable('audit_logs', {
   action: text('action').notNull(), entityType: text('entity_type').notNull(), entityId: text('entity_id'), oldValue: jsonb('old_value'), newValue: jsonb('new_value'),
   ipAddress: text('ip_address'), userAgent: text('user_agent'), createdAt: created()
 }, (t) => [index('audit_school_time_idx').on(t.schoolId, t.createdAt)]);
+
+/**
+ * Persisted idempotency store for the desktop offline outbox.
+ * Replaces the in-process Map that was lost on every server restart.
+ * Rows may be purged after 90 days — the desktop refresh token lifetime is
+ * 30 days, so no client will replay an operation older than that.
+ */
+export const desktopOutboxIdempotencyKeys = pgTable('desktop_outbox_idempotency_keys', {
+  id:             id(),
+  idempotencyKey: text('idempotency_key').notNull().unique(),
+  schoolId:       text('school_id').references(() => schools.id, { onDelete: 'cascade' }),
+  userId:         text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  operationType:  text('operation_type').notNull(),
+  result:         text('result').notNull(),          // 'ok' | 'rejected'
+  errorMessage:   text('error_message'),
+  processedAt:    timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('doik_school_processed_idx').on(t.schoolId, t.processedAt),
+]);

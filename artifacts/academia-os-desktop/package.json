@@ -12,23 +12,23 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "build": "pnpm run build:renderer && pnpm run build:electron",
     "electron:dev": "pnpm run build:electron && electron .",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3-multiple-ciphers",
     "dist": "pnpm run build && electron-builder",
-    "dist:win": "pnpm run build && electron-builder --win",
+    "dist:win": "pnpm run build && pnpm run rebuild:native && electron-builder --win",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit"
   },
   "dependencies": {
-    "better-sqlite3": "^9.6.0",
-    "keytar": "^7.9.0"
+    "better-sqlite3-multiple-ciphers": "^9.6.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
     "@types/better-sqlite3": "^7.6.11",
-    "@types/keytar": "^4.4.2",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "electron": "^31.3.0",
-    "electron-builder": "^24.13.3",
+    "electron": "43.2.0",
+    "electron-builder": "^25.1.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.5.3",
@@ -77,6 +77,7 @@
       "icon": "build-resources/icons/icon.png",
       "category": "Education",
       "artifactName": "AcademiaOS-Desktop-Linux-${version}.AppImage"
-    }
+    },
+    "afterSign": "scripts/notarize.js"
   }
 }

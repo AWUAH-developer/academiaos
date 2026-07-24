@@ -1,66 +1,78 @@
 /**
- * IPC handler registration — called from main.ts.
- * Each handler validates inputs, delegates to secure-storage/sqlite/HTTP,
- * and returns plain serialisable objects to the renderer.
+ * AcademiaOS Desktop — IPC handler registration
  *
- * IMPORTANT: Never return raw Error objects — only serialisable data.
+ * Called from main.ts AFTER initializeDb() has completed, so getDb()
+ * is safe to call synchronously from every handler below.
+ *
+ * All HTTP communication happens here (main process only).
+ * The renderer holds no tokens and makes no direct network requests.
+ *
+ * Return values must be plain JSON-serialisable objects.
+ * Never return Error instances directly.
  */
 import { IpcMain } from 'electron';
 import https from 'https';
 import crypto from 'crypto';
 import { app } from 'electron';
 import {
-  saveCredential, getCredential, clearAllCredentials, ensureDbKey,
+  saveCredential, getCredential, clearAuthCredentials,
   ACCOUNT_ACCESS_TOKEN, ACCOUNT_REFRESH_TOKEN, ACCOUNT_DEVICE_ID,
 } from './secure-storage';
 import {
   getDb, upsertLearners, addToOutbox, getPendingOps, markOpStatus,
 } from './sqlite';
 
-// ── Config ────────────────────────────────────────────────────────────────────
-const API_BASE = 'https://academiaos.cc/api/desktop/v1';
+// ── Config ─────────────────────────────────────────────────────────────────────
+const API_BASE    = 'https://academiaos.cc/api/desktop/v1';
 const APP_VERSION = app.getVersion();
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+// ── HTTP helper (main-process HTTPS only) ──────────────────────────────────────
 function apiRequest(
-  path: string,
+  urlPath: string,
   method: 'GET' | 'POST',
   body?: unknown,
   accessToken?: string,
 ): Promise<{ ok: boolean; status: number; data: unknown }> {
   return new Promise((resolve, reject) => {
-    const url = new URL(`${API_BASE}${path}`);
+    const url     = new URL(`${API_BASE}${urlPath}`);
     const payload = body ? JSON.stringify(body) : undefined;
-    const req = https.request({
-      hostname: url.hostname,
-      port:     443,
-      path:     url.pathname + url.search,
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent':   `AcademiaOS-Desktop/${APP_VERSION}`,
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+
+    const req = https.request(
+      {
+        hostname: url.hostname,
+        port:     443,
+        path:     url.pathname + url.search,
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':   `AcademiaOS-Desktop/${APP_VERSION}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+        },
+        timeout: 30_000,
       },
-    }, (res) => {
-      let raw = '';
-      res.on('data', (chunk) => { raw += chunk; });
-      res.on('end', () => {
-        try {
-          const data = JSON.parse(raw);
-          resolve({ ok: res.statusCode ? res.statusCode < 400 : false, status: res.statusCode ?? 0, data });
-        } catch {
-          reject(new Error(`JSON parse error (status ${res.statusCode})`));
-        }
-      });
-    });
+      (res) => {
+        let raw = '';
+        res.on('data', (chunk: Buffer) => { raw += chunk.toString(); });
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(raw);
+            resolve({ ok: (res.statusCode ?? 0) < 400, status: res.statusCode ?? 0, data });
+          } catch {
+            reject(new Error(`JSON parse error (HTTP ${res.statusCode})`));
+          }
+        });
+      },
+    );
+
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
     req.on('error', reject);
     if (payload) req.write(payload);
     req.end();
   });
 }
 
-// ── Device identifier ─────────────────────────────────────────────────────────
+// ── Device identifier ──────────────────────────────────────────────────────────
 async function getOrCreateDeviceId(): Promise<string> {
   const existing = await getCredential(ACCOUNT_DEVICE_ID);
   if (existing) return existing;
@@ -69,133 +81,179 @@ async function getOrCreateDeviceId(): Promise<string> {
   return id;
 }
 
-// ── Handler registration ──────────────────────────────────────────────────────
+// ── Type helpers ───────────────────────────────────────────────────────────────
+type ApiData = Record<string, unknown>;
+function data(res: { data: unknown }) {
+  return (res.data as ApiData)?.data as ApiData;
+}
+function errOf(res: { data: unknown }) {
+  return (res.data as ApiData)?.error;
+}
+
+// ── Handler registration ───────────────────────────────────────────────────────
 export function setupIpcHandlers(ipcMain: IpcMain): void {
-  // ── auth:login ─────────────────────────────────────────────────────────────
-  ipcMain.handle('auth:login', async (_, { username, password, deviceName }: { username: string; password: string; deviceName?: string }) => {
+
+  // ── auth:login ──────────────────────────────────────────────────────────────
+  ipcMain.handle('auth:login', async (_, {
+    username, password, deviceName,
+  }: { username: string; password: string; deviceName?: string }) => {
     try {
-      const deviceId  = await getOrCreateDeviceId();
-      await ensureDbKey();
+      const deviceId = await getOrCreateDeviceId();
+      const platform = process.platform === 'darwin' ? 'mac'
+        : process.platform === 'linux' ? 'linux' : 'windows';
+
       const res = await apiRequest('/auth/login', 'POST', {
         username, password,
         deviceIdentifier: deviceId,
         deviceName: deviceName ?? `AcademiaOS Desktop (${process.platform})`,
-        platform: process.platform === 'darwin' ? 'mac' : process.platform === 'linux' ? 'linux' : 'windows',
+        platform,
         appVersion: APP_VERSION,
       });
-      if (!res.ok) return { ok: false, error: (res.data as Record<string, unknown>)?.error };
-      const { user, tokens, deviceId: serverDeviceId } = (res.data as Record<string, unknown>)?.data as Record<string, unknown>;
-      await saveCredential(ACCOUNT_ACCESS_TOKEN,  (tokens as Record<string, unknown>).accessToken as string);
-      await saveCredential(ACCOUNT_REFRESH_TOKEN, (tokens as Record<string, unknown>).refreshToken as string);
-      // Persist session metadata in SQLite
+
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const d = data(res);
+      const tokens = d.tokens as ApiData;
+
+      await saveCredential(ACCOUNT_ACCESS_TOKEN,  tokens.accessToken  as string);
+      await saveCredential(ACCOUNT_REFRESH_TOKEN, tokens.refreshToken as string);
+
+      // Persist minimal session metadata in SQLite
       const db = getDb();
       db.prepare(`
-        INSERT OR REPLACE INTO device_meta (id, device_id, device_name, platform, app_version, user_id, school_id, school_name, role, updated_at)
-        VALUES (1, @device_id, @device_name, @platform, @app_version, @user_id, @school_id, @school_name, @role, datetime('now'))
+        INSERT OR REPLACE INTO device_meta
+          (id, device_id, device_name, platform, app_version,
+           user_id, school_id, school_name, role, updated_at)
+        VALUES (1, @did, @dname, @plat, @ver, @uid, @sid, @sname, @role, datetime('now'))
       `).run({
-        device_id: deviceId, device_name: `AcademiaOS Desktop`,
-        platform: process.platform, app_version: APP_VERSION,
-        user_id: (user as Record<string, unknown>).id,
-        school_id: ((user as Record<string, unknown>).school as Record<string, unknown>)?.id ?? null,
-        school_name: ((user as Record<string, unknown>).school as Record<string, unknown>)?.name ?? null,
-        role: (user as Record<string, unknown>).role,
+        did:   deviceId,
+        dname: deviceName ?? 'AcademiaOS Desktop',
+        plat:  platform,
+        ver:   APP_VERSION,
+        uid:   (d.user as ApiData).id,
+        sid:   ((d.user as ApiData).school as ApiData)?.id   ?? null,
+        sname: ((d.user as ApiData).school as ApiData)?.name ?? null,
+        role:  (d.user as ApiData).role,
       });
-      return { ok: true, user, tokens, deviceId: serverDeviceId };
+
+      return { ok: true, user: d.user, tokens: d.tokens, deviceId: d.deviceId };
     } catch (err) {
       return { ok: false, error: { code: 'NETWORK_ERROR', message: String(err) } };
     }
   });
 
-  // ── auth:refresh ───────────────────────────────────────────────────────────
+  // ── auth:refresh ────────────────────────────────────────────────────────────
   ipcMain.handle('auth:refresh', async () => {
     try {
       const refreshToken = await getCredential(ACCOUNT_REFRESH_TOKEN);
       if (!refreshToken) return { ok: false, error: { code: 'NO_REFRESH_TOKEN' } };
+
       const res = await apiRequest('/auth/refresh', 'POST', { refreshToken });
-      if (!res.ok) return { ok: false, error: (res.data as Record<string, unknown>)?.error };
-      const { tokens } = (res.data as Record<string, unknown>)?.data as Record<string, unknown>;
-      await saveCredential(ACCOUNT_ACCESS_TOKEN,  (tokens as Record<string, unknown>).accessToken as string);
-      await saveCredential(ACCOUNT_REFRESH_TOKEN, (tokens as Record<string, unknown>).refreshToken as string);
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const tokens = data(res).tokens as ApiData;
+      await saveCredential(ACCOUNT_ACCESS_TOKEN,  tokens.accessToken  as string);
+      await saveCredential(ACCOUNT_REFRESH_TOKEN, tokens.refreshToken as string);
       return { ok: true, tokens };
     } catch (err) {
       return { ok: false, error: { code: 'NETWORK_ERROR', message: String(err) } };
     }
   });
 
-  // ── auth:logout ────────────────────────────────────────────────────────────
+  // ── auth:logout ─────────────────────────────────────────────────────────────
   ipcMain.handle('auth:logout', async () => {
     try {
       const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
-      if (accessToken) await apiRequest('/auth/logout', 'POST', {}, accessToken).catch(() => {});
+      if (accessToken) {
+        await apiRequest('/auth/logout', 'POST', {}, accessToken).catch(() => {});
+      }
     } finally {
-      await clearAllCredentials();
+      await clearAuthCredentials();
     }
     return { ok: true };
   });
 
-  // ── auth:getSession ────────────────────────────────────────────────────────
+  // ── auth:getSession ─────────────────────────────────────────────────────────
   ipcMain.handle('auth:getSession', async () => {
     try {
       const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
       if (!accessToken) return { ok: false, loggedIn: false };
+
       const res = await apiRequest('/session', 'GET', undefined, accessToken);
-      if (!res.ok) return { ok: false, loggedIn: false, error: (res.data as Record<string, unknown>)?.error };
-      return { ok: true, loggedIn: true, ...(res.data as Record<string, unknown>)?.data as object };
+      if (!res.ok) return { ok: false, loggedIn: false, error: errOf(res) };
+
+      return { ok: true, loggedIn: true, ...data(res) };
     } catch {
       return { ok: false, loggedIn: false };
     }
   });
 
-  // ── sync:initial ───────────────────────────────────────────────────────────
+  // ── sync:initial ────────────────────────────────────────────────────────────
   ipcMain.handle('sync:initial', async () => {
     try {
       const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
       if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED' } };
+
       const res = await apiRequest('/sync/initial', 'POST', {}, accessToken);
-      if (!res.ok) return { ok: false, error: (res.data as Record<string, unknown>)?.error };
-      const d = (res.data as Record<string, unknown>)?.data as Record<string, unknown>;
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const d = data(res);
       const db = getDb();
-      // Cache learners locally
-      if (Array.isArray(d.learners) && d.learners.length > 0) {
+
+      if (Array.isArray(d.learners) && (d.learners as unknown[]).length > 0) {
         upsertLearners(db, d.learners as Record<string, unknown>[]);
       }
-      // Update sync cursor
-      db.prepare(`INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count) VALUES (?, ?, ?)`).run('learners', d.syncCursor, (d.learners as unknown[])?.length ?? 0);
+      db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `).run('learners', d.syncCursor, (d.learners as unknown[])?.length ?? 0);
+
       return { ok: true, data: d };
     } catch (err) {
       return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
     }
   });
 
-  // ── sync:incremental ───────────────────────────────────────────────────────
+  // ── sync:incremental ────────────────────────────────────────────────────────
   ipcMain.handle('sync:incremental', async (_, { syncCursor }: { syncCursor: string }) => {
     try {
       const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
       if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED' } };
+
       const res = await apiRequest('/sync/incremental', 'POST', { syncCursor }, accessToken);
-      if (!res.ok) return { ok: false, error: (res.data as Record<string, unknown>)?.error };
-      const d = (res.data as Record<string, unknown>)?.data as Record<string, unknown>;
-      const db = getDb();
-      const changes = d.changes as Record<string, unknown[]>;
-      if (changes?.learners?.length) upsertLearners(db, changes.learners as Record<string, unknown>[]);
-      db.prepare(`INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count) VALUES (?, ?, ?)`).run('learners', d.syncCursor, changes?.learners?.length ?? 0);
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const d   = data(res);
+      const db  = getDb();
+      const chg = d.changes as Record<string, unknown[]>;
+
+      if (chg?.learners?.length) upsertLearners(db, chg.learners as Record<string, unknown>[]);
+      db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `).run('learners', d.syncCursor, chg?.learners?.length ?? 0);
+
       return { ok: true, data: d };
     } catch (err) {
       return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
     }
   });
 
-  // ── sync:uploadOutbox ──────────────────────────────────────────────────────
+  // ── sync:uploadOutbox ───────────────────────────────────────────────────────
   ipcMain.handle('sync:uploadOutbox', async () => {
     try {
       const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
       if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED' } };
+
       const db      = getDb();
       const pending = getPendingOps(db) as Array<{
         id: string; idempotency_key: string; device_id: string; user_id: string;
-        school_id: string; operation_type: string; payload_json: string; record_version: number | null;
+        school_id: string; operation_type: string; payload_json: string;
+        record_version: number | null; created_at: string;
       }>;
+
       if (!pending.length) return { ok: true, processed: 0 };
+
       const ops = pending.map((row) => ({
         operationId:    row.id,
         idempotencyKey: row.idempotency_key,
@@ -203,88 +261,112 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         schoolId:       row.school_id,
         type:           row.operation_type,
         payload:        JSON.parse(row.payload_json),
-        createdAt:      new Date().toISOString(),
+        createdAt:      row.created_at,
         recordVersion:  row.record_version ?? undefined,
       }));
+
+      // Mark as UPLOADING before sending
       pending.forEach((op) => markOpStatus(db, op.id, 'UPLOADING'));
+
       const res = await apiRequest('/sync/outbox', 'POST', { operations: ops }, accessToken);
+
       if (!res.ok) {
+        // Revert to PENDING so next sync can retry
         pending.forEach((op) => markOpStatus(db, op.id, 'PENDING'));
-        return { ok: false, error: (res.data as Record<string, unknown>)?.error };
+        return { ok: false, error: errOf(res) };
       }
-      const results = ((res.data as Record<string, unknown>)?.data as Record<string, unknown>)?.results as Array<{ operationId: string; status: string; message?: string }>;
+
+      const results = (data(res).results as Array<{
+        operationId: string; status: string; message?: string;
+      }>);
+
       for (const r of results) {
-        markOpStatus(db, r.operationId, r.status === 'ALREADY_PROCESSED' ? 'SYNCED' : r.status, r.message);
+        const finalStatus = r.status === 'ALREADY_PROCESSED' ? 'SYNCED' : r.status;
+        markOpStatus(db, r.operationId, finalStatus, r.message);
       }
+
       return { ok: true, processed: pending.length, results };
     } catch (err) {
       return { ok: false, error: { code: 'UPLOAD_ERROR', message: String(err) } };
     }
   });
 
-  // ── sync:status ────────────────────────────────────────────────────────────
+  // ── sync:status ─────────────────────────────────────────────────────────────
   ipcMain.handle('sync:status', async () => {
-    const db      = getDb();
-    const cursors = db.prepare(`SELECT * FROM sync_cursor`).all() as Array<{ entity_type: string; last_synced: string; record_count: number }>;
-    const pending = db.prepare(`SELECT COUNT(*) as n FROM outbox WHERE status = 'PENDING'`).get() as { n: number };
+    const db        = getDb();
+    const cursors   = db.prepare(`SELECT * FROM sync_cursor`).all() as Array<{
+      entity_type: string; last_synced: string; record_count: number;
+    }>;
+    const pending   = db.prepare(`SELECT COUNT(*) as n FROM outbox WHERE status = 'PENDING'`).get() as { n: number };
     const conflicts = db.prepare(`SELECT COUNT(*) as n FROM conflicts WHERE resolved = 0`).get() as { n: number };
-    return {
-      ok: true,
-      cursors,
-      pendingOps:    pending.n,
-      conflictCount: conflicts.n,
-    };
+    return { ok: true, cursors, pendingOps: pending.n, conflictCount: conflicts.n };
   });
 
-  // ── db:getLearners ─────────────────────────────────────────────────────────
-  ipcMain.handle('db:getLearners', async (_, { classId, search }: { classId?: string; search?: string } = {}) => {
+  // ── db:getLearners ──────────────────────────────────────────────────────────
+  ipcMain.handle('db:getLearners', async (_, opts: { classId?: string; search?: string } = {}) => {
     const db   = getDb();
     let sql    = `SELECT * FROM cached_learners WHERE status = 'ACTIVE'`;
-    const args: string[] = [];
-    if (classId) { sql += ` AND class_id = ?`; args.push(classId); }
-    if (search)  { sql += ` AND (first_name LIKE ? OR last_name LIKE ? OR admission_no LIKE ?)`; const q = `%${search}%`; args.push(q, q, q); }
+    const args: (string | number)[] = [];
+
+    if (opts.classId) { sql += ` AND class_id = ?`;  args.push(opts.classId); }
+    if (opts.search) {
+      const q = `%${opts.search}%`;
+      sql += ` AND (first_name LIKE ? OR last_name LIKE ? OR admission_no LIKE ?)`;
+      args.push(q, q, q);
+    }
     sql += ` ORDER BY last_name, first_name LIMIT 500`;
+
     const rows = db.prepare(sql).all(...args);
     return { ok: true, learners: rows };
   });
 
-  // ── db:saveAttendance ──────────────────────────────────────────────────────
-  ipcMain.handle('db:saveAttendance', async (_, { learnerId, date, status, schoolId, userId, deviceId }: {
+  // ── db:saveAttendance ───────────────────────────────────────────────────────
+  ipcMain.handle('db:saveAttendance', async (_, params: {
     learnerId: string; date: string; status: string;
     schoolId: string; userId: string; deviceId: string;
   }) => {
     const db  = getDb();
     const id  = crypto.randomUUID();
     const idk = crypto.randomUUID();
-    // Save to local cache
+
     db.prepare(`
-      INSERT OR REPLACE INTO cached_attendance (id, school_id, learner_id, date, status, is_local)
+      INSERT OR REPLACE INTO cached_attendance
+        (id, school_id, learner_id, date, status, is_local)
       VALUES (@id, @school_id, @learner_id, @date, @status, 1)
-    `).run({ id, school_id: schoolId, learner_id: learnerId, date, status });
-    // Queue for sync
-    addToOutbox(db, {
-      id, idempotencyKey: idk, deviceId, userId, schoolId,
-      operationType: 'ATTENDANCE_RECORD',
-      payload: { learnerId, date, status },
+    `).run({
+      id, school_id: params.schoolId, learner_id: params.learnerId,
+      date: params.date, status: params.status,
     });
+
+    addToOutbox(db, {
+      id, idempotencyKey: idk,
+      deviceId:      params.deviceId,
+      userId:        params.userId,
+      schoolId:      params.schoolId,
+      operationType: 'ATTENDANCE_RECORD',
+      payload:       { learnerId: params.learnerId, date: params.date, status: params.status },
+    });
+
     return { ok: true, operationId: id, idempotencyKey: idk };
   });
 
-  // ── db:getPendingOps ───────────────────────────────────────────────────────
+  // ── db:getPendingOps ────────────────────────────────────────────────────────
   ipcMain.handle('db:getPendingOps', async () => {
     const db   = getDb();
     const rows = getPendingOps(db);
     return { ok: true, operations: rows };
   });
 
-  // ── db:getConflicts ────────────────────────────────────────────────────────
+  // ── db:getConflicts ─────────────────────────────────────────────────────────
   ipcMain.handle('db:getConflicts', async () => {
     const db   = getDb();
-    const rows = db.prepare(`SELECT * FROM conflicts WHERE resolved = 0 ORDER BY created_at DESC`).all();
+    const rows = db.prepare(
+      `SELECT * FROM conflicts WHERE resolved = 0 ORDER BY created_at DESC`,
+    ).all();
     return { ok: true, conflicts: rows };
   });
 
-  // ── app:getVersion ─────────────────────────────────────────────────────────
-  ipcMain.handle('app:getVersion', () => ({ ok: true, version: APP_VERSION }));
+  // ── app:getVersion / app:getPlatform ────────────────────────────────────────
+  ipcMain.handle('app:getVersion',  () => ({ ok: true, version:  APP_VERSION }));
   ipcMain.handle('app:getPlatform', () => ({ ok: true, platform: process.platform }));
 }

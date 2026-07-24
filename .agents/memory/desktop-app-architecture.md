@@ -10,6 +10,9 @@ The desktop Electron app lives in `artifacts/academia-os-desktop/` but is **excl
 
 **How to apply:** Always `cd artifacts/academia-os-desktop && pnpm install` — never from the workspace root.
 
+## Schema note
+`desktopOutboxIdempotencyKeys` uses `text` (not `uuid`) for idempotencyKey because drizzle-orm 0.45.2 does not re-export `uuid` from its pg-core index. All UUID PK columns in this codebase use `text` via the `id()` helper.
+
 ## Desktop auth
 - Reuses `mobileDevices` + `mobileSessions` DB tables (server-side)
 - Platform values: `'windows' | 'mac' | 'linux'`
