@@ -1,4 +1,4 @@
-CREATE TABLE "demo_requests" (
+CREATE TABLE IF NOT EXISTS "demo_requests" (
 	"id" text PRIMARY KEY NOT NULL,
 	"school_name" text NOT NULL,
 	"contact_name" text NOT NULL,

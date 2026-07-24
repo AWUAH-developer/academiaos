@@ -1,4 +1,4 @@
-CREATE TABLE "packages" (
+CREATE TABLE IF NOT EXISTS "packages" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -12,7 +12,7 @@ CREATE TABLE "packages" (
 	"updated_at" timestamptz DEFAULT now() NOT NULL
 );
 
-CREATE TABLE "package_addons" (
+CREATE TABLE IF NOT EXISTS "package_addons" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -23,7 +23,7 @@ CREATE TABLE "package_addons" (
 	"updated_at" timestamptz DEFAULT now() NOT NULL
 );
 
-CREATE TABLE "school_subscriptions" (
+CREATE TABLE IF NOT EXISTS "school_subscriptions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"school_id" text NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
 	"package_id" text NOT NULL REFERENCES packages(id),
@@ -41,9 +41,9 @@ CREATE TABLE "school_subscriptions" (
 	"created_at" timestamptz DEFAULT now() NOT NULL,
 	"updated_at" timestamptz DEFAULT now() NOT NULL
 );
-CREATE INDEX "sub_school_idx" ON "school_subscriptions"("school_id","term","academic_year");
+CREATE INDEX IF NOT EXISTS "sub_school_idx" ON "school_subscriptions"("school_id","term","academic_year");
 
-CREATE TABLE "subscription_addons" (
+CREATE TABLE IF NOT EXISTS "subscription_addons" (
 	"subscription_id" text NOT NULL REFERENCES school_subscriptions(id) ON DELETE CASCADE,
 	"addon_id" text NOT NULL REFERENCES package_addons(id) ON DELETE CASCADE,
 	"price_at_time" numeric(12, 2) NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE "subscription_addons" (
 	CONSTRAINT "sub_addon_uq" UNIQUE("subscription_id","addon_id")
 );
 
-CREATE TABLE "subscription_payments" (
+CREATE TABLE IF NOT EXISTS "subscription_payments" (
 	"id" text PRIMARY KEY NOT NULL,
 	"subscription_id" text NOT NULL REFERENCES school_subscriptions(id) ON DELETE CASCADE,
 	"school_id" text NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
@@ -63,19 +63,36 @@ CREATE TABLE "subscription_payments" (
 	"created_at" timestamptz DEFAULT now() NOT NULL
 );
 
--- Seed default packages
-INSERT INTO packages (id, name, description, price_per_term, max_learners, max_staff, features, sort_order) VALUES
-  (gen_random_uuid()::text, 'Starter', 'Core school management for small schools', '500.00', 200, 20,
-   '["Admissions & learner records","Daily & term attendance","Fee collection & receipts","Basic reports","Smart ID cards"]', 1),
-  (gen_random_uuid()::text, 'Standard', 'Full administration for growing schools', '1200.00', 600, 60,
-   '["Everything in Starter","Academic results & approval workflow","Homework management","Parent & guardian portal","Internal messaging","Help desk"]', 2),
-  (gen_random_uuid()::text, 'Premium', 'Complete platform for established schools', '2500.00', 2000, 150,
-   '["Everything in Standard","Transport management","Mobile apps (Android & iOS)","Offline desktop app","Transport QR scanning","Staff movement requests"]', 3),
-  (gen_random_uuid()::text, 'Enterprise', 'Multi-school administration — unlimited', '5000.00', NULL, NULL,
-   '["Everything in Premium","Multi-school super admin","Unlimited learners & staff","Priority support","Custom onboarding"]', 4);
+-- Seed default packages (skip if already seeded)
+INSERT INTO packages (id, name, description, price_per_term, max_learners, max_staff, features, sort_order)
+SELECT gen_random_uuid()::text, 'Starter', 'Core school management for small schools', '500.00', 200, 20,
+   '["Admissions & learner records","Daily & term attendance","Fee collection & receipts","Basic reports","Smart ID cards"]', 1
+WHERE NOT EXISTS (SELECT 1 FROM packages WHERE name = 'Starter');
 
--- Seed default add-ons
-INSERT INTO package_addons (id, name, description, price_per_term, sort_order) VALUES
-  (gen_random_uuid()::text, 'SMS Alerts', 'Automated SMS for attendance, fees and results to parents', '200.00', 1),
-  (gen_random_uuid()::text, 'Extra Storage', 'Additional 50 GB for photos, attachments and reports', '100.00', 2),
-  (gen_random_uuid()::text, 'Priority Support', '4-hour response SLA with a dedicated account manager', '300.00', 3);
+INSERT INTO packages (id, name, description, price_per_term, max_learners, max_staff, features, sort_order)
+SELECT gen_random_uuid()::text, 'Standard', 'Full administration for growing schools', '1200.00', 600, 60,
+   '["Everything in Starter","Academic results & approval workflow","Homework management","Parent & guardian portal","Internal messaging","Help desk"]', 2
+WHERE NOT EXISTS (SELECT 1 FROM packages WHERE name = 'Standard');
+
+INSERT INTO packages (id, name, description, price_per_term, max_learners, max_staff, features, sort_order)
+SELECT gen_random_uuid()::text, 'Premium', 'Complete platform for established schools', '2500.00', 2000, 150,
+   '["Everything in Standard","Transport management","Mobile apps (Android & iOS)","Offline desktop app","Transport QR scanning","Staff movement requests"]', 3
+WHERE NOT EXISTS (SELECT 1 FROM packages WHERE name = 'Premium');
+
+INSERT INTO packages (id, name, description, price_per_term, max_learners, max_staff, features, sort_order)
+SELECT gen_random_uuid()::text, 'Enterprise', 'Multi-school administration — unlimited', '5000.00', NULL, NULL,
+   '["Everything in Premium","Multi-school super admin","Unlimited learners & staff","Priority support","Custom onboarding"]', 4
+WHERE NOT EXISTS (SELECT 1 FROM packages WHERE name = 'Enterprise');
+
+-- Seed default add-ons (skip if already seeded)
+INSERT INTO package_addons (id, name, description, price_per_term, sort_order)
+SELECT gen_random_uuid()::text, 'SMS Alerts', 'Automated SMS for attendance, fees and results to parents', '200.00', 1
+WHERE NOT EXISTS (SELECT 1 FROM package_addons WHERE name = 'SMS Alerts');
+
+INSERT INTO package_addons (id, name, description, price_per_term, sort_order)
+SELECT gen_random_uuid()::text, 'Extra Storage', 'Additional 50 GB for photos, attachments and reports', '100.00', 2
+WHERE NOT EXISTS (SELECT 1 FROM package_addons WHERE name = 'Extra Storage');
+
+INSERT INTO package_addons (id, name, description, price_per_term, sort_order)
+SELECT gen_random_uuid()::text, 'Priority Support', '4-hour response SLA with a dedicated account manager', '300.00', 3
+WHERE NOT EXISTS (SELECT 1 FROM package_addons WHERE name = 'Priority Support');
