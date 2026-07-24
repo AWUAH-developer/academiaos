@@ -8,8 +8,7 @@
     "./schema": "./src/schema/index.ts"
   },
   "scripts": {
-    "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "_push_DISABLED": "echo 'drizzle-kit push is disabled in lib/db. Production schema changes must go through artifacts/academia-os Drizzle journal migrations (scripts/start.mjs). Running push from this package against a shared database would drop every column not present in the empty lib/db schema.'"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

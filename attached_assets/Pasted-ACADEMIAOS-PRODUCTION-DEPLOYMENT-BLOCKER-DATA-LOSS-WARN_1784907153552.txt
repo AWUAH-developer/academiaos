@@ -1,0 +1,173 @@
+ACADEMIAOS PRODUCTION DEPLOYMENT BLOCKER - DATA LOSS WARNING
+
+STOP.
+
+Do not deploy.
+Do not run drizzle-kit push --force.
+Do not drop any production column.
+Do not modify or delete production data.
+
+During Republish, Replit produced this destructive warning:
+
+ALTER TABLE "school_subscriptions" DROP COLUMN "learner_count";
+ALTER TABLE "packages" DROP COLUMN "price_per_learner";
+
+It also states that packages.price_per_learner currently contains data for
+4 records.
+
+These columns MUST NOT be dropped.
+
+They are required AcademiaOS production fields introduced by migration 0008:
+
+packages.price_per_learner
+school_subscriptions.learner_count
+
+Create a checkpoint before making changes.
+
+==================================================
+1. FIND THE SCHEMA DRIFT
+==================================================
+
+Inspect the exact schema file used by the production deployment.
+
+Check:
+
+artifacts/academia-os/src/db/schema.ts
+artifacts/academia-os/drizzle.config.ts
+artifacts/academia-os/drizzle/0008_per_learner_pricing.sql
+artifacts/academia-os/scripts/start.mjs
+package.json deployment scripts
+Replit deployment/build/run configuration
+
+Determine exactly why Republish believes these two production columns should
+be deleted.
+
+Show the exact schema path configured in drizzle.config.ts.
+
+==================================================
+2. PRODUCTION SCHEMA MUST RETAIN BOTH COLUMNS
+==================================================
+
+Verify schema.ts explicitly declares:
+
+packages.price_per_learner
+
+and:
+
+school_subscriptions.learner_count
+
+using the correct PostgreSQL types matching the existing production
+database and migration 0008.
+
+Do not rename them.
+Do not drop them.
+Do not recreate them in a way that loses values.
+
+Existing price_per_learner values must be preserved.
+
+Existing learner_count values must be preserved.
+
+==================================================
+3. CHECK MIGRATION 0008
+==================================================
+
+Migration 0008 must be additive/data-preserving.
+
+It must not contain:
+
+DROP COLUMN price_per_learner
+DROP COLUMN learner_count
+
+Confirm its intended operations and compare them with the current
+production database.
+
+The fact that Republish now sees these columns already in production means
+the previous statement that migration 0008 was completely absent from
+production may be inaccurate.
+
+Determine the actual production schema state instead of guessing.
+
+==================================================
+4. CHECK DEPLOYMENT MIGRATION METHOD
+==================================================
+
+Determine whether Replit Republish is running:
+
+drizzle-kit push
+
+or another automatic schema synchronization step in addition to the
+Drizzle migrate() process in start.mjs.
+
+Production AcademiaOS must not have two schema mutation mechanisms fighting
+each other.
+
+The intended production migration authority is the journal-tracked Drizzle
+migration flow.
+
+Do not use drizzle-kit push --force against production.
+
+If Replit's deployment configuration invokes drizzle-kit push, change the
+production deployment flow so it uses the approved migration mechanism and
+does not generate destructive schema reconciliation.
+
+==================================================
+5. DRY RUN ONLY
+==================================================
+
+After correcting the schema/configuration, perform a NON-DESTRUCTIVE
+migration/schema diff or explain/dry-run.
+
+The resulting production plan must contain:
+
+NO DROP TABLE
+NO DROP COLUMN
+NO TRUNCATE
+NO destructive recreation of packages
+NO destructive recreation of school_subscriptions
+
+Specifically confirm that it does NOT contain:
+
+DROP COLUMN "price_per_learner"
+DROP COLUMN "learner_count"
+
+==================================================
+6. VERIFY DATA PRESERVATION
+==================================================
+
+Before any later redeploy, report:
+
+Current production packages.price_per_learner column exists: YES/NO
+Number of package rows currently holding values
+Current production school_subscriptions.learner_count exists: YES/NO
+Number of subscription rows holding values where safely measurable
+
+Do not print confidential school/student data.
+
+==================================================
+7. RETURN REPORT AND STOP
+==================================================
+
+Return:
+
+root cause of destructive warning
+actual production schema state
+schema.ts definition for price_per_learner
+schema.ts definition for learner_count
+drizzle.config.ts schema path
+migration 0008 status
+production migration command/path
+whether drizzle-kit push was involved
+files changed
+new dry-run migration plan
+
+Required final statement:
+
+price_per_learner preserved: YES
+learner_count preserved: YES
+destructive DROP operations remaining: ZERO
+
+Then STOP.
+
+Do not Republish automatically.
+Do not run Windows CI.
+Do not start macOS/Linux.
