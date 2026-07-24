@@ -1,20 +1,3 @@
 uploads = []
 generated = []
-
-[[outputs]]
-id = "Piwo_rFqK9pnHnazaMj_7"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ae"
-type = "unspecified"
-title = "AcademiaOS Source — part-ae"
-
-[[outputs]]
-id = "6lj4VHnxUPzHc-n0Uapmh"
-uri = "file://AcademiaOS-CURRENT-SOURCE.part-ag"
-type = "unspecified"
-title = "AcademiaOS Source — part-ag"
-
-[[outputs]]
-id = "P6PgwMz7vJrITHNySW0fe"
-uri = "file://academia-os-desktop.zip"
-type = "unspecified"
-title = "academia-os-desktop.zip"
+outputs = []
