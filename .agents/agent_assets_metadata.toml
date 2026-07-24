@@ -78,3 +78,9 @@ id = "o5PVMbxi05LCZCzK6q1lo"
 uri = "file://ACADEMIAOS_SOURCE_MAP.txt"
 type = "text"
 title = "AcademiaOS Source Map"
+
+[[outputs]]
+id = "QXiGXkmooj2y7yvxoEazL"
+uri = "file://AcademiaOS-CORE-SOURCE.zip"
+type = "unspecified"
+title = "AcademiaOS Core Source (8.1 MB)"
