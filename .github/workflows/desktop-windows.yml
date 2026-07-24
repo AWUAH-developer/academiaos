@@ -70,27 +70,37 @@ jobs:
           npm_config_runtime: electron
           npm_config_build_from_source: true
 
-      # ── 6. TypeScript check ───────────────────────────────────────────────────
-      - name: TypeScript typecheck
+      # ── 6. Renderer TypeScript check ─────────────────────────────────────────
+      - name: Renderer TypeScript check
         working-directory: artifacts/academia-os-desktop
-        run: pnpm typecheck
+        run: tsc --noEmit
 
-      # ── 7. Unit tests (vitest) ────────────────────────────────────────────────
-      - name: Run unit tests
+      # ── 7. Electron main/preload TypeScript check ─────────────────────────────
+      - name: Electron main/preload TypeScript check
+        working-directory: artifacts/academia-os-desktop
+        run: tsc -p tsconfig.electron.json --noEmit
+
+      # ── 8. Test file TypeScript check ─────────────────────────────────────────
+      - name: Test file TypeScript check
+        working-directory: artifacts/academia-os-desktop
+        run: pnpm test:typecheck
+
+      # ── 9. Runtime unit tests (vitest) ────────────────────────────────────────
+      - name: Runtime unit tests
         working-directory: artifacts/academia-os-desktop
         run: pnpm test
 
-      # ── 8. Build renderer (Vite) ──────────────────────────────────────────────
+      # ── 10. Build renderer (Vite) ─────────────────────────────────────────────
       - name: Build renderer
         working-directory: artifacts/academia-os-desktop
         run: pnpm build:renderer
 
-      # ── 9. Build main / preload (tsc) ─────────────────────────────────────────
+      # ── 11. Build main / preload (tsc) ────────────────────────────────────────
       - name: Build Electron main process
         working-directory: artifacts/academia-os-desktop
         run: pnpm build:electron
 
-      # ── 10. electron-builder Windows x64 ──────────────────────────────────────
+      # ── 12. electron-builder Windows x64 (NSIS packaging) ────────────────────
       - name: Build Windows installer
         working-directory: artifacts/academia-os-desktop
         run: pnpm exec electron-builder --win --x64
@@ -100,7 +110,7 @@ jobs:
           # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 11. SHA-256 hash ──────────────────────────────────────────────────────
+      # ── 13. SHA-256 hash ──────────────────────────────────────────────────────
       - name: Compute SHA-256
         working-directory: artifacts/academia-os-desktop/release
         shell: pwsh
@@ -116,7 +126,7 @@ jobs:
           Write-Host "Size:      $($file.Length) bytes"
           Write-Host "SHA-256:   $($hash.Hash)"
 
-      # ── 12. Upload artifacts ──────────────────────────────────────────────────
+      # ── 14. Upload artifacts ──────────────────────────────────────────────────
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
@@ -127,7 +137,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      # ── 13. Create GitHub Release (on tag push only) ──────────────────────────
+      # ── 15. Create GitHub Release (on tag push only) ──────────────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/desktop-v')
         uses: softprops/action-gh-release@v2
@@ -163,7 +173,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 14. Build summary ─────────────────────────────────────────────────────
+      # ── 16. Build summary ─────────────────────────────────────────────────────
       - name: Print build summary
         shell: pwsh
         run: |

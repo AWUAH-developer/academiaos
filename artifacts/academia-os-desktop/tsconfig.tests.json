@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.electron.json",
+  "compilerOptions": {
+    // Override: type-check only, never emit JS for test files
+    "noEmit": true
+  },
+  // Include every .ts file under electron/ — both source modules and test files.
+  // The parent tsconfig.electron.json excludes *.test.ts / *.spec.ts so that
+  // the production build compiler never sees them; this config re-includes them
+  // explicitly so tsc checks the test code against the same strict settings.
+  "include": [
+    "electron/**/*.ts"
+  ],
+  // Clear the parent exclude list — test files must not be excluded here.
+  "exclude": []
+}
