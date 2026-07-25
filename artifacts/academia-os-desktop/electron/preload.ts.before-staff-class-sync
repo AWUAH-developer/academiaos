@@ -16,7 +16,7 @@ const INVOKE_CHANNELS = [
   // Sync
   'sync:initial', 'sync:incremental', 'sync:uploadOutbox', 'sync:status',
   // Local DB
-  'db:getLearners', 'db:getStaff', 'db:getAttendance', 'db:saveAttendance',
+  'db:getLearners', 'db:getAttendance', 'db:saveAttendance',
   'db:getPendingOps', 'db:markOpSynced', 'db:getConflicts',
   // App
   'app:getVersion', 'app:getPlatform',

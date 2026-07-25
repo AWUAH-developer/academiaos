@@ -19,7 +19,7 @@ import {
   ACCOUNT_ACCESS_TOKEN, ACCOUNT_REFRESH_TOKEN, ACCOUNT_DEVICE_ID,
 } from './secure-storage';
 import {
-  getDb, upsertLearners, upsertClasses, upsertStaff, addToOutbox, getPendingOps, markOpStatus,
+  getDb, upsertLearners, addToOutbox, getPendingOps, markOpStatus,
 } from './sqlite';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -208,35 +208,7 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         VALUES (?, ?, ?)
       `).run('learners', d.syncCursor, (d.learners as unknown[])?.length ?? 0);
 
-            const deviceMeta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as
-        { school_id?: string | null } | undefined;
-      const activeSchoolId = deviceMeta?.school_id ?? null;
-
-      if (Array.isArray(d.classes) && (d.classes as unknown[]).length > 0) {
-        upsertClasses(db, d.classes as Record<string, unknown>[]);
-      }
-
-      if (Array.isArray(d.staff) && (d.staff as unknown[]).length > 0) {
-        if (!activeSchoolId) {
-          throw new Error('Active school ID is missing from desktop device metadata.');
-        }
-        upsertStaff(db, d.staff as Record<string, unknown>[], activeSchoolId);
-      }
-
-      const cursorStmt = db.prepare(`
-        INSERT OR REPLACE INTO sync_cursor
-          (entity_type, last_synced, record_count)
-        VALUES (?, ?, ?)
-      `);
-
-      const learnerCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_learners").get() as { n: number }).n;
-      const classCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_classes").get() as { n: number }).n;
-      const staffCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_staff").get() as { n: number }).n;
-
-      cursorStmt.run('learners', d.syncCursor, learnerCount);
-      cursorStmt.run('classes', d.syncCursor, classCount);
-      cursorStmt.run('staff', d.syncCursor, staffCount);
-return { ok: true, data: d };
+      return { ok: true, data: d };
     } catch (err) {
       return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
     }
@@ -261,35 +233,7 @@ return { ok: true, data: d };
         VALUES (?, ?, ?)
       `).run('learners', d.syncCursor, chg?.learners?.length ?? 0);
 
-            const deviceMeta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as
-        { school_id?: string | null } | undefined;
-      const activeSchoolId = deviceMeta?.school_id ?? null;
-
-      if (chg?.classes?.length) {
-        upsertClasses(db, chg.classes as Record<string, unknown>[]);
-      }
-
-      if (chg?.staff?.length) {
-        if (!activeSchoolId) {
-          throw new Error('Active school ID is missing from desktop device metadata.');
-        }
-        upsertStaff(db, chg.staff as Record<string, unknown>[], activeSchoolId);
-      }
-
-      const cursorStmt = db.prepare(`
-        INSERT OR REPLACE INTO sync_cursor
-          (entity_type, last_synced, record_count)
-        VALUES (?, ?, ?)
-      `);
-
-      const learnerCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_learners").get() as { n: number }).n;
-      const classCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_classes").get() as { n: number }).n;
-      const staffCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_staff").get() as { n: number }).n;
-
-      cursorStmt.run('learners', d.syncCursor, learnerCount);
-      cursorStmt.run('classes', d.syncCursor, classCount);
-      cursorStmt.run('staff', d.syncCursor, staffCount);
-return { ok: true, data: d };
+      return { ok: true, data: d };
     } catch (err) {
       return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
     }
@@ -361,43 +305,22 @@ return { ok: true, data: d };
   // ── db:getLearners ──────────────────────────────────────────────────────────
   ipcMain.handle('db:getLearners', async (_, opts: { classId?: string; search?: string } = {}) => {
     const db   = getDb();
-    let sql    = `SELECT l.*, c.name AS class_name FROM cached_learners l LEFT JOIN cached_classes c ON c.id = l.class_id WHERE l.status = 'ACTIVE'`;
+    let sql    = `SELECT * FROM cached_learners WHERE status = 'ACTIVE'`;
     const args: (string | number)[] = [];
 
-    if (opts.classId) { sql += ` AND l.class_id = ?`;  args.push(opts.classId); }
+    if (opts.classId) { sql += ` AND class_id = ?`;  args.push(opts.classId); }
     if (opts.search) {
       const q = `%${opts.search}%`;
-      sql += ` AND (l.first_name LIKE ? OR l.last_name LIKE ? OR l.admission_no LIKE ?)`;
+      sql += ` AND (first_name LIKE ? OR last_name LIKE ? OR admission_no LIKE ?)`;
       args.push(q, q, q);
     }
-    sql += ` ORDER BY l.last_name, l.first_name LIMIT 500`;
+    sql += ` ORDER BY last_name, first_name LIMIT 500`;
 
     const rows = db.prepare(sql).all(...args);
     return { ok: true, learners: rows };
   });
 
   // ── db:saveAttendance ───────────────────────────────────────────────────────
-
-  // — db:getStaff ------------------------------------------------------------
-
-  ipcMain.handle('db:getStaff', async (_, opts: { search?: string } = {}) => {
-    const db = getDb();
-
-    let sql = `SELECT * FROM cached_staff WHERE status = 'ACTIVE'`;
-    const args: (string | number)[] = [];
-
-    if (opts.search) {
-      const q = `%${opts.search}%`;
-      sql += ` AND (name LIKE ? OR username LIKE ? OR role LIKE ?)`;
-      args.push(q, q, q);
-    }
-
-    sql += ` ORDER BY name LIMIT 500`;
-
-    const rows = db.prepare(sql).all(...args);
-    return { ok: true, staff: rows };
-  });
-
   ipcMain.handle('db:saveAttendance', async (_, params: {
     learnerId: string; date: string; status: string;
     schoolId: string; userId: string; deviceId: string;
