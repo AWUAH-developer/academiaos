@@ -9,21 +9,6 @@ import {
   desktopAccessibleLearnerIds, resolveDesktopSchoolId,
 } from '@/lib/desktop-api';
 
-
-const STAFF_ROLES = new Set([
-  'SCHOOL_ADMIN',
-  'PROPRIETOR',
-  'HEADTEACHER',
-  'ACADEMIC_ADMIN',
-  'TEACHER',
-  'ACCOUNTS',
-  'TRANSPORT',
-  'SECURITY',
-  'RECEPTIONIST',
-  'LIBRARIAN',
-  'CANTEEN',
-]);
-
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -58,10 +43,6 @@ export async function POST(request: NextRequest) {
     db.select().from(terms).where(eq(terms.schoolId, schoolId)),
   ]);
 
-  const activeStaffRows = staffRows.filter(
-    (row) => row.status === 'ACTIVE' && STAFF_ROLES.has(row.role),
-  );
-
   // Fetch learner records scoped by role
   const learnerRows = await (async () => {
     if (learnerIds === null) {
@@ -81,7 +62,7 @@ export async function POST(request: NextRequest) {
       school,
       classes:      classRows,
       subjects:     subjectRows,
-      staff:          activeStaffRows,
+      staff:        staffRows,
       feeCategories: feeCategoryRows,
       academicYears: academicYearRows,
       terms:        termRows,
@@ -89,7 +70,7 @@ export async function POST(request: NextRequest) {
       counts: {
         classes:       classRows.length,
         subjects:      subjectRows.length,
-        staff:          activeStaffRows.length,
+        staff:         staffRows.length,
         feeCategories: feeCategoryRows.length,
         academicYears: academicYearRows.length,
         terms:         termRows.length,

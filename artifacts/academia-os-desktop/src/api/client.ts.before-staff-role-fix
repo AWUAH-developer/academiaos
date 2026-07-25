@@ -110,7 +110,7 @@ export type InitialSyncData = {
 
 export type IncrementalSyncData = {
   syncCursor: string;
-  changes: { learners: LocalLearner[]; classes: unknown[]; staff: unknown[]; staffRemovedIds: string[]; subjects: unknown[]; feeCategories: unknown[] };
+  changes: { learners: LocalLearner[]; classes: unknown[]; staff: unknown[]; subjects: unknown[]; feeCategories: unknown[] };
 };
 
 export type SyncCursor  = { entity_type: string; last_synced: string; record_count: number };
