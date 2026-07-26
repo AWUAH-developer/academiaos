@@ -43,18 +43,6 @@ function mayManageTarget(actorRole: UserRole, activeSchoolId: string, target: ty
   return target.schoolId === activeSchoolId && target.role !== 'SUPER_ADMIN';
 }
 
-const DELEGATED_STAFF_ROLES: UserRole[] = [
-  'HEADTEACHER',
-  'ACADEMIC_ADMIN',
-  'TEACHER',
-  'ACCOUNTS',
-  'TRANSPORT',
-  'SECURITY',
-  'RECEPTIONIST',
-  'LIBRARIAN',
-  'CANTEEN',
-];
-
 export async function createUserAction(
   _previousState: CredentialActionState,
   formData: FormData
@@ -82,14 +70,8 @@ export async function createUserAction(
   if (!name || !isValidPhone(phone) || !isValidEmail(email) || !USER_ROLES.includes(role)) {
     return { status: 'error', message: 'Enter the staff name, valid mobile number, valid email address and role.' };
   }
-  if (
-    actor.role !== 'SUPER_ADMIN' &&
-    !DELEGATED_STAFF_ROLES.includes(role)
-  ) {
-    return {
-      status: 'error',
-      message: 'You may create staff roles only. School Administrator and Proprietor accounts are controlled by the AcademiaOS Super Admin.',
-    };
+  if (actor.role !== 'SUPER_ADMIN' && role === 'SUPER_ADMIN') {
+    return { status: 'error', message: 'Only the Super Admin can create another Super Admin.' };
   }
 
   let photoUrl: string;

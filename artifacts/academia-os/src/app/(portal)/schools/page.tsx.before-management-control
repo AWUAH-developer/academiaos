@@ -7,11 +7,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { SchoolEnrolmentWizard } from '@/components/SchoolEnrolmentWizard';
 import { db } from '@/db';
 import {
-  packageAddons, packages, schoolManagementControls, schoolSubscriptions, schools, users,
+  packageAddons, packages, schoolSubscriptions, schools, users,
 } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
 import { getActiveSchoolId } from '@/lib/tenant';
-import { selectSchoolAction, toggleSchoolAction, updateUserAdmissionManagementAction } from '@/app/actions/schools';
+import { selectSchoolAction, toggleSchoolAction } from '@/app/actions/schools';
 import { recordSubscriptionPaymentAction } from '@/app/actions/subscriptions';
 
 export const dynamic = 'force-dynamic';
@@ -60,11 +60,6 @@ export default async function SchoolsPage({
     .innerJoin(packages, eq(schoolSubscriptions.packageId, packages.id))
     .orderBy(desc(schoolSubscriptions.createdAt));
 
-  const managementRows = await db.select().from(schoolManagementControls);
-  const managementBySchool = new Map(
-    managementRows.map((row) => [row.schoolId, row] as const)
-  );
-
   const latestSubBySchool = new Map<string, (typeof allSubs)[0]>();
   for (const s of allSubs) {
     if (!latestSubBySchool.has(s.sub.schoolId)) latestSubBySchool.set(s.sub.schoolId, s);
@@ -106,11 +101,6 @@ export default async function SchoolsPage({
             const pkgName   = subEntry?.pkgName;
             const SubIcon   = sub ? (statusIcon[sub.status] ?? Clock) : Building2;
             const isExpanded = expandId === school.id;
-        const management = managementBySchool.get(school.id);
-        const premiumEligible =
-          sub?.status === 'ACTIVE' &&
-          String(pkgName || '').toLowerCase() === 'premium';
-        const managementEnabled = Boolean(management?.userAdmissionEnabled);
 
             return (
               <div key={school.id} className="paper-card overflow-hidden">
@@ -175,152 +165,7 @@ export default async function SchoolsPage({
                 {/* ── Expanded: subscription panel ──────────────────── */}
                 {isExpanded && (
                   <div className="border-t border-slate-100 bg-slate-50 p-5">
-                    {/* ── SUPER_ADMIN User & Admission Management ── */}
-              <section className="mb-5 rounded-2xl border-2 border-slate-200 bg-white p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-                      User & Admission Management
-                    </p>
-                    <h3 className="mt-1 text-lg font-black text-slate-900">
-                      Delegated school management
-                    </h3>
-                    <p className="mt-1 max-w-2xl text-xs text-slate-500">
-                      Premium eligibility does not unlock this feature automatically.
-                      Only the Super Admin can unlock or lock it.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`status-pill ${
-                      premiumEligible
-                        ? 'bg-violet-100 text-violet-800'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {premiumEligible ? 'PREMIUM ELIGIBLE' : 'NOT ELIGIBLE'}
-                    </span>
-
-                    <span className={`status-pill ${
-                      managementEnabled
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-rose-100 text-rose-800'
-                    }`}>
-                      {managementEnabled ? 'UNLOCKED' : 'LOCKED'}
-                    </span>
-                  </div>
-                </div>
-
-                {!premiumEligible && (
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                    An ACTIVE Premium subscription is required before User & Admission Management can be unlocked.
-                  </div>
-                )}
-
-                <form
-                  action={updateUserAdmissionManagementAction}
-                  className="mt-5 space-y-4"
-                >
-                  <input type="hidden" name="schoolId" value={school.id}/>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <p className="font-black text-slate-800">School Administrator</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Choose what the school's administrator may create.
-                      </p>
-
-                      <label className="mt-4 flex items-center gap-3 text-sm font-bold">
-                        <input
-                          type="checkbox"
-                          name="allowSchoolAdminLearners"
-                          defaultChecked={management?.allowSchoolAdminLearners ?? false}
-                          disabled={!premiumEligible}
-                        />
-                        Add new learners
-                      </label>
-
-                      <label className="mt-3 flex items-center gap-3 text-sm font-bold">
-                        <input
-                          type="checkbox"
-                          name="allowSchoolAdminStaff"
-                          defaultChecked={management?.allowSchoolAdminStaff ?? false}
-                          disabled={!premiumEligible}
-                        />
-                        Add new staff
-                      </label>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <p className="font-black text-slate-800">Proprietor</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        The school owner may view records; creation rights remain controlled by you.
-                      </p>
-
-                      <label className="mt-4 flex items-center gap-3 text-sm font-bold">
-                        <input
-                          type="checkbox"
-                          name="allowProprietorLearners"
-                          defaultChecked={management?.allowProprietorLearners ?? false}
-                          disabled={!premiumEligible}
-                        />
-                        Add new learners
-                      </label>
-
-                      <label className="mt-3 flex items-center gap-3 text-sm font-bold">
-                        <input
-                          type="checkbox"
-                          name="allowProprietorStaff"
-                          defaultChecked={management?.allowProprietorStaff ?? false}
-                          disabled={!premiumEligible}
-                        />
-                        Add new staff
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {managementEnabled ? (
-                      <>
-                        <button
-                          type="submit"
-                          name="mode"
-                          value="save"
-                          className="btn-primary"
-                          disabled={!premiumEligible}
-                        >
-                          Save permissions
-                        </button>
-
-                        <button
-                          type="submit"
-                          name="mode"
-                          value="lock"
-                          className="btn-secondary border-rose-200 text-rose-700"
-                        >
-                          Lock again
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="submit"
-                        name="mode"
-                        value="unlock"
-                        className="btn-primary"
-                        disabled={!premiumEligible}
-                      >
-                        Unlock management
-                      </button>
-                    )}
-                  </div>
-
-                  <p className="text-xs font-bold text-slate-500">
-                    Locking again disables all four delegated creation permissions.
-                    Existing learners and staff are never deleted.
-                  </p>
-                </form>
-              </section>
-
-              {sub ? (
+                    {sub ? (
                       <div className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-4 text-sm">
                           <div><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Package</p><p className="mt-0.5 font-bold">{pkgName}</p></div>

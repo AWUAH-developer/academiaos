@@ -283,26 +283,6 @@ export const notifications = pgTable('notifications', {
   type: text('type').notNull(), title: text('title').notNull(), body: text('body').notNull(), link: text('link'), readAt: timestamp('read_at', { withTimezone: true }), createdAt: created()
 }, (t) => [index('notification_user_idx').on(t.userId, t.readAt, t.createdAt)]);
 
-
-
-export const schoolManagementControls = pgTable('school_management_controls', {
-  schoolId: text('school_id').primaryKey().references(() => schools.id, { onDelete: 'cascade' }),
-
-  // Premium makes a school eligible, but SUPER_ADMIN must explicitly unlock this.
-  userAdmissionEnabled: boolean('user_admission_enabled').notNull().default(false),
-
-  allowSchoolAdminLearners: boolean('allow_school_admin_learners').notNull().default(false),
-  allowSchoolAdminStaff: boolean('allow_school_admin_staff').notNull().default(false),
-
-  allowProprietorLearners: boolean('allow_proprietor_learners').notNull().default(false),
-  allowProprietorStaff: boolean('allow_proprietor_staff').notNull().default(false),
-
-  updatedById: text('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
-  unlockedAt: timestamp('unlocked_at', { withTimezone: true }),
-  createdAt: created(),
-  updatedAt: updated()
-});
-
 export const supportTickets = pgTable('support_tickets', {
   id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), createdById: text('created_by_id').notNull().references(() => users.id),
   subject: text('subject').notNull(), description: text('description').notNull(), priority: text('priority').notNull().default('NORMAL'), status: text('status').notNull().default('OPEN'),

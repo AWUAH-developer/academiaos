@@ -13,7 +13,6 @@ import { visibleLearnerIds } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
 import { canManageLearners } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
-import { canCreateUserAdmissionRecord } from '@/lib/user-admission';
 
 export default async function LearnersPage({ searchParams }: { searchParams: Promise<{ q?: string; success?: string; error?: string }> }) {
   const user = await requireUser();
@@ -44,29 +43,14 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
   const classRows = await db.select().from(classes)
     .where(and(eq(classes.schoolId, schoolId), eq(classes.isActive, true)))
     .orderBy(asc(classes.name), asc(classes.stream));
-  const mayAdmit = await canCreateUserAdmissionRecord(
-    user.role,
-    schoolId,
-    'learners'
-  );
-
-  const mayManageLearnerRecords = canManageLearners(user.role);
-
-  const mayPromote = [
-    'SUPER_ADMIN',
-    'SCHOOL_ADMIN',
-    'HEADTEACHER',
-    'ACADEMIC_ADMIN',
-  ].includes(user.role);
+  const mayCreate = canManageLearners(user.role);
 
   return <>
     <PageHeader eyebrow="Student information system" title="Learner management" description="Admission records, profile photos, parent contacts, classes, payment plans and digital badges." action={<div className="flex items-center gap-2"><div className="rounded-xl bg-white px-4 py-2 text-sm font-black shadow-sm">{rows.length} records</div><ExportLink type="learners"/></div>}/>
     <FlashMessage success={params.success} error={params.error}/>
-    <div className={`grid gap-6 ${(mayAdmit || mayPromote) ? 'xl:grid-cols-[390px_1fr]' : ''}`}>
-      {(mayAdmit || mayPromote) && <section className="paper-card h-fit p-5 xl:sticky xl:top-8">
-        {mayAdmit && (
-            <>
-<div className="flex items-center gap-3">
+    <div className={`grid gap-6 ${mayCreate ? 'xl:grid-cols-[390px_1fr]' : ''}`}>
+      {mayCreate && <section className="paper-card h-fit p-5 xl:sticky xl:top-8">
+        <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-chalk-50 text-chalk-700"><UserRoundPlus size={20}/></div>
           <div><h2 className="font-black">Add learner</h2><p className="text-xs text-slate-500">Photo and parent contact details are required</p></div>
         </div>
@@ -93,11 +77,8 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
           <select className="input" name="relationship"><option>Parent</option><option>Guardian</option><option>Sibling</option><option>Other</option></select>
           <button className="btn-primary w-full">Create learner</button>
         </form>
-            </>
-          )}
 
-        {mayPromote && (
-            <div className={mayAdmit ? "mt-6 border-t border-slate-200 pt-5" : ""}>
+        <div className="mt-6 border-t border-slate-200 pt-5">
           <h3 className="font-black">Promote a class</h3>
           <p className="mt-1 text-xs text-slate-500">Moves active learners while keeping previous attendance, finance and academic records.</p>
           <form action={promoteLearnersAction} className="mt-3 space-y-3">
@@ -106,7 +87,6 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
             <button className="btn-secondary w-full">Promote active learners</button>
           </form>
         </div>
-          )}
       </section>}
 
       <section className="paper-card overflow-hidden">
@@ -120,7 +100,7 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
             <td>{className ? `${className} ${stream || ''}` : 'Unassigned'}</td>
             <td><p className="font-bold">{guardianName || 'Not linked'}</p><p className="text-xs text-slate-500">{guardianPhone || ''}</p><p className="text-xs text-slate-500">{guardianEmail || ''}</p></td>
             <td>{learner.paymentPlan}</td>
-            <td>{mayManageLearnerRecords ? <form action={updateLearnerStatusAction} className="flex gap-2"><input type="hidden" name="learnerId" value={learner.id}/><select className="input min-h-9 py-1 text-xs" name="status" defaultValue={learner.status}><option>ACTIVE</option><option>SUSPENDED</option><option>GRADUATED</option><option>WITHDRAWN</option></select><button className="btn-secondary min-h-9 px-2 py-1 text-xs">Save</button></form> : <span className="status-pill bg-emerald-100 text-emerald-800">{learner.status}</span>}</td>
+            <td>{mayCreate ? <form action={updateLearnerStatusAction} className="flex gap-2"><input type="hidden" name="learnerId" value={learner.id}/><select className="input min-h-9 py-1 text-xs" name="status" defaultValue={learner.status}><option>ACTIVE</option><option>SUSPENDED</option><option>GRADUATED</option><option>WITHDRAWN</option></select><button className="btn-secondary min-h-9 px-2 py-1 text-xs">Save</button></form> : <span className="status-pill bg-emerald-100 text-emerald-800">{learner.status}</span>}</td>
             <td><Link href={`/learners/${learner.id}`} className="font-extrabold text-chalk-700">Profile</Link></td>
           </tr>)}</tbody>
         </table></div> : <div className="p-5"><EmptyState title="No learners found" text="Create a learner or change the search terms."/></div>}
