@@ -64,7 +64,7 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
           className="btn-secondary mt-4 w-full"
           onClick={() => window.location.reload()}
         >
-          Enrol another school
+          Enroll another school
         </button>
       </div>
     );
@@ -81,7 +81,7 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-chalk-50 text-chalk-700"><School size={20}/></div>
           <div>
-            <h2 className="font-black">Enrol a school</h2>
+            <h2 className="font-black">Enroll a school</h2>
             <p className="text-xs text-slate-500">School details → Package → Subscription & payment → Activate</p>
           </div>
         </div>
@@ -210,7 +210,7 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
                     </p>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">Enter the current enrolled learner count to calculate the fee.</p>
+                <p className="mt-1 text-xs text-slate-400">Enter the currently enrolled learner count to calculate the fee.</p>
               </div>
             )}
 
@@ -328,7 +328,7 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
           <button className="btn-primary w-full gap-2 py-3" disabled={pending}>
             {pending
               ? <><Loader2 size={17} className="animate-spin"/> Creating school…</>
-              : <><School size={17}/> {willActivate ? 'Enrol & activate school' : 'Enrol school (pending payment)'}</>}
+              : <><School size={17}/> {willActivate ? 'Enroll & activate school' : 'Enroll school (pending payment)'}</>}
           </button>
         </form>
       )}

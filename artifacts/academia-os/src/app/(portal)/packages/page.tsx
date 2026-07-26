@@ -28,7 +28,7 @@ export default async function PackagesPage() {
       <PageHeader
         eyebrow="Platform"
         title="Packages & add-ons"
-        description="Define what each subscription tier includes. These packages appear in the school enrolment wizard."
+        description="Define what each subscription tier includes. These packages appear in the school enrollment wizard."
       />
 
       <div className="grid gap-8 xl:grid-cols-[1fr_380px]">

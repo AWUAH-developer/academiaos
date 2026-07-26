@@ -81,7 +81,7 @@ export default async function SchoolsPage({
       <PageHeader
         eyebrow="Platform administration"
         title="Schools"
-        description="Enrol new schools, manage subscriptions and switch between school workspaces."
+        description="Enroll new schools, manage subscriptions and switch between school workspaces."
         action={
           <Link href="/packages" className="btn-secondary text-sm flex items-center gap-2">
             <Package size={16}/> Packages & add-ons
@@ -351,7 +351,7 @@ export default async function SchoolsPage({
                         </form>
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-500">No subscription yet — enrol this school using the wizard to assign a package.</p>
+                      <p className="text-sm text-slate-500">No subscription yet — enroll this school using the wizard to assign a package.</p>
                     )}
                   </div>
                 )}
@@ -363,7 +363,7 @@ export default async function SchoolsPage({
             <div className="paper-card p-10 text-center">
               <Building2 className="mx-auto text-slate-300" size={40}/>
               <h3 className="mt-4 font-black text-slate-700">No schools yet</h3>
-              <p className="mt-2 text-sm text-slate-500">Use the enrolment wizard to create the first school.</p>
+              <p className="mt-2 text-sm text-slate-500">Use the enrollment wizard to create the first school.</p>
             </div>
           )}
         </div>

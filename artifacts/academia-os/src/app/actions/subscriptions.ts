@@ -44,7 +44,7 @@ export async function enrolSchoolAction(
   formData: FormData,
 ): Promise<EnrolSchoolState> {
   const actor = await requireUser();
-  if (actor.role !== 'SUPER_ADMIN') return { status: 'error', message: 'Only the Super Admin can enrol schools.' };
+  if (actor.role !== 'SUPER_ADMIN') return { status: 'error', message: 'Only the Super Admin can enroll schools.' };
 
   // School fields
   const name        = cleanText(formData.get('name'), 160);
@@ -196,7 +196,7 @@ export async function enrolSchoolAction(
     };
   } catch (e: any) {
     if (e?.code === '23505') return { status: 'error', message: 'A school with that code already exists.' };
-    return { status: 'error', message: 'Failed to enrol school. Please try again.' };
+    return { status: 'error', message: 'Failed to enroll school. Please try again.' };
   }
 }
 
