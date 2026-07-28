@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { asc, count, desc, eq } from 'drizzle-orm';
 import { BadgeCheck, Building2, Clock, Package, XCircle } from 'lucide-react';
 import { FlashMessage } from '@/components/FlashMessage';
@@ -32,51 +31,17 @@ function fmt(n: string | number) {
   return `GHS ${parseFloat(String(n)).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`;
 }
 
-function legacyPrefillDestination(value?: string) {
-  if (!value) return null;
-
-  try {
-    const parsed = JSON.parse(value) as Record<string, unknown>;
-    const params = new URLSearchParams();
-
-    const fields: Array<[string, string, number]> = [
-      ['name', 'name', 160],
-      ['code', 'code', 20],
-      ['phone', 'phone', 40],
-      ['email', 'email', 160],
-      ['adminName', 'adminName', 120],
-      ['adminPhone', 'adminPhone', 40],
-      ['adminEmail', 'adminEmail', 160],
-    ];
-
-    for (const [queryName, sourceName, maxLength] of fields) {
-      const raw = parsed[sourceName];
-      if (typeof raw !== 'string') continue;
-      const cleaned = raw.trim().slice(0, maxLength);
-      if (cleaned) params.set(queryName, cleaned);
-    }
-
-    const query = params.toString();
-    return query ? `/schools/enrol?${query}` : '/schools/enrol';
-  } catch {
-    return '/schools/enrol';
-  }
-}
-
 export default async function SchoolsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; error?: string; expand?: string; prefill?: string }>;
+  searchParams: Promise<{ success?: string; error?: string; expand?: string }>;
 }) {
   const user = await requireUser();
   if (user.role !== 'SUPER_ADMIN') {
     return <div className="paper-card p-8 text-center text-slate-500">Access denied.</div>;
   }
 
-  const params = await searchParams;
-  const legacyDestination = legacyPrefillDestination(params.prefill);
-  if (legacyDestination) redirect(legacyDestination);
-
+  const params        = await searchParams;
   const activeSchoolId = await getActiveSchoolId(user);
   const expandId      = params.expand ?? '';
 
@@ -118,14 +83,9 @@ export default async function SchoolsPage({
         title="Schools"
         description="Enroll new schools, manage subscriptions and switch between school workspaces."
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/schools/enrol" className="btn-primary text-sm flex items-center gap-2">
-              <Building2 size={16}/> Enroll school
-            </Link>
-            <Link href="/packages" className="btn-secondary text-sm flex items-center gap-2">
-              <Package size={16}/> Packages & add-ons
-            </Link>
-          </div>
+          <Link href="/packages" className="btn-secondary text-sm flex items-center gap-2">
+            <Package size={16}/> Packages & add-ons
+          </Link>
         }
       />
       <FlashMessage success={params.success} error={params.error} />

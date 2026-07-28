@@ -24,23 +24,6 @@ const statusIcon: Record<string, typeof Clock> = {
   DECLINED: XCircle,
 };
 
-function schoolEnrolmentHref(request: {
-  schoolName: string;
-  contactName: string;
-  email: string;
-  phone: string;
-}) {
-  const params = new URLSearchParams({
-    name: request.schoolName,
-    email: request.email,
-    adminName: request.contactName,
-    adminPhone: request.phone,
-    adminEmail: request.email,
-  });
-
-  return `/schools/enrol?${params.toString()}`;
-}
-
 export default async function DemoRequestsPage() {
   const user = await requireUser();
   if (user.role !== 'SUPER_ADMIN') {
@@ -191,10 +174,18 @@ export default async function DemoRequestsPage() {
                       />
 
                       <Link
-                        href={schoolEnrolmentHref(request)}
+                        href={`/schools?prefill=${encodeURIComponent(
+                          JSON.stringify({
+                            name: request.schoolName,
+                            email: request.email,
+                            adminName: request.contactName,
+                            adminPhone: request.phone,
+                            adminEmail: request.email,
+                          }),
+                        )}`}
                         className="btn-primary py-2 text-sm whitespace-nowrap"
                       >
-                        <School size={15} /> Create paid school
+                        <School size={15} /> Create school
                       </Link>
 
                       <DeleteDemoRequestButton id={request.id} />

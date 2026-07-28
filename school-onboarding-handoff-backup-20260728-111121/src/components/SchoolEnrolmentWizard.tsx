@@ -12,16 +12,6 @@ import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
 type Pkg  = { id: string; name: string; description: string | null; pricePerTerm: string; pricePerLearner: string | null; maxLearners: number | null; maxStaff: number | null; features: unknown };
 type Addon = { id: string; name: string; description: string | null; pricePerTerm: string };
 
-export type SchoolEnrolmentPrefill = {
-  name?: string;
-  code?: string;
-  phone?: string;
-  email?: string;
-  adminName?: string;
-  adminPhone?: string;
-  adminEmail?: string;
-};
-
 const TERMS  = [{ value: 'TERM_1', label: 'Term 1' }, { value: 'TERM_2', label: 'Term 2' }, { value: 'TERM_3', label: 'Term 3' }];
 const METHODS = ['CASH', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHEQUE'];
 const ROLES  = [{ value: 'SCHOOL_ADMIN', label: 'School Administrator' }, { value: 'PROPRIETOR', label: 'Proprietor' }, { value: 'HEADTEACHER', label: 'Headteacher' }];
@@ -34,15 +24,7 @@ function currentAcademicYear() {
 
 function fmt(n: string | number) { return `GHS ${parseFloat(String(n)).toLocaleString('en-GH', { minimumFractionDigits: 2 })}` }
 
-export function SchoolEnrolmentWizard({
-  pkgs,
-  addons,
-  prefill = {},
-}: {
-  pkgs: Pkg[];
-  addons: Addon[];
-  prefill?: SchoolEnrolmentPrefill;
-}) {
+export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: Addon[] }) {
   const [state, action, pending] = useActionState<EnrolSchoolState, FormData>(enrolSchoolAction, { status: 'idle' });
   const [selectedPkg, setSelectedPkg]   = useState<string>(pkgs[0]?.id ?? '');
   const [selectedAddons, setAddons]     = useState<string[]>([]);
@@ -129,8 +111,6 @@ export function SchoolEnrolmentWizard({
                 <SchoolInitialsInput
                   className="col-span-2"
                   nameInputName="name"
-                  defaultName={prefill.name ?? ''}
-                  defaultCode={prefill.code ?? ''}
                   nameLabel="School name *"
                   namePlaceholder="e.g. Paul Lawrence Academy"
                   codeInputName="code"
@@ -148,11 +128,11 @@ export function SchoolEnrolmentWizard({
                 </div>
                 <div>
                   <label className="label">School phone</label>
-                  <input className="input" name="phone" type="tel" placeholder="+233…" defaultValue={prefill.phone ?? ''} />
+                  <input className="input" name="phone" type="tel" placeholder="+233…"/>
                 </div>
                 <div>
                   <label className="label">School email</label>
-                  <input className="input" name="email" type="email" placeholder="info@school.edu.gh" defaultValue={prefill.email ?? ''} />
+                  <input className="input" name="email" type="email" placeholder="info@school.edu.gh"/>
                 </div>
               </div>
             </div>
@@ -166,15 +146,12 @@ export function SchoolEnrolmentWizard({
             <div className="space-y-3">
               <div>
                 <label className="label">Administrator photo (optional)</label>
-                <input className="input" name="adminPhoto" type="file" accept="image/jpeg,image/png,image/webp" />
-                <p className="mt-1 text-xs text-slate-500">
-                  Leave empty to use the default AcademiaOS profile image. A photo can be added later.
-                </p>
+                <input className="input" name="adminPhoto" type="file" accept="image/jpeg,image/png,image/webp"/>
               </div>
-              <input className="input" name="adminName" placeholder="Full name *" defaultValue={prefill.adminName ?? ''} required/>
+              <input className="input" name="adminName" placeholder="Full name *" required/>
               <div className="grid grid-cols-2 gap-3">
-                <input className="input" name="adminPhone" type="tel" placeholder="Phone *" defaultValue={prefill.adminPhone ?? ''} required/>
-                <input className="input" name="adminEmail" type="email" placeholder="Email *" defaultValue={prefill.adminEmail ?? ''} required/>
+                <input className="input" name="adminPhone" type="tel" placeholder="Phone *" required/>
+                <input className="input" name="adminEmail" type="email" placeholder="Email *" required/>
               </div>
               <div>
                 <label className="label">Role</label>
