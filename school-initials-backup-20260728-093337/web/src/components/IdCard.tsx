@@ -1,6 +1,5 @@
 import Image from 'next/image';
 import { QRCodeCanvas } from '@/components/QRCodeCanvas';
-import { SchoolBadge } from '@/components/SchoolBadge';
 
 type IdCardProps = {
   type: 'staff' | 'learner';
@@ -24,7 +23,11 @@ export function IdCard({ type, name, subtitle, idNumber, qrValue, photoUrl, scho
     >
       {/* Top strip */}
       <div className={`${accent} flex items-center gap-2 px-4 py-2`}>
-        <SchoolBadge name={schoolName} logoUrl={schoolLogoUrl} size={32} className="rounded-full"/>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20">
+          {schoolLogoUrl
+            ? <Image src={schoolLogoUrl} alt="logo" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
+            : <span className="text-xs font-black text-white">{schoolName[0]}</span>}
+        </div>
         <p className="flex-1 truncate text-xs font-black text-white">{schoolName}</p>
         <span className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-white">{badge}</span>
       </div>

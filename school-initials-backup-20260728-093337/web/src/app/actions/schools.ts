@@ -53,10 +53,10 @@ export async function createSchoolAction(
   if (schoolPhone && !isValidPhone(schoolPhone)) return { status: 'error', message: 'Enter a valid school telephone number.' };
   if (schoolEmail && !isValidEmail(schoolEmail)) return { status: 'error', message: 'Enter a valid school email address.' };
 
-  let logoUrl: string | null;
+  let logoUrl: string;
   let adminPhotoUrl: string;
   try {
-    logoUrl = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
+    logoUrl = (await imageToDataUrl(formData.get('logo'), { required: true, label: 'School logo' }))!;
     adminPhotoUrl = (await imageToDataUrl(formData.get('adminPhoto'), { required: true, label: 'Administrator photo' }))!;
   } catch (error) {
     return { status: 'error', message: error instanceof ImageUploadError ? error.message : 'The uploaded image could not be processed.' };

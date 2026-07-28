@@ -17,19 +17,9 @@ export function Field({ label, error, ...props }: TextInputProps & { label: stri
 export function EmptyState({ title, message }: { title: string; message: string }) { return <Card style={styles.center}><Text style={styles.emptyIcon}>◎</Text><Text style={styles.emptyTitle}>{title}</Text><Text style={styles.subtitle}>{message}</Text></Card>; }
 export function LoadingState({ label = 'Loading…' }: { label?: string }) { return <View style={styles.loading}><ActivityIndicator size="large" color={colors.green} /><Text style={styles.subtitle}>{label}</Text></View>; }
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) { return <Card style={styles.center}><Text style={styles.errorTitle}>Could not load</Text><Text style={styles.subtitle}>{message}</Text>{onRetry ? <Button title="Try again" onPress={onRetry} variant="secondary" /> : null}</Card>; }
-function generatedInitials(name: string, maximum: number) {
-  const ignored = new Set(['and', 'of', 'the', '&']);
-  const words = String(name || '').trim().split(/\s+/).map((word) => word.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
-  const meaningful = words.filter((word) => !ignored.has(word.toLowerCase()));
-  const source = meaningful.length ? meaningful : words;
-  if (!source.length) return 'SCH';
-  if (source.length === 1) return source[0].slice(0, maximum).toUpperCase();
-  return source.slice(0, maximum).map((part) => part[0]?.toUpperCase()).join('');
-}
-
 export function Avatar({ uri, name, size = 52, square = false }: { uri?: string | null; name: string; size?: number; square?: boolean }) {
-  const initials = generatedInitials(name, square ? 3 : 2);
-  return uri ? <Image source={{ uri }} style={{ width: size, height: size, borderRadius: square ? radius.md : size/2, backgroundColor: colors.border }} /> : <View style={[styles.avatar, square && styles.schoolAvatar, { width: size, height: size, borderRadius: square ? radius.md : size/2 }]}><Text style={[styles.avatarText, square && styles.schoolAvatarText, { fontSize: size * (square ? .27 : .34) }]}>{initials}</Text></View>;
+  const initials = name.split(/\s+/).slice(0,2).map((part) => part[0]?.toUpperCase()).join('');
+  return uri ? <Image source={{ uri }} style={{ width: size, height: size, borderRadius: square ? radius.md : size/2, backgroundColor: colors.border }} /> : <View style={[styles.avatar, { width: size, height: size, borderRadius: square ? radius.md : size/2 }]}><Text style={[styles.avatarText, { fontSize: size * .34 }]}>{initials || 'A'}</Text></View>;
 }
 export function Badge({ text, tone = 'info' }: { text: string; tone?: 'info'|'success'|'warning'|'danger' }) {
   const map = { info: [colors.infoSoft, colors.info], success: [colors.successSoft, colors.success], warning: [colors.warningSoft, colors.warning], danger: [colors.dangerSoft, colors.danger] } as const;
@@ -43,6 +33,6 @@ const styles = StyleSheet.create({
   button:{minHeight:50,borderRadius:radius.md,backgroundColor:colors.green,alignItems:'center',justifyContent:'center',paddingHorizontal:spacing.lg}, buttonSecondary:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.navy}, buttonDanger:{backgroundColor:colors.danger}, buttonPressed:{opacity:.65}, buttonText:{color:'#fff',fontSize:16,fontWeight:'800'},buttonTextSecondary:{color:colors.navy},
   field:{gap:6},label:{fontSize:13,fontWeight:'700',color:colors.text},input:{minHeight:50,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:14,fontSize:16,color:colors.text,backgroundColor:'#FAFCFF'},inputMultiline:{minHeight:100,paddingTop:14,textAlignVertical:'top'},error:{color:colors.danger,fontSize:12},
   center:{alignItems:'center',textAlign:'center'},emptyIcon:{fontSize:34,color:colors.green},emptyTitle:{fontSize:18,fontWeight:'800',color:colors.navy},loading:{flex:1,minHeight:240,alignItems:'center',justifyContent:'center',gap:12},errorTitle:{fontSize:18,fontWeight:'800',color:colors.danger},
-  avatar:{backgroundColor:colors.navySoft,alignItems:'center',justifyContent:'center'},avatarText:{color:'#fff',fontWeight:'800'},schoolAvatar:{backgroundColor:'#1F5C46'},schoolAvatarText:{color:'#F4C542',fontWeight:'900',letterSpacing:.5},badge:{alignSelf:'flex-start',borderRadius:radius.pill,paddingHorizontal:10,paddingVertical:5},badgeText:{fontSize:11,fontWeight:'800',textTransform:'capitalize'},
+  avatar:{backgroundColor:colors.navySoft,alignItems:'center',justifyContent:'center'},avatarText:{color:'#fff',fontWeight:'800'},badge:{alignSelf:'flex-start',borderRadius:radius.pill,paddingHorizontal:10,paddingVertical:5},badgeText:{fontSize:11,fontWeight:'800',textTransform:'capitalize'},
   metric:{flex:1,minWidth:145},metricValue:{fontSize:23,fontWeight:'900',color:colors.navy},metricLabel:{fontSize:13,fontWeight:'700',color:colors.muted},metricHint:{fontSize:11,color:colors.muted}
 });

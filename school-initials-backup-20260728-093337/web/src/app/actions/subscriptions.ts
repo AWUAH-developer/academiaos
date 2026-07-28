@@ -107,10 +107,10 @@ export async function enrolSchoolAction(
   const activateNow = paymentAmount >= totalAmount;
 
   // Images
-  let logoUrl: string | null;
+  let logoUrl: string;
   let adminPhotoUrl: string;
   try {
-    logoUrl       = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
+    logoUrl       = (await imageToDataUrl(formData.get('logo'),      { required: true, label: 'School logo' }))!;
     adminPhotoUrl = (await imageToDataUrl(formData.get('adminPhoto'), { required: true, label: 'Administrator photo' }))!;
   } catch (e) {
     return { status: 'error', message: e instanceof ImageUploadError ? e.message : 'Image upload failed.' };

@@ -13,22 +13,11 @@ declare module 'react' {
 
 interface Props {
   schoolName?: string;
-  schoolLogoUrl?: string | null;
   userName?: string;
   onLogout(): void;
 }
 
-function schoolInitials(name: string) {
-  const ignored = new Set(['and', 'of', 'the', '&']);
-  const words = String(name || '').trim().split(/\s+/).map((word) => word.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
-  const meaningful = words.filter((word) => !ignored.has(word.toLowerCase()));
-  const source = meaningful.length ? meaningful : words;
-  if (!source.length) return 'SCH';
-  if (source.length === 1) return source[0].slice(0, 3).toUpperCase();
-  return source.slice(0, 3).map((word) => word[0]).join('').toUpperCase();
-}
-
-export default function TitleBar({ schoolName, schoolLogoUrl, userName, onLogout }: Props) {
+export default function TitleBar({ schoolName, userName, onLogout }: Props) {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, height: 'var(--titlebar-h)',
@@ -44,13 +33,6 @@ export default function TitleBar({ schoolName, schoolLogoUrl, userName, onLogout
         {schoolName && (
           <>
             <span style={{ opacity: .35 }}>·</span>
-            {schoolLogoUrl ? (
-              <img src={schoolLogoUrl} alt={`${schoolName} logo`} style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'contain', background: '#fff', padding: 2 }} />
-            ) : (
-              <span title={`${schoolName} initials logo`} style={{ width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', background: '#1F5C46', color: '#F4C542', fontSize: 9, fontWeight: 900, letterSpacing: '.04em' }}>
-                {schoolInitials(schoolName)}
-              </span>
-            )}
             <span style={{ fontSize: 12, opacity: .75 }}>{schoolName}</span>
           </>
         )}

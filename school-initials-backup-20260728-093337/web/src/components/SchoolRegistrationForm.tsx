@@ -21,9 +21,8 @@ export function SchoolRegistrationForm() {
       </div>}
 
       <form action={formAction} className="mt-5 space-y-3">
-        <label className="block text-xs font-bold text-slate-600">School logo (optional)</label>
-        <input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp"/>
-        <p className="text-xs text-slate-500">If no logo is uploaded, AcademiaOS creates a badge from the school initials.</p>
+        <label className="block text-xs font-bold text-slate-600">School logo</label>
+        <input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp" required/>
         <input className="input" name="name" placeholder="School name" required/>
         <input className="input" name="code" placeholder="Unique code, e.g. PLA" required/>
         <input className="input" name="address" placeholder="Address"/>

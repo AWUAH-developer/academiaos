@@ -58,7 +58,7 @@ function AppShell() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <TitleBar schoolName={user.school?.name} schoolLogoUrl={user.school?.logoUrl} userName={user.name} onLogout={logout} />
+      <TitleBar schoolName={user.school?.name} userName={user.name} onLogout={logout} />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', paddingTop: 'var(--titlebar-h)' }}>
         <Sidebar
           role={user.role}

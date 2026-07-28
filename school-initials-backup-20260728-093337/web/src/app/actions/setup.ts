@@ -38,17 +38,16 @@ export async function updateSchoolAction(formData: FormData) {
   if (schoolPhone && !isValidPhone(schoolPhone)) redirect('/setup?error=Enter+a+valid+school+telephone');
   if (schoolEmail && !isValidEmail(schoolEmail)) redirect('/setup?error=Enter+a+valid+school+email');
 
-  const removeLogo = formData.get('removeLogo') === 'on';
   let logoUrl: string | null = null;
   try {
-    if (!removeLogo) logoUrl = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
+    logoUrl = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
   } catch (error) {
     redirect(`/setup?error=${encodeURIComponent(error instanceof ImageUploadError ? error.message : 'School logo could not be processed')}`);
   }
 
   await db.update(schools).set({
     name,
-    ...(removeLogo ? { logoUrl: null } : logoUrl ? { logoUrl } : {}),
+    ...(logoUrl ? { logoUrl } : {}),
     address: cleanText(formData.get('address'), 300) || null,
     phone: schoolPhone || null,
     email: schoolEmail || null,
@@ -58,7 +57,7 @@ export async function updateSchoolAction(formData: FormData) {
     updatedAt: new Date()
   }).where(eq(schools.id, schoolId));
 
-  await audit({ schoolId, userId: user.id, action: 'SCHOOL_SETTINGS_UPDATED', entityType: 'School', entityId: schoolId, newValue: { logoChanged: Boolean(logoUrl), logoRemoved: removeLogo } });
+  await audit({ schoolId, userId: user.id, action: 'SCHOOL_SETTINGS_UPDATED', entityType: 'School', entityId: schoolId, newValue: { logoChanged: Boolean(logoUrl) } });
   revalidatePath('/setup');
   revalidatePath('/dashboard');
   redirect('/setup?success=School+settings+updated');

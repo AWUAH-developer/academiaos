@@ -1,10 +1,10 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { asc, count, desc, eq } from 'drizzle-orm';
 import { BadgeCheck, Building2, Clock, Package, XCircle } from 'lucide-react';
 import { FlashMessage } from '@/components/FlashMessage';
 import { PageHeader } from '@/components/PageHeader';
 import { SchoolEnrolmentWizard } from '@/components/SchoolEnrolmentWizard';
-import { SchoolBadge } from '@/components/SchoolBadge';
 import { db } from '@/db';
 import {
   packageAddons, packages, schoolManagementControls, schoolSubscriptions, schools, users,
@@ -116,11 +116,11 @@ export default async function SchoolsPage({
               <div key={school.id} className="paper-card overflow-hidden">
                 {/* School header */}
                 <div className="flex flex-wrap items-center gap-4 p-5">
-                  <SchoolBadge
-                    name={school.name}
-                    logoUrl={school.logoUrl}
-                    size={56}
-                    className="rounded-xl"
+                  <Image
+                    src={school.logoUrl || '/icon.svg'}
+                    alt={school.name}
+                    width={56} height={56} unoptimized
+                    className="h-14 w-14 rounded-xl border border-slate-200 bg-white object-contain p-1 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { logoutAction } from '@/app/actions/auth';
 import { Brand } from '@/components/Brand';
-import { SchoolBadge } from '@/components/SchoolBadge';
 import { navigationByRole } from '@/lib/permissions';
 import type { UserRole } from '@/lib/types';
 
@@ -33,7 +32,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   return <div className="min-h-screen lg:grid lg:grid-cols-[286px_1fr]">
     <aside className="wood-grain hidden min-h-screen flex-col p-5 text-white lg:flex">
       <Brand />
-      <div className="chalk-board mt-7 rounded-2xl border border-white/10 p-4"><div className="flex items-center gap-3">{user.school ? <SchoolBadge name={user.school.name} logoUrl={user.school.logoUrl} size={40} className="rounded-xl"/> : <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-amber-200"><School size={21}/></div>}<div className="min-w-0"><p className="truncate text-sm font-black">{user.school?.name || 'AcademiaOS control'}</p><p className="truncate text-xs text-white/65">{roleLabel(user.role)}</p></div></div></div>
+      <div className="chalk-board mt-7 rounded-2xl border border-white/10 p-4"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl bg-white/10 text-amber-200">{user.school?.logoUrl ? <Image src={user.school.logoUrl} alt={`${user.school.name} logo`} width={40} height={40} unoptimized className="h-10 w-10 object-contain"/> : <School size={21}/>}</div><div className="min-w-0"><p className="truncate text-sm font-black">{user.school?.name || 'AcademiaOS control'}</p><p className="truncate text-xs text-white/65">{roleLabel(user.role)}</p></div></div></div>
       <nav className="mt-6 space-y-1 overflow-y-auto pr-1" aria-label="Main navigation">
         {pages.map((key) => { const item = navItems[key as keyof typeof navItems]; if (!item) return null; const Icon = item.icon; return <Link key={key} href={item.href} className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white/80 transition hover:bg-white/10 hover:text-white"><Icon size={18}/>{item.label}</Link>; })}
       </nav>

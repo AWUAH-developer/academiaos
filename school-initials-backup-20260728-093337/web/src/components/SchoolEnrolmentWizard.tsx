@@ -103,9 +103,8 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="label">School logo (optional)</label>
-                  <input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp"/>
-                  <p className="mt-1 text-xs text-slate-500">Leave empty to generate a green and yellow initials badge automatically.</p>
+                  <label className="label">School logo *</label>
+                  <input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp" required/>
                 </div>
                 <div className="col-span-2">
                   <label className="label">School name *</label>
