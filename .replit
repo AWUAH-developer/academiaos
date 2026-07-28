@@ -27,3 +27,5 @@ channel = "stable-25_05"
 [userenv.shared]
 NEXT_PUBLIC_APP_NAME = "AcademiaOS"
 NEXT_TELEMETRY_DISABLED = "1"
+EMAIL_FROM = "AcademiaOS <no-reply@academiaos.cc>"
+APP_URL = "https://academiaos.cc"
