@@ -34,9 +34,9 @@ export function StaffAccountForm({ roles }: { roles: UserRole[] }) {
 
       <form action={formAction} className="mt-5 space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-bold text-slate-600">Staff profile photo (optional)</label>
-          <input className="input" name="photo" type="file" accept="image/jpeg,image/png,image/webp"/>
-          <p className="mt-1 text-[11px] text-slate-500">Optional. JPG, PNG or WebP, maximum 1.5 MB. AcademiaOS logo is used when omitted.</p>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Staff profile photo</label>
+          <input className="input" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required/>
+          <p className="mt-1 text-[11px] text-slate-500">JPG, PNG or WebP. Maximum 1.5 MB.</p>
         </div>
         <input className="input" name="name" placeholder="Full staff name" required/>
         <div className="grid grid-cols-2 gap-3">

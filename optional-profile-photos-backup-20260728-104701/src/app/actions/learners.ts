@@ -43,9 +43,9 @@ export async function createLearnerAction(formData: FormData) {
   if (!admissionNo || !firstName || !lastName) redirect('/learners?error=Admission+number+and+learner+name+are+required');
   if (!guardianName || !isValidPhone(guardianPhone) || !isValidEmail(guardianEmail)) redirect('/learners?error=Parent+name,+valid+mobile+number+and+email+address+are+required');
 
-  let photoUrl: string | null = null;
+  let photoUrl: string;
   try {
-    photoUrl = await imageToDataUrl(formData.get('photo'), { label: 'Learner photo' });
+    photoUrl = (await imageToDataUrl(formData.get('photo'), { required: true, label: 'Learner photo' }))!;
   } catch (error) {
     redirect(`/learners?error=${encodeURIComponent(error instanceof ImageUploadError ? error.message : 'Learner photo could not be processed')}`);
   }

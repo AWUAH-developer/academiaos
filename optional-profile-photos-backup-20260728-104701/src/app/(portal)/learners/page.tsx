@@ -69,13 +69,13 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
             <>
 <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-chalk-50 text-chalk-700"><UserRoundPlus size={20}/></div>
-          <div><h2 className="font-black">Add learner</h2><p className="text-xs text-slate-500">Photo is optional. Parent contact details are required</p></div>
+          <div><h2 className="font-black">Add learner</h2><p className="text-xs text-slate-500">Photo and parent contact details are required</p></div>
         </div>
         <form action={createLearnerAction} className="mt-5 space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-bold text-slate-600">Learner profile photo (optional)</label>
-            <input className="input" name="photo" type="file" accept="image/jpeg,image/png,image/webp"/>
-            <p className="mt-1 text-[11px] text-slate-500">Optional. JPG, PNG or WebP, maximum 1.5 MB. AcademiaOS logo is used when omitted.</p>
+            <label className="mb-1 block text-xs font-bold text-slate-600">Learner profile photo</label>
+            <input className="input" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required/>
+            <p className="mt-1 text-[11px] text-slate-500">JPG, PNG or WebP. Maximum 1.5 MB.</p>
           </div>
           <input className="input" name="admissionNo" placeholder="Admission number" required/>
           <div className="grid grid-cols-2 gap-3"><input className="input" name="firstName" placeholder="First name" required/><input className="input" name="lastName" placeholder="Last name" required/></div>
@@ -117,7 +117,7 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
         {rows.length ? <div className="overflow-x-auto"><table className="data-table">
           <thead><tr><th>Learner</th><th>Class</th><th>Parent or guardian</th><th>Plan</th><th>Status</th><th>Open</th></tr></thead>
           <tbody className="divide-y divide-slate-100">{rows.map(({ learner, className, stream, guardianName, guardianPhone, guardianEmail }) => <tr key={learner.id}>
-            <td><div className="flex min-w-52 items-center gap-3"><Image src={learner.photoUrl || '/icon.svg'} alt={`${learner.firstName} ${learner.lastName}`} width={52} height={52} unoptimized className="h-14 w-14 rounded-xl border border-slate-200 object-cover"/><div><p className="font-black">{learner.firstName} {learner.lastName}</p><p className="text-xs text-slate-500">{learner.admissionNo}</p></div></div></td>
+            <td><div className="flex min-w-52 items-center gap-3"><Image src={learner.photoUrl || '/learner-placeholder.svg'} alt={`${learner.firstName} ${learner.lastName}`} width={52} height={52} unoptimized className="h-14 w-14 rounded-xl border border-slate-200 object-cover"/><div><p className="font-black">{learner.firstName} {learner.lastName}</p><p className="text-xs text-slate-500">{learner.admissionNo}</p></div></div></td>
             <td>{className ? `${className} ${stream || ''}` : 'Unassigned'}</td>
             <td><p className="font-bold">{guardianName || 'Not linked'}</p><p className="text-xs text-slate-500">{guardianPhone || ''}</p><p className="text-xs text-slate-500">{guardianEmail || ''}</p></td>
             <td>{learner.paymentPlan}</td>

@@ -36,7 +36,7 @@ export function IdCard({ type, name, subtitle, idNumber, qrValue, photoUrl, scho
           <div className="flex h-[100px] w-[80px] items-center justify-center overflow-hidden rounded-xl border-2 border-slate-200 bg-slate-100">
             {photoUrl
               ? <Image src={photoUrl} alt={name} width={80} height={100} unoptimized className="h-full w-full object-cover" />
-              : <Image src="/icon.svg" alt="AcademiaOS default profile" width={80} height={100} className="h-full w-full object-contain p-3" />}
+              : <span className="text-3xl font-black text-slate-400">{name.trim()[0]?.toUpperCase()}</span>}
           </div>
         </div>
 

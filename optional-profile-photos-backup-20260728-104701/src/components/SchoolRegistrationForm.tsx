@@ -38,8 +38,8 @@ export function SchoolRegistrationForm() {
         <div className="grid grid-cols-2 gap-3"><input className="input" name="phone" type="tel" placeholder="School telephone"/><input className="input" name="email" type="email" placeholder="School email"/></div>
         <hr/>
         <p className="text-xs font-black uppercase tracking-wide text-slate-500">First school administrator</p>
-        <label className="block text-xs font-bold text-slate-600">Administrator photo (optional)</label>
-        <input className="input" name="adminPhoto" type="file" accept="image/jpeg,image/png,image/webp"/>
+        <label className="block text-xs font-bold text-slate-600">Administrator photo</label>
+        <input className="input" name="adminPhoto" type="file" accept="image/jpeg,image/png,image/webp" required/>
         <input className="input" name="adminName" placeholder="Administrator full name" required/>
         <input className="input" name="adminPhone" type="tel" placeholder="Administrator mobile number" required/>
         <input className="input" name="adminEmail" type="email" placeholder="Administrator email address" required/>

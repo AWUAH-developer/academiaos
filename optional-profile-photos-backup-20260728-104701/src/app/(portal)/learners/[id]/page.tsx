@@ -136,7 +136,7 @@ export default async function LearnerProfilePage({
       <section className="space-y-6">
         <div className="paper-card p-5 text-center">
           <h2 className="font-black">Learner photograph</h2>
-          <Image src={row.learner.photoUrl || '/icon.svg'} alt={`${row.learner.firstName} ${row.learner.lastName}`} width={240} height={240} unoptimized className="mx-auto mt-4 h-56 w-56 rounded-2xl border border-slate-200 object-cover"/>
+          <Image src={row.learner.photoUrl || '/learner-placeholder.svg'} alt={`${row.learner.firstName} ${row.learner.lastName}`} width={240} height={240} unoptimized className="mx-auto mt-4 h-56 w-56 rounded-2xl border border-slate-200 object-cover"/>
           {canEditProfile && <form action={updateLearnerPhotoAction} className="mt-4 space-y-3 text-left">
             <input type="hidden" name="learnerId" value={row.learner.id}/>
             <label className="block text-xs font-bold text-slate-600">Replace learner photo</label>

@@ -59,7 +59,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               {rows.map((row) => <tr key={row.id}>
                 <td>
                   <div className="flex min-w-56 items-center gap-3">
-                    <Image src={row.photoUrl || '/icon.svg'} alt={`${row.name} profile`} width={52} height={52} unoptimized className="h-14 w-14 rounded-xl border border-slate-200 object-cover"/>
+                    <Image src={row.photoUrl || '/staff-placeholder.svg'} alt={`${row.name} profile`} width={52} height={52} unoptimized className="h-14 w-14 rounded-xl border border-slate-200 object-cover"/>
                     <div><p className="font-black">{row.name}</p><p className="text-xs text-slate-500">@{row.username}</p></div>
                   </div>
                 </td>

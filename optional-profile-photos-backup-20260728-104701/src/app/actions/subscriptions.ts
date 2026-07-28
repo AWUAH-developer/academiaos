@@ -108,10 +108,10 @@ export async function enrolSchoolAction(
 
   // Images
   let logoUrl: string | null;
-  let adminPhotoUrl: string | null = null;
+  let adminPhotoUrl: string;
   try {
     logoUrl       = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
-    adminPhotoUrl = await imageToDataUrl(formData.get('adminPhoto'), { label: 'Administrator photo' });
+    adminPhotoUrl = (await imageToDataUrl(formData.get('adminPhoto'), { required: true, label: 'Administrator photo' }))!;
   } catch (e) {
     return { status: 'error', message: e instanceof ImageUploadError ? e.message : 'Image upload failed.' };
   }

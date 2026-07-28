@@ -54,10 +54,10 @@ export async function createSchoolAction(
   if (schoolEmail && !isValidEmail(schoolEmail)) return { status: 'error', message: 'Enter a valid school email address.' };
 
   let logoUrl: string | null;
-  let adminPhotoUrl: string | null = null;
+  let adminPhotoUrl: string;
   try {
     logoUrl = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
-    adminPhotoUrl = await imageToDataUrl(formData.get('adminPhoto'), { label: 'Administrator photo' });
+    adminPhotoUrl = (await imageToDataUrl(formData.get('adminPhoto'), { required: true, label: 'Administrator photo' }))!;
   } catch (error) {
     return { status: 'error', message: error instanceof ImageUploadError ? error.message : 'The uploaded image could not be processed.' };
   }

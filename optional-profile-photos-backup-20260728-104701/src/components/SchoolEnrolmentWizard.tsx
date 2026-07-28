@@ -145,8 +145,8 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
             </div>
             <div className="space-y-3">
               <div>
-                <label className="label">Administrator photo (optional)</label>
-                <input className="input" name="adminPhoto" type="file" accept="image/jpeg,image/png,image/webp"/>
+                <label className="label">Administrator photo *</label>
+                <input className="input" name="adminPhoto" type="file" accept="image/jpeg,image/png,image/webp" required/>
               </div>
               <input className="input" name="adminName" placeholder="Full name *" required/>
               <div className="grid grid-cols-2 gap-3">
