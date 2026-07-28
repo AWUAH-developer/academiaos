@@ -2,11 +2,10 @@ import Link from 'next/link';
 import { asc, desc, eq } from 'drizzle-orm';
 import { Building2, CheckCircle2, Clock, Mail, Phone, School, XCircle } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
-import { DeleteDemoRequestButton } from '@/components/DeleteDemoRequestButton';
 import { db } from '@/db';
 import { demoRequests } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
-import { updateDemoRequestAction } from '@/app/actions/demo-requests';
+import { deleteDemoRequestAction, updateDemoRequestAction } from '@/app/actions/demo-requests';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,7 +137,15 @@ export default async function DemoRequestsPage() {
                   </Link>
 
                   {/* Delete */}
-                  <DeleteDemoRequestButton id={req.id} />
+                  <form action={deleteDemoRequestAction}>
+                    <input type="hidden" name="id" value={req.id} />
+                    <button
+                      className="btn-secondary py-2 text-sm text-rose-600 hover:border-rose-200 hover:bg-rose-50"
+                      onClick={(e) => { if (!confirm('Delete this request?')) e.preventDefault(); }}
+                    >
+                      Delete
+                    </button>
+                  </form>
                 </div>
               </div>
             );
