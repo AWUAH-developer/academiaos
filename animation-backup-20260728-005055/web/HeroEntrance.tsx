@@ -2,18 +2,20 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { LockKeyhole } from 'lucide-react';
-import { DevourLogo } from '@/components/DevourLogo';
 
 // Animated nav — slides down + logo pulses in
 export function AnimatedNav({ user }: { user: { name: string } | null }) {
   const navRef = useRef<HTMLElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const nav = navRef.current;
-    if (!nav) return;
+    const logo = logoRef.current;
+    if (!nav || !logo) return;
 
-    // Nav slides down while the reusable AcademiaOS wordmark runs its own intro.
+    // Nav slides down
     nav.style.transform = 'translateY(-100%)';
     nav.style.opacity = '0';
     nav.style.transition = 'transform .55s cubic-bezier(.16,1,.3,1), opacity .4s ease';
@@ -24,6 +26,16 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
       });
     });
 
+    // Logo bounces in with a slight delay
+    logo.style.transform = 'scale(0.6) rotate(-8deg)';
+    logo.style.opacity = '0';
+    logo.style.transition = 'transform .5s .25s cubic-bezier(.34,1.56,.64,1), opacity .3s .25s ease';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        logo.style.transform = 'scale(1) rotate(0deg)';
+        logo.style.opacity = '1';
+      });
+    });
   }, []);
 
   return (
@@ -33,7 +45,21 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 sm:px-8">
         <Link href="/" className="flex items-center gap-3 group">
-          <DevourLogo tone="light" className="text-lg" />
+          <div
+            ref={logoRef}
+            className="relative h-9 w-9 transition-transform duration-300 group-hover:scale-105"
+          >
+            <Image
+              src="/brand-logo.jpg"
+              alt="AcademiaOS"
+              fill
+              unoptimized
+              className="rounded-xl object-cover shadow"
+            />
+          </div>
+          <span className="shimmer-text text-lg font-black tracking-tight">
+            AcademiaOS
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

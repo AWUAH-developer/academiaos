@@ -50,15 +50,8 @@ function AppShell() {
   const { authState, logout } = useAuth();
   const syncStore = useSyncStore();
   const [screen, setScreen] = React.useState<Screen>('dashboard');
-  const [introComplete, setIntroComplete] = React.useState(false);
 
-  React.useEffect(() => {
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    const timer = window.setTimeout(() => setIntroComplete(true), reducedMotion ? 180 : 1900);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  if (!introComplete || authState.status === 'loading') return <SplashScreen />;
+  if (authState.status === 'loading') return <SplashScreen />;
   if (authState.status === 'unauthenticated') return <LoginScreen />;
 
   const { user } = authState;

@@ -1,0 +1,49 @@
+ACADEMIAOS MOBILE APP COMMANDS
+==============================
+
+1. BACKEND WEB/API PROJECT ON REPLIT
+
+Upload: AcademiaOS-Replit-v1.3.1-Web-Mobile-API.zip
+
+Replit Shell:
+npm ci && npm run db:migrate && npm run mobile:api:check && npm run build
+
+Publish build command:
+npm run db:migrate && npm run db:provision-auth && npm run mobile:api:check && npm run build
+
+Publish run command:
+npm run start
+
+Test:
+curl https://YOUR-APP.replit.app/api/mobile/v1/status
+
+2. ANDROID, IOS, AND COMPANION WEB APP
+
+Upload/extract: AcademiaOS-Mobile-v1.0.0.zip
+
+Create .env from .env.example and set:
+EXPO_PUBLIC_ACADEMIAOS_API_URL=https://YOUR-APP.replit.app/api/mobile/v1
+
+Install and test:
+npm install
+npm run typecheck
+npx expo-doctor
+npx expo start --tunnel
+
+3. EXPO STORE BUILD SETUP
+
+npm install -g eas-cli
+eas login
+eas init
+eas build:configure
+
+Add the EAS project ID to .env:
+EXPO_PUBLIC_EAS_PROJECT_ID=YOUR_EAS_PROJECT_ID
+
+Build Android and iOS:
+eas build --platform all --profile production
+
+4. SUBMISSION
+
+eas submit --platform android --profile production
+eas submit --platform ios --profile production

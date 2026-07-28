@@ -1,30 +1,25 @@
 import React from 'react';
 
+const WORD = 'AcademiaOS';
+
 export default function SplashScreen() {
   return (
-    <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'var(--chalk-dark)', color: '#fff',
-    }}>
-      <div style={{ fontSize: 48, fontWeight: 900, letterSpacing: '.04em', color: '#d4edda' }}>
-        AcademiaOS
+    <div className="desktop-splash" aria-label="Opening AcademiaOS">
+      <div className="desktop-devour-logo" role="img" aria-label="AcademiaOS">
+        <span className="desktop-devour-pacman" aria-hidden="true" />
+        <span className="desktop-devour-word" aria-hidden="true">
+          {WORD.split('').map((letter, index) => (
+            <span
+              key={`${letter}-${index}`}
+              className="desktop-devour-letter"
+              style={{ '--devour-delay': `${0.4 + index * 0.078}s` } as React.CSSProperties}
+            >
+              {letter}
+            </span>
+          ))}
+        </span>
       </div>
-      <div style={{ fontSize: 13, opacity: .55, marginTop: 8, letterSpacing: '.1em', textTransform: 'uppercase' }}>
-        School Command Centre
-      </div>
-      <div style={{ marginTop: 36, display: 'flex', gap: 6 }}>
-        {[0, 1, 2].map((i) => (
-          <span key={i} style={{
-            width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)',
-            animation: `pulse 1.2s ${i * 0.2}s ease-in-out infinite`,
-            opacity: .7,
-          }} />
-        ))}
-      </div>
-      <style>{`
-        @keyframes pulse { 0%,100%{transform:scale(.6);opacity:.4} 50%{transform:scale(1);opacity:1} }
-      `}</style>
+      <div className="desktop-splash-tag">School Command Centre</div>
     </div>
   );
 }
