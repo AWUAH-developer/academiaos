@@ -1,0 +1,626 @@
+/**
+ * AcademiaOS Desktop — IPC handler registration
+ *
+ * Called from main.ts AFTER initializeDb() has completed, so getDb()
+ * is safe to call synchronously from every handler below.
+ *
+ * All HTTP communication happens here (main process only).
+ * The renderer holds no tokens and makes no direct network requests.
+ *
+ * Return values must be plain JSON-serialisable objects.
+ * Never return Error instances directly.
+ */
+import { IpcMain } from 'electron';
+import https from 'https';
+import crypto from 'crypto';
+import { app } from 'electron';
+import {
+  saveCredential, getCredential, clearAuthCredentials,
+  ACCOUNT_ACCESS_TOKEN, ACCOUNT_REFRESH_TOKEN, ACCOUNT_DEVICE_ID,
+} from './secure-storage';
+import {
+  getDb, upsertLearners, upsertClasses, upsertStaff, addToOutbox, getPendingOps, markOpStatus,
+} from './sqlite';
+
+// ── Config ─────────────────────────────────────────────────────────────────────
+const API_BASE    = 'https://academiaos.cc/api/desktop/v1';
+const APP_VERSION = app.getVersion();
+
+// ── HTTP helper (main-process HTTPS only) ──────────────────────────────────────
+function apiRequest(
+  urlPath: string,
+  method: 'GET' | 'POST',
+  body?: unknown,
+  accessToken?: string,
+): Promise<{ ok: boolean; status: number; data: unknown }> {
+  return new Promise((resolve, reject) => {
+    const url     = new URL(`${API_BASE}${urlPath}`);
+    const payload = body ? JSON.stringify(body) : undefined;
+
+    const req = https.request(
+      {
+        hostname: url.hostname,
+        port:     443,
+        path:     url.pathname + url.search,
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':   `AcademiaOS-Desktop/${APP_VERSION}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+        },
+        timeout: 30_000,
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (chunk: Buffer) => { raw += chunk.toString(); });
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(raw);
+            resolve({ ok: (res.statusCode ?? 0) < 400, status: res.statusCode ?? 0, data });
+          } catch {
+            reject(new Error(`JSON parse error (HTTP ${res.statusCode})`));
+          }
+        });
+      },
+    );
+
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+// ── Device identifier ──────────────────────────────────────────────────────────
+async function getOrCreateDeviceId(): Promise<string> {
+  const existing = await getCredential(ACCOUNT_DEVICE_ID);
+  if (existing) return existing;
+  const id = `win-${crypto.randomUUID()}`;
+  await saveCredential(ACCOUNT_DEVICE_ID, id);
+  return id;
+}
+
+// ── Type helpers ───────────────────────────────────────────────────────────────
+type ApiData = Record<string, unknown>;
+function data(res: { data: unknown }) {
+  return (res.data as ApiData)?.data as ApiData;
+}
+function errOf(res: { data: unknown }) {
+  return (res.data as ApiData)?.error;
+}
+
+// ── Handler registration ───────────────────────────────────────────────────────
+export function setupIpcHandlers(ipcMain: IpcMain): void {
+
+  // ── auth:login ──────────────────────────────────────────────────────────────
+  ipcMain.handle('auth:login', async (_, {
+    username, password, deviceName,
+  }: { username: string; password: string; deviceName?: string }) => {
+    try {
+      const deviceId = await getOrCreateDeviceId();
+      const platform = process.platform === 'darwin' ? 'mac'
+        : process.platform === 'linux' ? 'linux' : 'windows';
+
+      const res = await apiRequest('/auth/login', 'POST', {
+        username, password,
+        deviceIdentifier: deviceId,
+        deviceName: deviceName ?? `AcademiaOS Desktop (${process.platform})`,
+        platform,
+        appVersion: APP_VERSION,
+      });
+
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const d = data(res);
+      const tokens = d.tokens as ApiData;
+
+      await saveCredential(ACCOUNT_ACCESS_TOKEN,  tokens.accessToken  as string);
+      await saveCredential(ACCOUNT_REFRESH_TOKEN, tokens.refreshToken as string);
+
+      // Persist minimal session metadata in SQLite
+      const db = getDb();
+      db.prepare(`
+        INSERT OR REPLACE INTO device_meta
+          (id, device_id, device_name, platform, app_version,
+           user_id, school_id, school_name, role, updated_at)
+        VALUES (1, @did, @dname, @plat, @ver, @uid, @sid, @sname, @role, datetime('now'))
+      `).run({
+        did:   deviceId,
+        dname: deviceName ?? 'AcademiaOS Desktop',
+        plat:  platform,
+        ver:   APP_VERSION,
+        uid:   (d.user as ApiData).id,
+        sid:   ((d.user as ApiData).school as ApiData)?.id   ?? null,
+        sname: ((d.user as ApiData).school as ApiData)?.name ?? null,
+        role:  (d.user as ApiData).role,
+      });
+
+      return { ok: true, user: d.user, tokens: d.tokens, deviceId: d.deviceId };
+    } catch (err) {
+      return { ok: false, error: { code: 'NETWORK_ERROR', message: String(err) } };
+    }
+  });
+
+  // ── auth:refresh ────────────────────────────────────────────────────────────
+  ipcMain.handle('auth:refresh', async () => {
+    try {
+      const refreshToken = await getCredential(ACCOUNT_REFRESH_TOKEN);
+      if (!refreshToken) return { ok: false, error: { code: 'NO_REFRESH_TOKEN' } };
+
+      const res = await apiRequest('/auth/refresh', 'POST', { refreshToken });
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const tokens = data(res).tokens as ApiData;
+      await saveCredential(ACCOUNT_ACCESS_TOKEN,  tokens.accessToken  as string);
+      await saveCredential(ACCOUNT_REFRESH_TOKEN, tokens.refreshToken as string);
+      return { ok: true, tokens };
+    } catch (err) {
+      return { ok: false, error: { code: 'NETWORK_ERROR', message: String(err) } };
+    }
+  });
+
+  // ── auth:logout ─────────────────────────────────────────────────────────────
+  ipcMain.handle('auth:logout', async () => {
+    try {
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+      if (accessToken) {
+        await apiRequest('/auth/logout', 'POST', {}, accessToken).catch(() => {});
+      }
+    } finally {
+      await clearAuthCredentials();
+    }
+    return { ok: true };
+  });
+
+  // ── auth:getSession ─────────────────────────────────────────────────────────
+  ipcMain.handle('auth:getSession', async () => {
+    try {
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+      if (!accessToken) return { ok: false, loggedIn: false };
+
+      const res = await apiRequest('/session', 'GET', undefined, accessToken);
+      if (!res.ok) return { ok: false, loggedIn: false, error: errOf(res) };
+
+      return { ok: true, loggedIn: true, ...data(res) };
+    } catch {
+      return { ok: false, loggedIn: false };
+    }
+  });
+
+  // ── sync:initial ────────────────────────────────────────────────────────────
+  ipcMain.handle('sync:initial', async () => {
+    try {
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+      if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED' } };
+
+      const res = await apiRequest('/sync/initial', 'POST', {}, accessToken);
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const d = data(res);
+      const db = getDb();
+
+      if (Array.isArray(d.learners) && (d.learners as unknown[]).length > 0) {
+        upsertLearners(db, d.learners as Record<string, unknown>[]);
+      }
+      db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `).run('learners', d.syncCursor, (d.learners as unknown[])?.length ?? 0);
+
+            const deviceMeta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as
+        { school_id?: string | null } | undefined;
+      const activeSchoolId = deviceMeta?.school_id ?? null;
+
+      if (!activeSchoolId) {
+        throw new Error('Active school ID is missing from desktop device metadata.');
+      }
+
+      // Full sync is authoritative: remove stale staff rows for this school.
+      db.prepare('DELETE FROM cached_staff WHERE school_id = ?').run(activeSchoolId);
+
+      if (Array.isArray(d.classes) && (d.classes as unknown[]).length > 0) {
+        upsertClasses(db, d.classes as Record<string, unknown>[]);
+      }
+
+      if (Array.isArray(d.staff) && (d.staff as unknown[]).length > 0) {
+        if (!activeSchoolId) {
+          throw new Error('Active school ID is missing from desktop device metadata.');
+        }
+        upsertStaff(db, d.staff as Record<string, unknown>[], activeSchoolId);
+      }
+
+      const cursorStmt = db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor
+          (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `);
+
+      const learnerCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_learners").get() as { n: number }).n;
+      const classCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_classes").get() as { n: number }).n;
+      const staffCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_staff").get() as { n: number }).n;
+
+      cursorStmt.run('learners', d.syncCursor, learnerCount);
+      cursorStmt.run('classes', d.syncCursor, classCount);
+      cursorStmt.run('staff', d.syncCursor, staffCount);
+return { ok: true, data: d };
+    } catch (err) {
+      return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
+    }
+  });
+
+  // ── sync:incremental ────────────────────────────────────────────────────────
+  ipcMain.handle('sync:incremental', async (_, { syncCursor }: { syncCursor: string }) => {
+    try {
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+      if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED' } };
+
+      const res = await apiRequest('/sync/incremental', 'POST', { syncCursor }, accessToken);
+      if (!res.ok) return { ok: false, error: errOf(res) };
+
+      const d   = data(res);
+      const db  = getDb();
+      const chg = d.changes as Record<string, unknown[]>;
+
+      if (chg?.learners?.length) upsertLearners(db, chg.learners as Record<string, unknown>[]);
+      db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `).run('learners', d.syncCursor, chg?.learners?.length ?? 0);
+
+            const deviceMeta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as
+        { school_id?: string | null } | undefined;
+      const activeSchoolId = deviceMeta?.school_id ?? null;
+
+      if (!activeSchoolId) {
+        throw new Error('Active school ID is missing from desktop device metadata.');
+      }
+
+      if (Array.isArray(chg?.staffRemovedIds) && chg.staffRemovedIds.length > 0) {
+        const removeStaff = db.prepare(
+          'DELETE FROM cached_staff WHERE id = ? AND school_id = ?',
+        );
+
+        const removeMany = db.transaction((ids: string[]) => {
+          for (const id of ids) {
+            removeStaff.run(id, activeSchoolId);
+          }
+        });
+
+        removeMany(chg.staffRemovedIds as string[]);
+      }
+
+      if (chg?.classes?.length) {
+        upsertClasses(db, chg.classes as Record<string, unknown>[]);
+      }
+
+      if (chg?.staff?.length) {
+        if (!activeSchoolId) {
+          throw new Error('Active school ID is missing from desktop device metadata.');
+        }
+        upsertStaff(db, chg.staff as Record<string, unknown>[], activeSchoolId);
+      }
+
+      const cursorStmt = db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor
+          (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `);
+
+      const learnerCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_learners").get() as { n: number }).n;
+      const classCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_classes").get() as { n: number }).n;
+      const staffCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_staff").get() as { n: number }).n;
+
+      cursorStmt.run('learners', d.syncCursor, learnerCount);
+      cursorStmt.run('classes', d.syncCursor, classCount);
+      cursorStmt.run('staff', d.syncCursor, staffCount);
+return { ok: true, data: d };
+    } catch (err) {
+      return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
+    }
+  });
+
+  // ── sync:uploadOutbox ───────────────────────────────────────────────────────
+  ipcMain.handle('sync:uploadOutbox', async () => {
+    try {
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+      if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED' } };
+
+      const db      = getDb();
+      const pending = getPendingOps(db) as Array<{
+        id: string; idempotency_key: string; device_id: string; user_id: string;
+        school_id: string; operation_type: string; payload_json: string;
+        record_version: number | null; created_at: string;
+      }>;
+
+      if (!pending.length) return { ok: true, processed: 0 };
+
+      const allResults: Array<{ operationId: string; status: string; message?: string }> = [];
+      let processed = 0;
+
+      for (let offset = 0; offset < pending.length; offset += 100) {
+        const batch = pending.slice(offset, offset + 100);
+        const ops = batch.map((row) => ({
+          operationId: row.id,
+          idempotencyKey: row.idempotency_key,
+          deviceId: row.device_id,
+          schoolId: row.school_id,
+          type: row.operation_type,
+          payload: JSON.parse(row.payload_json),
+          createdAt: row.created_at,
+          recordVersion: row.record_version ?? undefined,
+        }));
+
+        batch.forEach((op) => markOpStatus(db, op.id, "UPLOADING"));
+
+        const res = await apiRequest("/sync/outbox", "POST", { operations: ops }, accessToken).catch((err) => {
+          batch.forEach((op) => markOpStatus(db, op.id, "PENDING"));
+          throw err;
+        });
+
+        if (res.ok === false) {
+          batch.forEach((op) => markOpStatus(db, op.id, "PENDING"));
+          return { ok: false, error: errOf(res), processed, results: allResults };
+        }
+
+        const results = data(res).results as Array<{
+          operationId: string; status: string; message?: string;
+        }>;
+
+        for (const r of results) {
+          const finalStatus = r.status === "ALREADY_PROCESSED" ? "SYNCED" : r.status;
+          markOpStatus(db, r.operationId, finalStatus, r.message);
+        }
+
+        allResults.push(...results);
+        processed += batch.length;
+      }
+
+      return { ok: true, processed, results: allResults };
+    } catch (err) {
+      return { ok: false, error: { code: 'UPLOAD_ERROR', message: String(err) } };
+    }
+  });
+
+  // ── sync:status ─────────────────────────────────────────────────────────────
+  ipcMain.handle('sync:status', async () => {
+    const db        = getDb();
+    const cursors   = db.prepare(`SELECT * FROM sync_cursor`).all() as Array<{
+      entity_type: string; last_synced: string; record_count: number;
+    }>;
+    const pending   = db.prepare(`SELECT COUNT(*) as n FROM outbox WHERE status = 'PENDING'`).get() as { n: number };
+    const conflicts = db.prepare(`SELECT COUNT(*) as n FROM conflicts WHERE resolved = 0`).get() as { n: number };
+    return { ok: true, cursors, pendingOps: pending.n, conflictCount: conflicts.n };
+  });
+
+  // ── db:getClasses ───────────────────────────────────────────────────────────
+  ipcMain.handle('db:getClasses', async () => {
+    const db = getDb();
+    const deviceMeta = db
+      .prepare('SELECT school_id FROM device_meta WHERE id = 1')
+      .get() as { school_id?: string | null } | undefined;
+    const activeSchoolId = deviceMeta?.school_id ?? null;
+
+    if (activeSchoolId === null) {
+      return { ok: true, classes: [] };
+    }
+
+    const rows = db.prepare(`
+      SELECT id, school_id, name, stream, level, class_teacher_id, is_active
+      FROM cached_classes
+      WHERE school_id = ? AND is_active = 1
+      ORDER BY name, stream
+    `).all(activeSchoolId);
+
+    return { ok: true, classes: rows };
+  });
+
+  // ── db:getLearners ──────────────────────────────────────────────────────────
+  ipcMain.handle('db:getLearners', async (_, opts: { classId?: string; search?: string } = {}) => {
+    const db   = getDb();
+    let sql    = `SELECT l.*, c.name AS class_name FROM cached_learners l LEFT JOIN cached_classes c ON c.id = l.class_id WHERE l.status = 'ACTIVE'`;
+    const args: (string | number)[] = [];
+
+    if (opts.classId) { sql += ` AND l.class_id = ?`;  args.push(opts.classId); }
+    if (opts.search) {
+      const q = `%${opts.search}%`;
+      sql += ` AND (l.first_name LIKE ? OR l.last_name LIKE ? OR l.admission_no LIKE ?)`;
+      args.push(q, q, q);
+    }
+    sql += ` ORDER BY l.last_name, l.first_name LIMIT 500`;
+
+    const rows = db.prepare(sql).all(...args);
+    return { ok: true, learners: rows };
+  });
+
+  // ── db:saveAttendance ───────────────────────────────────────────────────────
+
+  // — db:getStaff ------------------------------------------------------------
+
+  ipcMain.handle('db:getStaff', async (_, opts: { search?: string } = {}) => {
+    const db = getDb();
+
+    const deviceMeta = db
+      .prepare('SELECT school_id FROM device_meta WHERE id = 1')
+      .get() as { school_id?: string | null } | undefined;
+
+    const activeSchoolId = deviceMeta?.school_id ?? null;
+
+    if (!activeSchoolId) {
+      return { ok: true, staff: [] };
+    }
+
+    let sql = `SELECT * FROM cached_staff WHERE school_id = ? AND status = 'ACTIVE'`;
+    const args: (string | number)[] = [activeSchoolId];
+
+    if (opts.search) {
+      const q = `%${opts.search}%`;
+      sql += ` AND (name LIKE ? OR username LIKE ? OR role LIKE ?)`;
+      args.push(q, q, q);
+    }
+
+    sql += ` ORDER BY name LIMIT 500`;
+
+    const rows = db.prepare(sql).all(...args);
+    return { ok: true, staff: rows };
+  });
+
+  // ── db:getAttendance ────────────────────────────────────────────────────────
+  ipcMain.handle('db:getAttendance', async (_, params: { classId: string; date: string }) => {
+    const db = getDb();
+    const deviceMeta = db
+      .prepare('SELECT school_id FROM device_meta WHERE id = 1')
+      .get() as { school_id?: string | null } | undefined;
+    const activeSchoolId = deviceMeta?.school_id ?? null;
+
+    if (activeSchoolId === null) {
+      return { ok: true, attendance: [] };
+    }
+
+    const rows = db.prepare(`
+      SELECT a.learner_id, a.date, a.status, a.is_local
+      FROM cached_attendance a
+      INNER JOIN cached_learners l ON l.id = a.learner_id
+      WHERE a.school_id = ?
+        AND l.school_id = ?
+        AND l.class_id = ?
+        AND a.date = ?
+      ORDER BY l.last_name, l.first_name
+    `).all(activeSchoolId, activeSchoolId, params.classId, params.date);
+
+    return { ok: true, attendance: rows };
+  });
+
+  ipcMain.handle('db:saveAttendance', async (_, params: {
+    learnerId: string; date: string; status: string;
+    schoolId: string; userId: string; deviceId: string;
+  }) => {
+    const db  = getDb();
+    const id  = crypto.randomUUID();
+    const idk = crypto.randomUUID();
+
+    db.prepare(`
+      INSERT OR REPLACE INTO cached_attendance
+        (id, school_id, learner_id, date, status, is_local)
+      VALUES (@id, @school_id, @learner_id, @date, @status, 1)
+    `).run({
+      id, school_id: params.schoolId, learner_id: params.learnerId,
+      date: params.date, status: params.status,
+    });
+
+    addToOutbox(db, {
+      id, idempotencyKey: idk,
+      deviceId:      params.deviceId,
+      userId:        params.userId,
+      schoolId:      params.schoolId,
+      operationType: 'ATTENDANCE_RECORD',
+      payload:       { learnerId: params.learnerId, date: params.date, status: params.status },
+    });
+
+    return { ok: true, operationId: id, idempotencyKey: idk };
+  });
+
+  // ── db:submitAttendanceRegister ─────────────────────────────────────────────
+  ipcMain.handle('db:submitAttendanceRegister', async (_, params: {
+    classId: string;
+    date: string;
+    substitutionReason?: string | null;
+    schoolId: string;
+    userId: string;
+    deviceId: string;
+  }) => {
+    const db = getDb();
+    const id = crypto.randomUUID();
+    const idk = crypto.randomUUID();
+
+    addToOutbox(db, {
+      id,
+      idempotencyKey: idk,
+      deviceId: params.deviceId,
+      userId: params.userId,
+      schoolId: params.schoolId,
+      operationType: 'ATTENDANCE_REGISTER_SUBMIT',
+      payload: {
+        classId: params.classId,
+        date: params.date,
+        substitutionReason: params.substitutionReason ?? null,
+      },
+    });
+
+    return { ok: true, operationId: id, idempotencyKey: idk };
+  });
+
+  // ── db:getAttendanceSubmitState ─────────────────────────────────────────────
+  ipcMain.handle("db:getAttendanceSubmitState", async (_, params: { classId: string; date: string }) => {
+    const db = getDb();
+    const deviceMeta = db
+      .prepare("SELECT school_id FROM device_meta WHERE id = 1")
+      .get() as { school_id?: string | null } | undefined;
+    const activeSchoolId = deviceMeta?.school_id ?? null;
+
+    if (activeSchoolId === null) {
+      return { ok: true, submission: null };
+    }
+
+    const rows = db.prepare(
+      "SELECT id, user_id, status, error_message, created_at, attempted_at, synced_at, payload_json FROM outbox WHERE school_id = ? AND operation_type = ? ORDER BY created_at DESC, rowid DESC",
+    ).all(activeSchoolId, "ATTENDANCE_REGISTER_SUBMIT") as Array<{
+      id: string;
+      user_id: string;
+      status: string;
+      error_message: string | null;
+      created_at: string;
+      attempted_at: string | null;
+      synced_at: string | null;
+      payload_json: string;
+    }>;
+
+    const matchingRows = rows.filter((row) => {
+      try {
+        const payload = JSON.parse(row.payload_json) as { classId?: string; date?: string };
+        return payload.classId === params.classId && payload.date === params.date;
+      } catch {
+        return false;
+      }
+    });
+
+    const row = matchingRows.find((candidate) => candidate.status === "SYNCED") ?? matchingRows[0];
+
+    if (row !== undefined) {
+      return {
+        ok: true,
+        submission: {
+          operationId: row.id,
+          userId: row.user_id,
+          status: row.status,
+          errorMessage: row.error_message,
+          createdAt: row.created_at,
+          attemptedAt: row.attempted_at,
+          syncedAt: row.synced_at,
+        },
+      };
+    }
+
+    return { ok: true, submission: null };
+  });
+
+  // ── db:getPendingOps ────────────────────────────────────────────────────────
+  ipcMain.handle('db:getPendingOps', async () => {
+    const db   = getDb();
+    const rows = getPendingOps(db);
+    return { ok: true, operations: rows };
+  });
+
+  // ── db:getConflicts ─────────────────────────────────────────────────────────
+  ipcMain.handle('db:getConflicts', async () => {
+    const db   = getDb();
+    const rows = db.prepare(
+      `SELECT * FROM conflicts WHERE resolved = 0 ORDER BY created_at DESC`,
+    ).all();
+    return { ok: true, conflicts: rows };
+  });
+
+  // ── app:getVersion / app:getPlatform ────────────────────────────────────────
+  ipcMain.handle('app:getVersion',  () => ({ ok: true, version:  APP_VERSION }));
+  ipcMain.handle('app:getPlatform', () => ({ ok: true, platform: process.platform }));
+}

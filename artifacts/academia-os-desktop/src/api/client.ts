@@ -50,16 +50,98 @@ export const sync = {
     invoke<{ ok: boolean; cursors: SyncCursor[]; pendingOps: number; conflictCount: number }>('sync:status'),
 };
 
+export type AttendanceCorrectionReview = {
+  id: string;
+  attendanceRecordId: string;
+  classId: string;
+  date: string;
+  learnerId: string;
+  learnerName: string;
+  originalStatus: AttendanceStatus;
+  requestedStatus: AttendanceStatus;
+  requestedAttendanceReason: string | null;
+  correctionReason: string;
+  requestedById: string;
+  requesterName: string;
+  requesterRole: string;
+  createdAt: string;
+};
+
+export const attendanceReview = {
+  list: (params?: { classId?: string; date?: string }) =>
+    invoke<ApiResult<{ corrections: AttendanceCorrectionReview[] }>>(
+      "attendance:listCorrections",
+      params,
+    ),
+
+  review: (params: {
+    requestId: string;
+    decision: "APPROVE" | "REJECT";
+    decisionReason?: string | null;
+  }) =>
+    invoke<ApiResult<{ correction: unknown }>>(
+      "attendance:reviewCorrection",
+      params,
+    ),
+};
+
 // ── Local DB ──────────────────────────────────────────────────────────────────
 export const db = {
+  getClasses: () =>
+    invoke<ApiResult<{ classes: LocalClass[] }>>('db:getClasses'),
+
   getLearners: (opts?: { classId?: string; search?: string }) =>
     invoke<ApiResult<{ learners: LocalLearner[] }>>('db:getLearners', opts),
 
   getStaff: (opts?: { search?: string }) =>
     invoke<ApiResult<{ staff: LocalStaff[] }>>('db:getStaff', opts),
 
+  getAttendance: (params: { classId: string; date: string }) =>
+    invoke<ApiResult<{ attendance: Array<{
+      id: string;
+      learner_id: string;
+      date: string;
+      status: AttendanceStatus;
+      reason: string | null;
+      is_local: number;
+      register_id: string | null;
+      register_status: string | null;
+      register_marked_by_id: string | null;
+      register_marked_by_role: string | null;
+      register_submitted_at: string | null;
+      register_locked_at: string | null;
+      server_updated_at: string | null;
+      correction_operation_id: string | null;
+      correction_state: string | null;
+      correction_error_message: string | null;
+      correction_requested_status: AttendanceStatus | null;
+      correction_created_at: string | null;
+      correction_attempted_at: string | null;
+      correction_synced_at: string | null;
+    }> }>>('db:getAttendance', params),
+
   saveAttendance: (params: { learnerId: string; date: string; status: AttendanceStatus; schoolId: string; userId: string; deviceId: string }) =>
     invoke<ApiResult<{ operationId: string; idempotencyKey: string }>>('db:saveAttendance', params),
+
+  requestAttendanceCorrection: (params: {
+    attendanceRecordId: string;
+    requestedStatus: AttendanceStatus;
+    requestedAttendanceReason?: string | null;
+    correctionReason: string;
+    schoolId: string;
+    userId: string;
+    deviceId: string;
+  }) =>
+    invoke<ApiResult<{ operationId: string; idempotencyKey: string }>>(
+      "db:requestAttendanceCorrection",
+      params,
+    ),
+
+  submitAttendanceRegister: (params: { classId: string; date: string; substitutionReason?: string | null; schoolId: string; userId: string; deviceId: string }) =>
+    invoke<ApiResult<{ operationId: string; idempotencyKey: string }>>('db:submitAttendanceRegister', params),
+
+  getAttendanceSubmitState: (params: { classId: string; date: string }) =>
+    invoke<ApiResult<{ submission: { operationId: string; userId: string; status: string; errorMessage: string | null; createdAt: string; attemptedAt: string | null; syncedAt: string | null } | null }>>('db:getAttendanceSubmitState', params),
 
   getPendingOps: () =>
     invoke<ApiResult<{ operations: OutboxRow[] }>>('db:getPendingOps'),
@@ -83,6 +165,16 @@ export type Tokens = {
 
 export type Session = { sessionId: string; deviceId: string; platform: string; appVersion: string | null };
 
+export type LocalClass = {
+  id: string;
+  school_id: string;
+  name: string;
+  stream: string | null;
+  level: string | null;
+  class_teacher_id: string | null;
+  is_active: number;
+};
+
 export type LocalLearner = {
   id: string; school_id: string; admission_no: string;
   first_name: string; last_name: string; class_id: string | null; class_name: string | null;
@@ -100,17 +192,17 @@ export type LocalStaff = {
   photo_url: string | null;
 };
 
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'HALF_DAY';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'SICK' | 'PARTIAL' | 'HALF_DAY_MORNING' | 'HALF_DAY_AFTERNOON' | 'SCHOOL_ACTIVITY' | 'SUSPENDED' | 'HOLIDAY';
 
 export type InitialSyncData = {
   syncCursor: string; school: unknown; classes: unknown[]; subjects: unknown[];
   staff: unknown[]; feeCategories: unknown[]; academicYears: unknown[];
-  terms: unknown[]; learners: LocalLearner[]; counts: Record<string, number>;
+  terms: unknown[]; learners: LocalLearner[]; attendance: unknown[]; counts: Record<string, number>;
 };
 
 export type IncrementalSyncData = {
   syncCursor: string;
-  changes: { learners: LocalLearner[]; classes: unknown[]; staff: unknown[]; staffRemovedIds: string[]; subjects: unknown[]; feeCategories: unknown[] };
+  changes: { learners: LocalLearner[]; classes: unknown[]; staff: unknown[]; staffRemovedIds: string[]; subjects: unknown[]; feeCategories: unknown[]; attendance: unknown[] };
 };
 
 export type SyncCursor  = { entity_type: string; last_synced: string; record_count: number };

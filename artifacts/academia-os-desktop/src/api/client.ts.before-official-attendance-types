@@ -1,0 +1,141 @@
+/**
+ * Renderer-side API client — wraps window.electronAPI.invoke() calls.
+ * All actual HTTP happens in the main process via ipc-handlers.ts.
+ * The renderer NEVER holds tokens or makes direct network requests.
+ */
+
+declare global {
+  interface Window {
+    electronAPI: {
+      invoke(channel: string, ...args: unknown[]): Promise<unknown>;
+      getVersion(): string;
+      getPlatform(): string;
+    };
+  }
+}
+
+function invoke<T = unknown>(channel: string, args?: unknown): Promise<T> {
+  return window.electronAPI.invoke(channel, args) as Promise<T>;
+}
+
+export type ApiResult<T> = { ok: true } & T | { ok: false; error?: { code: string; message?: string } };
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const auth = {
+  login: (username: string, password: string, deviceName?: string) =>
+    invoke<ApiResult<{ user: User; tokens: Tokens; deviceId: string }>>('auth:login', { username, password, deviceName }),
+
+  refresh: () =>
+    invoke<ApiResult<{ tokens: Tokens }>>('auth:refresh'),
+
+  logout: () =>
+    invoke<ApiResult<object>>('auth:logout'),
+
+  getSession: () =>
+    invoke<ApiResult<{ loggedIn: boolean; user?: User; session?: Session }>>('auth:getSession'),
+};
+
+// ── Sync ──────────────────────────────────────────────────────────────────────
+export const sync = {
+  initial: () =>
+    invoke<ApiResult<{ data: InitialSyncData }>>('sync:initial'),
+
+  incremental: (syncCursor: string) =>
+    invoke<ApiResult<{ data: IncrementalSyncData }>>('sync:incremental', { syncCursor }),
+
+  uploadOutbox: () =>
+    invoke<ApiResult<{ processed: number; results: OutboxResult[] }>>('sync:uploadOutbox'),
+
+  status: () =>
+    invoke<{ ok: boolean; cursors: SyncCursor[]; pendingOps: number; conflictCount: number }>('sync:status'),
+};
+
+// ── Local DB ──────────────────────────────────────────────────────────────────
+export const db = {
+  getClasses: () =>
+    invoke<ApiResult<{ classes: LocalClass[] }>>('db:getClasses'),
+
+  getLearners: (opts?: { classId?: string; search?: string }) =>
+    invoke<ApiResult<{ learners: LocalLearner[] }>>('db:getLearners', opts),
+
+  getStaff: (opts?: { search?: string }) =>
+    invoke<ApiResult<{ staff: LocalStaff[] }>>('db:getStaff', opts),
+
+  getAttendance: (params: { classId: string; date: string }) =>
+    invoke<ApiResult<{ attendance: Array<{ learner_id: string; date: string; status: AttendanceStatus; is_local: number }> }>>('db:getAttendance', params),
+
+  saveAttendance: (params: { learnerId: string; date: string; status: AttendanceStatus; schoolId: string; userId: string; deviceId: string }) =>
+    invoke<ApiResult<{ operationId: string; idempotencyKey: string }>>('db:saveAttendance', params),
+
+  submitAttendanceRegister: (params: { classId: string; date: string; substitutionReason?: string | null; schoolId: string; userId: string; deviceId: string }) =>
+    invoke<ApiResult<{ operationId: string; idempotencyKey: string }>>('db:submitAttendanceRegister', params),
+
+  getAttendanceSubmitState: (params: { classId: string; date: string }) =>
+    invoke<ApiResult<{ submission: { operationId: string; userId: string; status: string; errorMessage: string | null; createdAt: string; attemptedAt: string | null; syncedAt: string | null } | null }>>('db:getAttendanceSubmitState', params),
+
+  getPendingOps: () =>
+    invoke<ApiResult<{ operations: OutboxRow[] }>>('db:getPendingOps'),
+
+  getConflicts: () =>
+    invoke<ApiResult<{ conflicts: ConflictRow[] }>>('db:getConflicts'),
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+export type User = {
+  id: string; name: string; username: string;
+  email: string | null; phone: string | null; photoUrl: string | null;
+  role: string; mustChangePassword: boolean;
+  school: { id: string; name: string; code: string; logoUrl: string | null; currency: string; timezone: string } | null;
+};
+
+export type Tokens = {
+  accessToken: string; refreshToken: string; expiresIn: number;
+  accessExpiresAt: string; refreshExpiresAt: string;
+};
+
+export type Session = { sessionId: string; deviceId: string; platform: string; appVersion: string | null };
+
+export type LocalClass = {
+  id: string;
+  school_id: string;
+  name: string;
+  stream: string | null;
+  level: string | null;
+  class_teacher_id: string | null;
+  is_active: number;
+};
+
+export type LocalLearner = {
+  id: string; school_id: string; admission_no: string;
+  first_name: string; last_name: string; class_id: string | null; class_name: string | null;
+  status: string; photo_url: string | null; badge_code: string | null;
+  gender: string | null;
+};
+
+export type LocalStaff = {
+  id: string;
+  school_id: string;
+  name: string;
+  username: string;
+  role: string;
+  status: string;
+  photo_url: string | null;
+};
+
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'SICK' | 'PARTIAL' | 'HALF_DAY_MORNING' | 'HALF_DAY_AFTERNOON' | 'SCHOOL_ACTIVITY' | 'SUSPENDED' | 'HOLIDAY';
+
+export type InitialSyncData = {
+  syncCursor: string; school: unknown; classes: unknown[]; subjects: unknown[];
+  staff: unknown[]; feeCategories: unknown[]; academicYears: unknown[];
+  terms: unknown[]; learners: LocalLearner[]; counts: Record<string, number>;
+};
+
+export type IncrementalSyncData = {
+  syncCursor: string;
+  changes: { learners: LocalLearner[]; classes: unknown[]; staff: unknown[]; staffRemovedIds: string[]; subjects: unknown[]; feeCategories: unknown[] };
+};
+
+export type SyncCursor  = { entity_type: string; last_synced: string; record_count: number };
+export type OutboxResult = { operationId: string; status: string; message?: string };
+export type OutboxRow   = { id: string; operation_type: string; status: string; created_at: string; payload_json: string };
+export type ConflictRow = { id: string; operation_type: string; reason: string; created_at: string };

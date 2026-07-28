@@ -1,0 +1,159 @@
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { audit } from '@/lib/auth';
+import { submitAttendanceRegister, type AttendanceSubmitSuccess } from '@/lib/attendance-submit';
+import { authenticateMobileRequest, mobileError, mobileJson, resolveMobileSchoolId } from '@/lib/mobile-api';
+import { notifyLearnerGuardians } from '@/lib/notifications';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const submitSchema = z.object({
+  classId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  substitutionReason: z.string().trim().max(500).optional(),
+});
+
+function submissionFailureStatus(code: string) {
+  if (code === "PERMISSION_DENIED") return 403;
+  if (code === "CLASS_NOT_FOUND") return 404;
+  if (
+    code === "REGISTER_NOT_FOUND" ||
+    code === "REGISTER_LOCKED" ||
+    code === "REGISTER_RACE_LOST"
+  ) {
+    return 409;
+  }
+  return 400;
+}
+
+function submissionSuccessData(result: {
+  registerId: string;
+  classId: string;
+  className: string;
+  academicYearId: string;
+  termId: string;
+  termName: string;
+  date: Date;
+  markedById: string;
+  markedByRole: string;
+  officialClassTeacherId: string | null;
+  substitutionReason: string | null;
+  learners: Array<{ learnerId: string; firstName: string; lastName: string; status: string }>;
+}) {
+  return {
+    registerId: result.registerId,
+    registerStatus: "LOCKED",
+    classId: result.classId,
+    className: result.className,
+    academicYearId: result.academicYearId,
+    termId: result.termId,
+    termName: result.termName,
+    date: result.date.toISOString().slice(0, 10),
+    markedById: result.markedById,
+    markedByRole: result.markedByRole,
+    officialClassTeacherId: result.officialClassTeacherId,
+    substitutionReason: result.substitutionReason,
+    learnerCount: result.learners.length,
+  };
+}
+
+async function completeMobileAttendanceSubmission(
+  schoolId: string,
+  userId: string,
+  result: AttendanceSubmitSuccess,
+) {
+  for (const learner of result.learners) {
+    const statusLabel = learner.status.replaceAll("_", " ");
+
+    await notifyLearnerGuardians({
+      schoolId,
+      learnerId: learner.learnerId,
+      type: "ATTENDANCE",
+      title: learner.firstName + " " + learner.lastName + ": " + statusLabel,
+      body:
+        "Attendance for " +
+        result.date.toLocaleDateString("en-GH") +
+        " was submitted as " +
+        statusLabel.toLowerCase() +
+        ".",
+      link: "/attendance",
+    });
+  }
+
+  await audit({
+    schoolId,
+    userId,
+    action: "ATTENDANCE_REGISTER_SUBMITTED",
+    entityType: "AttendanceRegister",
+    entityId: result.registerId,
+    newValue: {
+      source: "MOBILE",
+      classId: result.classId,
+      className: result.className,
+      academicYearId: result.academicYearId,
+      termId: result.termId,
+      termName: result.termName,
+      date: result.date.toISOString(),
+      markedById: result.markedById,
+      markedByRole: result.markedByRole,
+      officialClassTeacherId: result.officialClassTeacherId,
+      substitutionReason: result.substitutionReason,
+      learnerCount: result.learners.length,
+      status: "LOCKED",
+    },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await authenticateMobileRequest(request);
+  if ("response" in auth) return auth.response;
+
+  const schoolId = await resolveMobileSchoolId(auth.context, request);
+  if (typeof schoolId !== "string" || schoolId.length === 0) {
+    return mobileError(
+      400,
+      "SCHOOL_REQUIRED",
+      "This account must select an active school.",
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return mobileError(
+      400,
+      "INVALID_JSON",
+      "Send a valid JSON request body.",
+    );
+  }
+
+  const parsed = submitSchema.safeParse(body);
+  if (parsed.success === false) {
+    return mobileError(
+      400,
+      "INVALID_SUBMISSION",
+      "Class and attendance date are required.",
+    );
+  }
+
+  const date = new Date(parsed.data.date + "T00:00:00.000Z");
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== parsed.data.date
+  ) {
+    return mobileError(
+      400,
+      "INVALID_DATE",
+      "Enter a valid attendance date.",
+    );
+  }
+
+  return mobileError(
+    501,
+    "NOT_IMPLEMENTED",
+    "Mobile attendance submission is not enabled yet.",
+  );
+}

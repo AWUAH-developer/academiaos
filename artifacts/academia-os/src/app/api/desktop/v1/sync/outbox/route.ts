@@ -19,11 +19,16 @@ import { and, eq } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
-import { attendanceRecords, desktopOutboxIdempotencyKeys, learners } from '@/db/schema';
+import { desktopOutboxIdempotencyKeys } from '@/db/schema';
+import { saveAttendanceDraft } from '@/lib/attendance-draft';
+import { submitAttendanceRegister, type AttendanceSubmitSuccess } from '@/lib/attendance-submit';
+import { ATTENDANCE_CORRECTION_STATUSES, requestAttendanceCorrection } from "@/lib/attendance-correction";
 import { audit } from '@/lib/auth';
 import {
   authenticateDesktopRequest, desktopError, desktopJson, resolveDesktopSchoolId,
 } from '@/lib/desktop-api';
+import { notifyLearnerGuardians } from '@/lib/notifications';
+import type { UserRole } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,10 +48,29 @@ const attendanceOp = baseOp.extend({
   payload: z.object({
     learnerId:    z.string(),
     date:         z.string().date(),
-    status:       z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'HALF_DAY']),
+    status:       z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'SICK', 'PARTIAL', 'HALF_DAY_MORNING', 'HALF_DAY_AFTERNOON', 'SCHOOL_ACTIVITY', 'SUSPENDED', 'HOLIDAY', 'HALF_DAY']),
     checkInTime:  z.string().datetime().nullable().optional(),
     checkOutTime: z.string().datetime().nullable().optional(),
     reason:       z.string().max(500).optional(),
+  }),
+});
+
+const attendanceSubmitOp = baseOp.extend({
+  type: z.literal("ATTENDANCE_REGISTER_SUBMIT"),
+  payload: z.object({
+    classId: z.string(),
+    date: z.string().date(),
+    substitutionReason: z.string().trim().max(500).nullable().optional(),
+  }),
+});
+
+const attendanceCorrectionRequestOp = baseOp.extend({
+  type: z.literal("ATTENDANCE_CORRECTION_REQUEST"),
+  payload: z.object({
+    attendanceRecordId: z.string().uuid(),
+    requestedStatus: z.enum(ATTENDANCE_CORRECTION_STATUSES),
+    requestedAttendanceReason: z.string().trim().max(500).nullable().optional(),
+    correctionReason: z.string().trim().min(10).max(1000),
   }),
 });
 
@@ -57,7 +81,7 @@ const BLOCKED_TYPES = new Set([
   'RESULT_PUBLISH', 'USER_CREATE', 'USER_ROLE_CHANGE',
 ]);
 
-const anyOp = z.discriminatedUnion('type', [attendanceOp]);
+const anyOp = z.discriminatedUnion("type", [attendanceOp, attendanceSubmitOp, attendanceCorrectionRequestOp]);
 const bodySchema = z.object({ operations: z.array(anyOp).min(1).max(100) });
 
 // ── Idempotency helpers ───────────────────────────────────────────────────────
@@ -88,6 +112,97 @@ async function recordKey(opts: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+async function completeDesktopAttendanceSubmission(
+  schoolId: string,
+  userId: string,
+  idempotencyKey: string,
+  result: AttendanceSubmitSuccess,
+) {
+  for (const learner of result.learners) {
+    const statusLabel = learner.status.replaceAll("_", " ");
+
+    await notifyLearnerGuardians({
+      schoolId,
+      learnerId: learner.learnerId,
+      type: "ATTENDANCE",
+      title: learner.firstName + " " + learner.lastName + ": " + statusLabel,
+      body:
+        "Attendance for " +
+        result.date.toLocaleDateString("en-GH") +
+        " was submitted as " +
+        statusLabel.toLowerCase() +
+        ".",
+      link: "/attendance",
+    }).catch((err: unknown) => {
+      console.error("Desktop attendance guardian notification failed after lock:", err);
+    });
+  }
+
+  await audit({
+    schoolId,
+    userId,
+    action: "ATTENDANCE_REGISTER_SUBMITTED",
+    entityType: "AttendanceRegister",
+    entityId: result.registerId,
+    newValue: {
+      source: "DESKTOP",
+      idempotencyKey,
+      classId: result.classId,
+      className: result.className,
+      academicYearId: result.academicYearId,
+      termId: result.termId,
+      termName: result.termName,
+      date: result.date.toISOString(),
+      markedById: result.markedById,
+      markedByRole: result.markedByRole,
+      officialClassTeacherId: result.officialClassTeacherId,
+      substitutionReason: result.substitutionReason,
+      learnerCount: result.learners.length,
+      status: "LOCKED",
+    },
+  }).catch((err: unknown) => {
+    console.error("Desktop attendance audit write failed after lock:", err);
+  });
+}
+
+async function processDesktopAttendanceSubmit(
+  op: z.infer<typeof attendanceSubmitOp>,
+  schoolId: string,
+  userId: string,
+  role: UserRole,
+) {
+  const attendanceDate = new Date(op.payload.date + "T00:00:00.000Z");
+
+  if (
+    Number.isNaN(attendanceDate.getTime()) ||
+    attendanceDate.toISOString().slice(0, 10) !== op.payload.date
+  ) {
+    throw new Error("[INVALID_DATE] Enter a valid attendance date.");
+  }
+
+  const result = await submitAttendanceRegister({
+    schoolId,
+    userId,
+    role,
+    classId: op.payload.classId,
+    date: attendanceDate,
+    substitutionReason: op.payload.substitutionReason ?? null,
+  });
+
+  if (result.ok === false) {
+    throw new Error("[" + result.code + "] " + result.message);
+  }
+
+  await completeDesktopAttendanceSubmission(
+    schoolId,
+    userId,
+    op.idempotencyKey,
+    result,
+  );
+
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await authenticateDesktopRequest(request);
   if ('response' in auth) return auth.response;
@@ -148,63 +263,99 @@ export async function POST(request: NextRequest) {
 
     // ── Execute the operation ─────────────────────────────────────────────
     try {
-      if (op.type === 'ATTENDANCE_RECORD') {
-        // Verify learner belongs to this school
-        const learner = (await db
-          .select({ id: learners.id })
-          .from(learners)
-          .where(and(eq(learners.id, op.payload.learnerId), eq(learners.schoolId, schoolId)))
-          .limit(1))[0];
+        if (op.type === 'ATTENDANCE_RECORD') {
+          const attendanceDate = new Date(op.payload.date + 'T00:00:00.000Z');
 
-        if (!learner) throw new Error('Learner not found in this school');
+          const normalizedStatus =
+            op.payload.status === 'HALF_DAY'
+              ? 'PARTIAL'
+              : op.payload.status;
 
-        const attendanceDate = new Date(op.payload.date);
-        const existing = await db.select({ id: attendanceRecords.id })
-          .from(attendanceRecords)
-          .where(and(
-            eq(attendanceRecords.learnerId, op.payload.learnerId),
-            eq(attendanceRecords.date, attendanceDate),
-          )).limit(1);
-
-        if (existing.length > 0) {
-          // Attendance already exists for this learner/date — not a conflict,
-          // treat as already-synced (the onConflictDoNothing path)
-          await recordKey({
-            idempotencyKey: op.idempotencyKey, schoolId, userId: ctx.user.id,
-            operationType: op.type, result: 'ok',
+          const result = await saveAttendanceDraft({
+            schoolId,
+            userId: ctx.user.id,
+            role: ctx.user.role,
+            learnerId: op.payload.learnerId,
+            date: attendanceDate,
+            status: normalizedStatus,
+            reason: op.payload.reason ?? null,
+            checkInTime: op.payload.checkInTime
+              ? new Date(op.payload.checkInTime)
+              : undefined,
+            checkOutTime: op.payload.checkOutTime
+              ? new Date(op.payload.checkOutTime)
+              : undefined,
           });
-          results.push({
-            operationId: op.operationId, idempotencyKey: op.idempotencyKey,
-            status: 'ALREADY_PROCESSED',
+
+          if (result.ok === false) {
+            throw new Error('[' + result.code + '] ' + result.message);
+          }
+
+          await audit({
+            schoolId,
+            userId: ctx.user.id,
+            action: 'DESKTOP_ATTENDANCE_DRAFT_SYNCED',
+            entityType: 'AttendanceRecord',
+            entityId: result.record.id,
+            newValue: {
+              idempotencyKey: op.idempotencyKey,
+              learnerId: op.payload.learnerId,
+              date: op.payload.date,
+              status: normalizedStatus,
+              sourceStatus: op.payload.status,
+              classId: result.classId,
+              registerId: result.registerId,
+            },
           });
-          continue;
+        } else if (op.type === 'ATTENDANCE_REGISTER_SUBMIT') {
+          await processDesktopAttendanceSubmit(
+            op,
+            schoolId,
+            ctx.user.id,
+            ctx.user.role,
+          );
+        } else if (op.type === 'ATTENDANCE_CORRECTION_REQUEST') {
+          const correctionResult = await requestAttendanceCorrection({
+            schoolId,
+            userId: ctx.user.id,
+            role: ctx.user.role,
+            attendanceRecordId: op.payload.attendanceRecordId,
+            requestedStatus: op.payload.requestedStatus,
+            requestedAttendanceReason:
+              op.payload.requestedAttendanceReason ?? null,
+            correctionReason: op.payload.correctionReason,
+            source: "DESKTOP",
+          });
+
+          if (correctionResult.ok === false) {
+            throw new Error(
+              "[" +
+                correctionResult.code +
+                "] " +
+                correctionResult.message,
+            );
+          }
         }
 
-        await db.insert(attendanceRecords).values({
-          schoolId,
-          learnerId:    op.payload.learnerId,
-          date:         attendanceDate,
-          status:       op.payload.status,
-          checkInTime:  op.payload.checkInTime  ? new Date(op.payload.checkInTime)  : null,
-          checkOutTime: op.payload.checkOutTime ? new Date(op.payload.checkOutTime) : null,
-          reason:       op.payload.reason ?? null,
-          recordedById: ctx.user.id,
-        });
-
-        await audit({
-          schoolId, userId: ctx.user.id,
-          action: 'DESKTOP_ATTENDANCE_SYNCED',
-          entityType: 'AttendanceRecord',
-          entityId: op.payload.learnerId,
-          newValue: { idempotencyKey: op.idempotencyKey, status: op.payload.status, date: op.payload.date },
-        });
-      }
-
       // Record successful idempotency key in DB
-      await recordKey({
-        idempotencyKey: op.idempotencyKey, schoolId, userId: ctx.user.id,
-        operationType: op.type, result: 'ok',
-      });
+        await recordKey({
+          idempotencyKey: op.idempotencyKey, schoolId, userId: ctx.user.id,
+          operationType: op.type, result: 'ok',
+        }).catch((err: unknown) => {
+          if (
+            op.type === 'ATTENDANCE_REGISTER_SUBMIT' ||
+            op.type === 'ATTENDANCE_CORRECTION_REQUEST'
+          ) {
+            console.error(
+              op.type === 'ATTENDANCE_REGISTER_SUBMIT'
+                ? 'Desktop attendance idempotency write failed after register lock:'
+                : 'Desktop attendance correction idempotency write failed after request creation:',
+              err,
+            );
+            return;
+          }
+          throw err;
+        });
       results.push({
         operationId:    op.operationId,
         idempotencyKey: op.idempotencyKey,

@@ -1,17 +1,19 @@
 'use server';
 import crypto from 'crypto';
-import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import {
-  academicSubmissions, academicYears, approvalEvents, attendanceRecords, classes, feeCharges, homework, learnerGuardians,
-  learners, notifications, subjects, teacherAssignments, terminalReports, terms, guardians
+  academicSubmissions, academicYears, approvalEvents, attendanceRecords, attendanceRegisters, classes, feeCharges, financialAdjustments, curriculumTopics, homework, homeworkTopics, learnerGuardians,
+  learners, notifications, payments, subjects, teacherAssignments, terminalReports, terms, guardians
 } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
+import { calculateFinancialBalance } from '@/lib/financial-balance';
 import { canApproveAcademics, canReviewAcademics } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { notifyClassGuardians } from '@/lib/notifications';
+import { homeworkMaterialToDataUrl, HomeworkMaterialUploadError } from '@/lib/homework-material';
 
 function gradeFor(total: number) { if (total >= 80) return 'A'; if (total >= 70) return 'B'; if (total >= 60) return 'C'; if (total >= 50) return 'D'; return 'F'; }
 function refresh() { for (const path of ['/academics','/approvals','/reports','/dashboard']) revalidatePath(path); }
@@ -86,7 +88,7 @@ export async function proprietorDecisionAction(formData: FormData) {
 }
 
 export async function reopenAcademicAction(formData: FormData) {
-  const user = await requireUser(); if (!canApproveAcademics(user.role)) redirect('/approvals?error=Only+the+proprietor+can+reopen+approved+results'); const schoolId = await getActiveSchoolId(user);
+  const user = await requireUser(); if (user.role !== 'SUPER_ADMIN') redirect('/approvals?error=Only+SUPER_ADMIN+can+reopen+approved+results'); const schoolId = await getActiveSchoolId(user);
   const submissionId = String(formData.get('submissionId') || ''); const reason = String(formData.get('reason') || '').trim(); if (!reason) redirect('/approvals?error=A+reopening+reason+is+required');
   const record = (await db.select().from(academicSubmissions).where(and(eq(academicSubmissions.id, submissionId), eq(academicSubmissions.schoolId, schoolId))).limit(1))[0]; if (!record || !['LOCKED','APPROVED'].includes(record.status)) redirect('/approvals?error=Only+approved+records+can+be+reopened');
   await db.transaction(async (tx) => { await tx.update(academicSubmissions).set({ status: 'REOPENED', rejectionReason: reason, lockedAt: null, updatedAt: new Date() }).where(eq(academicSubmissions.id, submissionId)); await tx.insert(approvalEvents).values({ schoolId, submissionId, actorId: user.id, decision: 'REOPENED', reason, oldValue: { totalScore: record.totalScore, teacherRemark: record.teacherRemark, status: record.status }, newValue: { status: 'REOPENED' } }); await tx.insert(notifications).values({ schoolId, userId: record.teacherId, type: 'APPROVAL', title: 'Approved result reopened', body: reason, link: '/academics' }); });
@@ -94,22 +96,183 @@ export async function reopenAcademicAction(formData: FormData) {
 }
 
 export async function createHomeworkAction(formData: FormData) {
-  const user = await requireUser(); if (!['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN','TEACHER'].includes(user.role)) redirect('/homework?error=Permission+denied'); const schoolId = await getActiveSchoolId(user);
-  const academicYearId = String(formData.get('academicYearId') || ''); const termId = String(formData.get('termId') || ''); const classId = String(formData.get('classId') || ''); const subjectId = String(formData.get('subjectId') || '');
-  const title = String(formData.get('title') || '').trim(); const instructions = String(formData.get('instructions') || '').trim(); const dueAt = new Date(String(formData.get('dueAt') || ''));
-  if (!title || !instructions || !academicYearId || !termId || !classId || !subjectId || Number.isNaN(dueAt.getTime())) redirect('/homework?error=Enter+valid+homework+details');
+  const user = await requireUser();
+
+  if (!["SUPER_ADMIN","SCHOOL_ADMIN","HEADTEACHER","ACADEMIC_ADMIN","TEACHER"].includes(user.role)) {
+    redirect("/homework?error=Permission+denied");
+  }
+
+  const schoolId = await getActiveSchoolId(user);
+  const academicYearId = String(formData.get("academicYearId") || "");
+  const termId = String(formData.get("termId") || "");
+  const classId = String(formData.get("classId") || "");
+  const subjectId = String(formData.get("subjectId") || "");
+  const title = String(formData.get("title") || "").trim();
+  const instructions = String(formData.get("instructions") || "").trim();
+  const dueAt = new Date(String(formData.get("dueAt") || ""));
+  const sourceType = String(formData.get("sourceType") || "WRITTEN").toUpperCase();
+  const bookTitle = String(formData.get("bookTitle") || "").trim() || null;
+  const pageReference = String(formData.get("pageReference") || "").trim() || null;
+  const topicIds = Array.from(
+    new Set(formData.getAll("topicIds").map(String).filter(Boolean))
+  );
+
+  if (
+    !title ||
+    !instructions ||
+    !academicYearId ||
+    !termId ||
+    !classId ||
+    !subjectId ||
+    Number.isNaN(dueAt.getTime()) ||
+    !["WRITTEN","BOOK","UPLOAD","BOOK_AND_UPLOAD"].includes(sourceType)
+  ) {
+    redirect("/homework?error=Enter+valid+homework+details");
+  }
+
+  if (!topicIds.length) {
+    redirect("/homework?error=Select+at+least+one+topic+taught");
+  }
+
+  if (
+    (sourceType === "BOOK" || sourceType === "BOOK_AND_UPLOAD") &&
+    (!bookTitle || !pageReference)
+  ) {
+    redirect("/homework?error=Book+title+and+page+reference+are+required");
+  }
+
   const [classRecord, subjectRecord, yearRecord, termRecord] = await Promise.all([
-    db.select({ id: classes.id }).from(classes).where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId))).limit(1).then((r) => r[0]),
-    db.select({ id: subjects.id }).from(subjects).where(and(eq(subjects.id, subjectId), eq(subjects.schoolId, schoolId))).limit(1).then((r) => r[0]),
-    db.select({ id: academicYears.id }).from(academicYears).where(and(eq(academicYears.id, academicYearId), eq(academicYears.schoolId, schoolId))).limit(1).then((r) => r[0]),
-    db.select({ id: terms.id }).from(terms).where(and(eq(terms.id, termId), eq(terms.schoolId, schoolId), eq(terms.academicYearId, academicYearId))).limit(1).then((r) => r[0])
+    db.select({ id: classes.id }).from(classes)
+      .where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId)))
+      .limit(1).then((rows) => rows[0]),
+
+    db.select({ id: subjects.id, name: subjects.name }).from(subjects)
+      .where(and(eq(subjects.id, subjectId), eq(subjects.schoolId, schoolId)))
+      .limit(1).then((rows) => rows[0]),
+
+    db.select({ id: academicYears.id }).from(academicYears)
+      .where(and(eq(academicYears.id, academicYearId), eq(academicYears.schoolId, schoolId)))
+      .limit(1).then((rows) => rows[0]),
+
+    db.select({ id: terms.id }).from(terms)
+      .where(and(
+        eq(terms.id, termId),
+        eq(terms.schoolId, schoolId),
+        eq(terms.academicYearId, academicYearId)
+      ))
+      .limit(1).then((rows) => rows[0])
   ]);
-  if (!classRecord || !subjectRecord || !yearRecord || !termRecord) redirect('/homework?error=Academic+year,+term,+class+or+subject+is+invalid');
-  if (!(await teacherMayEnter(schoolId, user.id, user.role, classId, subjectId))) redirect('/homework?error=You+are+not+assigned+to+that+class+and+subject');
-  const [record] = await db.insert(homework).values({ schoolId, teacherId: user.id, academicYearId, termId, classId, subjectId, title, instructions, dueAt, maximumScore: formData.get('maximumScore') ? Number(formData.get('maximumScore')) : null, attachmentUrl: String(formData.get('attachmentUrl') || '').trim() || null }).returning();
-  const subject = (await db.select({ name: subjects.name }).from(subjects).where(eq(subjects.id, subjectId)).limit(1))[0];
-  await notifyClassGuardians({ schoolId, classId, type: 'HOMEWORK', title: `New ${subject?.name || 'class'} homework`, body: `${title} is due ${dueAt.toLocaleString('en-GH')}.`, link: '/homework' });
-  await audit({ schoolId, userId: user.id, action: 'HOMEWORK_PUBLISHED', entityType: 'Homework', entityId: record.id, newValue: { title, classId, subjectId, dueAt } }); revalidatePath('/homework'); redirect('/homework?success=Homework+published');
+
+  if (!classRecord || !subjectRecord || !yearRecord || !termRecord) {
+    redirect("/homework?error=Academic+year,+term,+class+or+subject+is+invalid");
+  }
+
+  if (!(await teacherMayEnter(schoolId, user.id, user.role, classId, subjectId))) {
+    redirect("/homework?error=You+are+not+assigned+to+that+class+and+subject");
+  }
+
+  const validTopics = await db.select({
+    id: curriculumTopics.id,
+    name: curriculumTopics.name
+  })
+    .from(curriculumTopics)
+    .where(and(
+      eq(curriculumTopics.schoolId, schoolId),
+      eq(curriculumTopics.classId, classId),
+      eq(curriculumTopics.subjectId, subjectId),
+      eq(curriculumTopics.isActive, true),
+      inArray(curriculumTopics.id, topicIds)
+    ));
+
+  if (validTopics.length !== topicIds.length) {
+    redirect("/homework?error=One+or+more+selected+topics+are+invalid");
+  }
+
+  let material: Awaited<ReturnType<typeof homeworkMaterialToDataUrl>> = null;
+
+  try {
+    material = await homeworkMaterialToDataUrl(formData.get("material"));
+  } catch (error) {
+    redirect(
+      "/homework?error=" +
+        encodeURIComponent(
+          error instanceof HomeworkMaterialUploadError
+            ? error.message
+            : "Homework material could not be processed."
+        )
+    );
+  }
+
+  if (
+    (sourceType === "UPLOAD" || sourceType === "BOOK_AND_UPLOAD") &&
+    !material
+  ) {
+    redirect("/homework?error=Upload+the+homework+material");
+  }
+
+  const record = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(homework).values({
+      schoolId,
+      teacherId: user.id,
+      academicYearId,
+      termId,
+      classId,
+      subjectId,
+      title,
+      instructions,
+      dueAt,
+      maximumScore: formData.get("maximumScore")
+        ? Number(formData.get("maximumScore"))
+        : null,
+      sourceType,
+      bookTitle,
+      pageReference,
+      attachmentUrl: material?.dataUrl || null,
+      attachmentName: material?.fileName || null,
+      attachmentMimeType: material?.mimeType || null
+    }).returning();
+
+    await tx.insert(homeworkTopics).values(
+      topicIds.map((topicId) => ({
+        schoolId,
+        homeworkId: created.id,
+        topicId
+      }))
+    );
+
+    return created;
+  });
+
+  await notifyClassGuardians({
+    schoolId,
+    classId,
+    type: "HOMEWORK",
+    title: "New " + subjectRecord.name + " homework",
+    body: title + " is due " + dueAt.toLocaleString("en-GH") + ".",
+    link: "/homework"
+  });
+
+  await audit({
+    schoolId,
+    userId: user.id,
+    action: "HOMEWORK_PUBLISHED",
+    entityType: "Homework",
+    entityId: record.id,
+    newValue: {
+      title,
+      classId,
+      subjectId,
+      dueAt,
+      sourceType,
+      bookTitle,
+      pageReference,
+      topics: validTopics.map((topic) => topic.name),
+      attachmentName: material?.fileName || null
+    }
+  });
+
+  revalidatePath("/homework");
+  redirect("/homework?success=Homework+published");
 }
 
 export async function generateTerminalReportAction(formData: FormData) {
@@ -120,10 +283,75 @@ export async function generateTerminalReportAction(formData: FormData) {
   const learnerRows = await db.select({ learner: learners, className: classes.name, stream: classes.stream }).from(learners).leftJoin(classes, eq(learners.classId, classes.id)).where(and(eq(learners.id, learnerId), eq(learners.schoolId, schoolId))).limit(1); const learnerRow = learnerRows[0]; if (!learnerRow || !learnerRow.learner.classId) redirect('/reports?error=Learner+or+class+not+found');
   const results = await db.select({ result: academicSubmissions, subjectName: subjects.name }).from(academicSubmissions).innerJoin(subjects, eq(academicSubmissions.subjectId, subjects.id)).where(and(eq(academicSubmissions.learnerId, learnerId), eq(academicSubmissions.academicYearId, academicYearId), eq(academicSubmissions.termId, termId), eq(academicSubmissions.status, 'LOCKED'))).orderBy(asc(subjects.name));
   if (!results.length) redirect('/reports?error=No+proprietor-approved+results+are+available');
-  const attendance = await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.learnerId, learnerId), eq(attendanceRecords.schoolId, schoolId), gte(attendanceRecords.date, period.termStart), lte(attendanceRecords.date, period.termEnd)));
-  const charges = await db.select().from(feeCharges).where(and(eq(feeCharges.learnerId, learnerId), eq(feeCharges.schoolId, schoolId)));
-  const outstandingBalance = charges.reduce((sum, charge) => sum + Math.max(0, charge.amount - charge.paidAmount), 0);
-  const snapshot = { learner: { admissionNo: learnerRow.learner.admissionNo, name: `${learnerRow.learner.firstName} ${learnerRow.learner.lastName}`, className: `${learnerRow.className || ''}${learnerRow.stream ? ` ${learnerRow.stream}` : ''}` }, academicYear: period.yearName, term: period.termName, reopeningDate: period.reopeningDate, subjects: results.map(({ result, subjectName }) => ({ subject: subjectName, classwork: result.classworkScore, homework: result.homeworkScore, test: result.testScore, exam: result.examScore, total: result.totalScore, grade: result.grade, position: result.position, remark: result.teacherRemark })), attendance: { opened: attendance.length, present: attendance.filter((a) => ['PRESENT','LATE','PARTIAL','SCHOOL_ACTIVITY'].includes(a.status)).length, absent: attendance.filter((a) => a.status === 'ABSENT').length, late: attendance.filter((a) => a.status === 'LATE').length }, outstandingBalance, classTeacherComment: results.find(({ result }) => result.classTeacherRemark)?.result.classTeacherRemark || null, generatedAt: new Date().toISOString() };
+  const attendance = await db
+    .select({ status: attendanceRecords.status })
+    .from(attendanceRecords)
+    .leftJoin(
+      attendanceRegisters,
+      eq(attendanceRecords.registerId, attendanceRegisters.id),
+    )
+    .where(
+      and(
+        eq(attendanceRecords.learnerId, learnerId),
+        eq(attendanceRecords.schoolId, schoolId),
+        gte(attendanceRecords.date, period.termStart),
+        lte(attendanceRecords.date, period.termEnd),
+        or(
+          isNull(attendanceRecords.registerId),
+          eq(attendanceRegisters.status, 'LOCKED'),
+        ),
+      ),
+    );
+  const [charges, paymentRows, adjustments] = await Promise.all([
+    db
+      .select({ amount: feeCharges.amount })
+      .from(feeCharges)
+      .where(
+        and(
+          eq(feeCharges.learnerId, learnerId),
+          eq(feeCharges.schoolId, schoolId),
+        ),
+      ),
+    db
+      .select({ amount: payments.amount })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.learnerId, learnerId),
+          eq(payments.schoolId, schoolId),
+        ),
+      ),
+    db
+      .select({
+        type: financialAdjustments.type,
+        amount: financialAdjustments.amount,
+      })
+      .from(financialAdjustments)
+      .where(
+        and(
+          eq(financialAdjustments.learnerId, learnerId),
+          eq(financialAdjustments.schoolId, schoolId),
+          isNotNull(financialAdjustments.approvedAt),
+        ),
+      ),
+  ]);
+
+  const trueBalance = calculateFinancialBalance({
+    totalCharges: charges.reduce(
+      (sum, charge) => sum + Number(charge.amount || 0),
+      0,
+    ),
+    totalPayments: paymentRows.reduce(
+      (sum, payment) => sum + Number(payment.amount || 0),
+      0,
+    ),
+    adjustments,
+  });
+
+  const outstandingBalance = Math.max(0, trueBalance);
+  const creditCarryForward = Math.max(0, -trueBalance);
+
+  const snapshot = { learner: { admissionNo: learnerRow.learner.admissionNo, name: `${learnerRow.learner.firstName} ${learnerRow.learner.lastName}`, className: `${learnerRow.className || ''}${learnerRow.stream ? ` ${learnerRow.stream}` : ''}` }, academicYear: period.yearName, term: period.termName, reopeningDate: period.reopeningDate, subjects: results.map(({ result, subjectName }) => ({ subject: subjectName, classwork: result.classworkScore, homework: result.homeworkScore, test: result.testScore, exam: result.examScore, total: result.totalScore, grade: result.grade, position: result.position, remark: result.teacherRemark })), attendance: { opened: attendance.length, present: attendance.filter((a) => ['PRESENT','LATE','PARTIAL','SCHOOL_ACTIVITY'].includes(a.status)).length, absent: attendance.filter((a) => a.status === 'ABSENT').length, late: attendance.filter((a) => a.status === 'LATE').length }, outstandingBalance, creditCarryForward, classTeacherComment: results.find(({ result }) => result.classTeacherRemark)?.result.classTeacherRemark || null, generatedAt: new Date().toISOString() };
   const verificationCode = `${user.school?.code || 'SCH'}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
   await db.insert(terminalReports).values({ schoolId, learnerId, academicYearId, termId, classId: learnerRow.learner.classId, snapshot, verificationCode, status: 'READY_FOR_APPROVAL' }).onConflictDoUpdate({ target: [terminalReports.learnerId, terminalReports.academicYearId, terminalReports.termId], set: { snapshot, verificationCode, status: 'READY_FOR_APPROVAL', approvedById: null, approvedAt: null, publishedAt: null, updatedAt: new Date() } });
   await audit({ schoolId, userId: user.id, action: 'TERMINAL_REPORT_GENERATED', entityType: 'TerminalReport', entityId: learnerId, newValue: { academicYearId, termId } }); revalidatePath('/reports'); redirect('/reports?success=Terminal+report+generated+for+proprietor+approval');

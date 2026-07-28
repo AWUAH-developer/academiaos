@@ -47,7 +47,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     : delegatedStaffRoles;
 
   return <>
-    <PageHeader eyebrow="Access control" title="Users and staff" description="Create staff profiles, generate login credentials, suspend access and reset temporary passwords."/>
+    <PageHeader eyebrow="Access control" title="Users and staff" description="Create staff profiles and manage permitted staff accounts. Password resets and Proprietor account security are controlled by the AcademiaOS Super Admin."/>
     <FlashMessage success={params.success} error={params.error}/>
     <div className={`grid gap-6 ${mayCreateStaff ? 'xl:grid-cols-[390px_1fr]' : ''}`}>
       {mayCreateStaff && <StaffAccountForm roles={roles}/>}
@@ -67,7 +67,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                 <td>{row.role.replaceAll('_',' ')}</td>
                 <td><span className={`status-pill ${row.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{row.status}</span></td>
                 <td>
-                {mayManageStaff ? (
+                {mayManageStaff && (actor.role === 'SUPER_ADMIN' || row.role !== 'PROPRIETOR') ? (
                   <>
 
                   <div className="flex min-w-64 flex-wrap gap-2">
@@ -76,7 +76,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                       <input type="hidden" name="status" value={row.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'}/>
                       <button className="btn-secondary min-h-9 px-3 py-1.5 text-xs">{row.status === 'ACTIVE' ? 'Suspend' : 'Activate'}</button>
                     </form>
-                    <PasswordResetControl userId={row.id}/>
+                    {actor.role === 'SUPER_ADMIN' && <PasswordResetControl userId={row.id}/>}
                   </div>
                   <details className="mt-3 rounded-xl bg-slate-50 p-3">
                     <summary className="cursor-pointer text-xs font-black text-chalk-700">Edit photo and contact details</summary>

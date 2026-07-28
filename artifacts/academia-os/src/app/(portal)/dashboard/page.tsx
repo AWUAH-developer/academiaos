@@ -1,13 +1,14 @@
 import Link from 'next/link';
-import { and, count, desc, eq, inArray, sum } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, or, sum } from 'drizzle-orm';
 import { BadgeCheck, CalendarCheck2, CircleDollarSign, Clock3, MessageSquareText, ScanLine, UsersRound } from 'lucide-react';
 import { db } from '@/db';
-import { academicSubmissions, attendanceRecords, feeCharges, learners, payments, supportTickets, schools, users } from '@/db/schema';
+import { academicSubmissions, attendanceRecords, attendanceRegisters, feeCharges, financialAdjustments, learners, payments, supportTickets, schools, users } from '@/db/schema';
 import { FlashMessage } from '@/components/FlashMessage';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard } from '@/components/StatCard';
 import { visibleLearnerIds } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
+import { calculateFinancialBalance } from '@/lib/financial-balance';
 import { formatMoney, startOfToday } from '@/lib/format';
 import { canRecordAttendance } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
@@ -22,22 +23,56 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const scopedAttendanceCondition = scope === null ? eq(attendanceRecords.schoolId, schoolId) : scope.length ? inArray(attendanceRecords.learnerId, scope) : eq(attendanceRecords.id, '__none__');
   const scopedChargeCondition = scope === null ? eq(feeCharges.schoolId, schoolId) : scope.length ? inArray(feeCharges.learnerId, scope) : eq(feeCharges.id, '__none__');
   const scopedPaymentCondition = scope === null ? eq(payments.schoolId, schoolId) : scope.length ? inArray(payments.learnerId, scope) : eq(payments.id, '__none__');
+  const scopedAdjustmentCondition = scope === null
+    ? eq(financialAdjustments.schoolId, schoolId)
+    : scope.length
+      ? inArray(financialAdjustments.learnerId, scope)
+      : eq(financialAdjustments.id, '__none__');
   const scopedAcademicCondition = scope === null ? eq(academicSubmissions.schoolId, schoolId) : scope.length ? inArray(academicSubmissions.learnerId, scope) : eq(academicSubmissions.id, '__none__');
 
-  const [[learnerTotal], attendance, [chargeTotal], [paymentTotal], [pending], recentPayments, recentResults, [tickets]] = await Promise.all([
+  const [[learnerTotal], attendance, [chargeTotal], [paymentTotal], adjustments, [pending], recentPayments, recentResults, [tickets]] = await Promise.all([
     db.select({ value: count() }).from(learners).where(and(scopedLearnerCondition, eq(learners.status, 'ACTIVE'))),
-    db.select().from(attendanceRecords).where(and(scopedAttendanceCondition, eq(attendanceRecords.date, today))),
+    db.select({ status: attendanceRecords.status }).from(attendanceRecords).leftJoin(attendanceRegisters, eq(attendanceRecords.registerId, attendanceRegisters.id)).where(and(scopedAttendanceCondition, eq(attendanceRecords.date, today), or(isNull(attendanceRecords.registerId), eq(attendanceRegisters.status, 'LOCKED')))),
     db.select({ value: sum(feeCharges.amount) }).from(feeCharges).where(scopedChargeCondition),
     db.select({ value: sum(payments.amount) }).from(payments).where(scopedPaymentCondition),
+    db.select({
+      type: financialAdjustments.type,
+      amount: financialAdjustments.amount,
+    }).from(financialAdjustments).where(
+      and(
+        scopedAdjustmentCondition,
+        isNotNull(financialAdjustments.approvedAt),
+      ),
+    ),
     isFamilyView ? Promise.resolve([{ value: 0 }]) : db.select({ value: count() }).from(academicSubmissions).where(and(eq(academicSubmissions.schoolId, schoolId), inArray(academicSubmissions.status, ['SUBMITTED','UNDER_REVIEW']))),
     db.select({ payment: payments, learnerFirstName: learners.firstName, learnerLastName: learners.lastName }).from(payments).innerJoin(learners, eq(payments.learnerId, learners.id)).where(scopedPaymentCondition).orderBy(desc(payments.createdAt)).limit(5),
     db.select({ result: academicSubmissions, learnerFirstName: learners.firstName, learnerLastName: learners.lastName, teacherName: users.name }).from(academicSubmissions).innerJoin(learners, eq(academicSubmissions.learnerId, learners.id)).innerJoin(users, eq(academicSubmissions.teacherId, users.id)).where(and(scopedAcademicCondition, isFamilyView ? eq(academicSubmissions.status, 'LOCKED') : undefined)).orderBy(desc(academicSubmissions.updatedAt)).limit(5),
     db.select({ value: count() }).from(supportTickets).where(and(eq(supportTickets.schoolId, schoolId), isFamilyView ? eq(supportTickets.createdById, user.id) : undefined, inArray(supportTickets.status, ['OPEN','IN_PROGRESS'])))
   ]);
 
-  const present = attendance.filter((a) => ['PRESENT','LATE','PARTIAL','SCHOOL_ACTIVITY'].includes(a.status)).length; const absent = attendance.filter((a) => a.status === 'ABSENT').length; const outstanding = Number(chargeTotal.value || 0) - Number(paymentTotal.value || 0); const attendanceAction = canRecordAttendance(user.role);
+  const present = attendance.filter((a) => ['PRESENT','LATE','PARTIAL','SCHOOL_ACTIVITY'].includes(a.status)).length;
+  const absent = attendance.filter((a) => a.status === 'ABSENT').length;
+
+  const trueBalance = calculateFinancialBalance({
+    totalCharges: Number(chargeTotal.value || 0),
+    totalPayments: Number(paymentTotal.value || 0),
+    adjustments,
+  });
+
+  const outstanding = Math.max(0, trueBalance);
+  const carryForwardCredit = Math.max(0, -trueBalance);
+  const attendanceAction = canRecordAttendance(user.role);
   return <><PageHeader eyebrow={isFamilyView ? 'Family overview' : 'Operations overview'} title={`Good day, ${user.name.split(' ')[0]}`} description={`${school?.name || 'Your school'} is live on AcademiaOS. This desk shows the records available to your account.`} action={<Link href="/attendance" className="btn-primary"><ScanLine size={18}/> {attendanceAction ? 'Take attendance' : 'View attendance'}</Link>}/><FlashMessage success={params.success} error={params.error}/>
-  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={isFamilyView ? 'Linked learners' : 'Active learners'} value={learnerTotal.value} note={isFamilyView ? 'Children available to this account' : 'Current enrolled population'} icon={UsersRound}/><StatCard label="Present today" value={present} note={`${absent} marked absent`} icon={CalendarCheck2}/><StatCard label="Outstanding fees" value={formatMoney(outstanding, school?.currency)} note="Charges less payments" icon={CircleDollarSign}/><StatCard label={isFamilyView ? 'Published results' : 'Pending approvals'} value={isFamilyView ? recentResults.length : pending.value} note={isFamilyView ? 'Recent approved records' : 'Results awaiting action'} icon={BadgeCheck}/></div>
+  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={isFamilyView ? 'Linked learners' : 'Active learners'} value={learnerTotal.value} note={isFamilyView ? 'Children available to this account' : 'Current enrolled population'} icon={UsersRound}/><StatCard label="Present today" value={present} note={`${absent} marked absent`} icon={CalendarCheck2}/><StatCard
+  label="Outstanding fees"
+  value={formatMoney(outstanding, school?.currency)}
+  note={
+    carryForwardCredit > 0
+      ? `Credit carried forward: ${formatMoney(carryForwardCredit, school?.currency)}`
+      : 'Charges, payments and approved adjustments'
+  }
+  icon={CircleDollarSign}
+/><StatCard label={isFamilyView ? 'Published results' : 'Pending approvals'} value={isFamilyView ? recentResults.length : pending.value} note={isFamilyView ? 'Recent approved records' : 'Results awaiting action'} icon={BadgeCheck}/></div>
   <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_.8fr]"><section className="paper-card overflow-hidden"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="font-black">Recent fee payments</h2><p className="mt-1 text-xs font-semibold text-slate-500">Latest transactions visible to this account</p></div><Link href="/fees" className="text-sm font-extrabold text-chalk-700">View fees</Link></div>{recentPayments.length ? <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>Learner</th><th>Receipt</th><th>Method</th><th className="text-right">Amount</th></tr></thead><tbody className="divide-y divide-slate-100">{recentPayments.map(({payment,learnerFirstName,learnerLastName}) => <tr key={payment.id}><td className="font-bold">{learnerFirstName} {learnerLastName}</td><td>{payment.receiptNo}</td><td>{payment.method.replaceAll('_',' ')}</td><td className="text-right font-black text-emerald-700">{formatMoney(payment.amount, school?.currency)}</td></tr>)}</tbody></table></div> : <div className="px-5 py-10 text-center text-sm text-slate-500">No payments recorded.</div>}</section>
   <section className="chalk-board rounded-2xl p-5 text-white shadow-card"><div className="flex items-start justify-between"><div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-amber-300">Today&apos;s control desk</p><h2 className="mt-2 text-2xl font-black">Items needing attention</h2></div><Clock3 className="text-white/55"/></div><div className="mt-5 space-y-3">{!isFamilyView && <Link href="/approvals" className="flex items-center justify-between rounded-xl bg-white/10 p-4 hover:bg-white/15"><span className="flex items-center gap-3 font-bold"><BadgeCheck size={19}/> Academic approvals</span><span className="rounded-full bg-amber-300 px-2.5 py-1 text-xs font-black text-slate-900">{pending.value}</span></Link>}<Link href="/helpdesk" className="flex items-center justify-between rounded-xl bg-white/10 p-4 hover:bg-white/15"><span className="flex items-center gap-3 font-bold"><MessageSquareText size={19}/> Open support tickets</span><span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-black">{tickets.value}</span></Link></div></section></div>
   <section className="paper-card mt-6 overflow-hidden"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="font-black">{isFamilyView ? 'Approved academic results' : 'Academic workflow'}</h2><p className="mt-1 text-xs font-semibold text-slate-500">{isFamilyView ? 'Only proprietor-approved results are shown' : 'Recent teacher submissions and proprietor decisions'}</p></div><Link href="/academics" className="text-sm font-extrabold text-chalk-700">Open results</Link></div>{recentResults.length ? <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>Learner</th><th>Teacher</th><th>Total</th><th>Status</th></tr></thead><tbody className="divide-y divide-slate-100">{recentResults.map(({result,learnerFirstName,learnerLastName,teacherName}) => <tr key={result.id}><td className="font-bold">{learnerFirstName} {learnerLastName}</td><td>{teacherName}</td><td className="font-black">{result.totalScore.toFixed(1)}%</td><td><span className={`status-pill ${statusClass(result.status)}`}>{result.status.replaceAll('_',' ')}</span></td></tr>)}</tbody></table></div> : <div className="px-5 py-10 text-center text-sm text-slate-500">No results available.</div>}</section></>;

@@ -1,4 +1,4 @@
-import { and, desc, eq, sum } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sum, isNull, or } from 'drizzle-orm';
 import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -8,9 +8,10 @@ import { FlashMessage } from '@/components/FlashMessage';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard } from '@/components/StatCard';
 import { db } from '@/db';
-import { attendanceRecords, classes, feeCharges, guardians, learnerGuardians, learners, payments } from '@/db/schema';
+import { attendanceRecords, attendanceRegisters, classes, feeCharges, financialAdjustments, guardians, learnerGuardians, learners, payments } from '@/db/schema';
 import { mayViewLearner } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
+import { calculateFinancialBalance } from '@/lib/financial-balance';
 import { formatDate, formatMoney } from '@/lib/format';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { canManageLearners } from '@/lib/permissions';
@@ -36,11 +37,73 @@ export default async function LearnerProfilePage({
   const guardianRows = await db.select({ guardian: guardians, link: learnerGuardians })
     .from(learnerGuardians).innerJoin(guardians, eq(learnerGuardians.guardianId, guardians.id))
     .where(eq(learnerGuardians.learnerId, id));
-  const attendance = await db.select().from(attendanceRecords).where(eq(attendanceRecords.learnerId, id)).orderBy(desc(attendanceRecords.date)).limit(20);
-  const [charges] = await db.select({ value: sum(feeCharges.amount) }).from(feeCharges).where(eq(feeCharges.learnerId, id));
-  const [paid] = await db.select({ value: sum(payments.amount) }).from(payments).where(eq(payments.learnerId, id));
-  const qr = await QRCode.toDataURL(row.learner.badgeCode, { margin: 1, width: 220 });
-  const outstanding = Number(charges.value || 0) - Number(paid.value || 0);
+  const attendanceRows = await db
+    .select({ attendance: attendanceRecords })
+    .from(attendanceRecords)
+    .leftJoin(
+      attendanceRegisters,
+      eq(attendanceRecords.registerId, attendanceRegisters.id),
+    )
+    .where(
+      and(
+        eq(attendanceRecords.schoolId, schoolId),
+        eq(attendanceRecords.learnerId, id),
+        or(
+          isNull(attendanceRecords.registerId),
+          eq(attendanceRegisters.status, 'LOCKED'),
+        ),
+      ),
+    )
+    .orderBy(desc(attendanceRecords.date))
+    .limit(20);
+  const attendance = attendanceRows.map((row) => row.attendance);
+  const [charges] = await db
+    .select({ value: sum(feeCharges.amount) })
+    .from(feeCharges)
+    .where(
+      and(
+        eq(feeCharges.schoolId, schoolId),
+        eq(feeCharges.learnerId, id),
+      ),
+    );
+
+  const [paid] = await db
+    .select({ value: sum(payments.amount) })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.schoolId, schoolId),
+        eq(payments.learnerId, id),
+      ),
+    );
+
+  const adjustments = await db
+    .select({
+      type: financialAdjustments.type,
+      amount: financialAdjustments.amount,
+    })
+    .from(financialAdjustments)
+    .where(
+      and(
+        eq(financialAdjustments.schoolId, schoolId),
+        eq(financialAdjustments.learnerId, id),
+        isNotNull(financialAdjustments.approvedAt),
+      ),
+    );
+
+  const trueBalance = calculateFinancialBalance({
+    totalCharges: Number(charges.value || 0),
+    totalPayments: Number(paid.value || 0),
+    adjustments,
+  });
+
+  const outstanding = Math.max(0, trueBalance);
+  const carryForwardCredit = Math.max(0, -trueBalance);
+
+  const qr = await QRCode.toDataURL(
+    row.learner.badgeCode,
+    { margin: 1, width: 220 },
+  );
   const canCreatePortals = ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER'].includes(user.role);
   const canEditProfile = canManageLearners(user.role);
 
@@ -52,10 +115,21 @@ export default async function LearnerProfilePage({
     />
     <FlashMessage success={query.success} error={query.error}/>
 
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard label="Status" value={row.learner.status} note={`Admitted ${formatDate(row.learner.admissionDate)}`} icon={UserRound}/>
       <StatCard label="Attendance records" value={attendance.length} note="Most recent 20 shown below" icon={CalendarCheck2}/>
-      <StatCard label="Outstanding balance" value={formatMoney(outstanding, user.school?.currency)} note={`Payment plan: ${row.learner.paymentPlan}`} icon={CircleDollarSign}/>
+      <StatCard
+        label="Outstanding balance"
+        value={formatMoney(outstanding, user.school?.currency)}
+        note={outstanding > 0 ? `Payment plan: ${row.learner.paymentPlan}` : 'No outstanding amount'}
+        icon={CircleDollarSign}
+      />
+      <StatCard
+        label="Credit / carry-forward"
+        value={formatMoney(carryForwardCredit, user.school?.currency)}
+        note={carryForwardCredit > 0 ? 'Available against future charges' : 'No learner credit available'}
+        icon={CircleDollarSign}
+      />
     </div>
 
     <div className="mt-6 grid gap-6 xl:grid-cols-[.7fr_1.3fr]">

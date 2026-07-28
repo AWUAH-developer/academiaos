@@ -1,10 +1,11 @@
 'use server';
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { feeCharges, guardians, learnerGuardians, messages, notifications, transportAssignments, users } from '@/db/schema';
+import { feeCharges, financialAdjustments, guardians, learnerGuardians, messages, notifications, payments, transportAssignments, users } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
+import { calculateFinancialBalance } from '@/lib/financial-balance';
 import { getActiveSchoolId } from '@/lib/tenant';
 
 const staffRoles = ['SCHOOL_ADMIN','PROPRIETOR','HEADTEACHER','ACADEMIC_ADMIN','TEACHER','ACCOUNTS','TRANSPORT','SECURITY','RECEPTIONIST','LIBRARIAN','CANTEEN'];
@@ -25,10 +26,119 @@ async function audienceUserIds(schoolId: string, audience: string, recipient: st
     return Array.from(new Set(rows.map((row) => row.userId).filter((id): id is string => Boolean(id))));
   }
   if (audience === 'OUTSTANDING_FEES') {
-    const learnerIds = Array.from(new Set((await db.select({ learnerId: feeCharges.learnerId }).from(feeCharges).where(and(eq(feeCharges.schoolId, schoolId), inArray(feeCharges.status, ['OPEN','PARTIALLY_PAID'])))).map((row) => row.learnerId)));
+    const chargeTotals = await db
+      .select({
+        learnerId: feeCharges.learnerId,
+        total: sql<number>`coalesce(sum(${feeCharges.amount}), 0)::numeric`,
+      })
+      .from(feeCharges)
+      .where(eq(feeCharges.schoolId, schoolId))
+      .groupBy(feeCharges.learnerId);
+
+    if (!chargeTotals.length) return [];
+
+    const candidateLearnerIds = chargeTotals.map(
+      (row) => row.learnerId,
+    );
+
+    const paymentTotals = await db
+      .select({
+        learnerId: payments.learnerId,
+        total: sql<number>`coalesce(sum(${payments.amount}), 0)::numeric`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.schoolId, schoolId),
+          inArray(
+            payments.learnerId,
+            candidateLearnerIds,
+          ),
+        ),
+      )
+      .groupBy(payments.learnerId);
+
+    const adjustmentRows = await db
+      .select({
+        learnerId: financialAdjustments.learnerId,
+        type: financialAdjustments.type,
+        amount: financialAdjustments.amount,
+      })
+      .from(financialAdjustments)
+      .where(
+        and(
+          eq(financialAdjustments.schoolId, schoolId),
+          inArray(
+            financialAdjustments.learnerId,
+            candidateLearnerIds,
+          ),
+          isNotNull(financialAdjustments.approvedAt),
+        ),
+      );
+
+    const chargeTotalByLearner = new Map(
+      chargeTotals.map((row) => [
+        row.learnerId,
+        Number(row.total || 0),
+      ]),
+    );
+
+    const paymentTotalByLearner = new Map(
+      paymentTotals.map((row) => [
+        row.learnerId,
+        Number(row.total || 0),
+      ]),
+    );
+
+    const learnerIds = candidateLearnerIds.filter(
+      (learnerId) => {
+        const adjustments = adjustmentRows
+          .filter(
+            (adjustment) =>
+              adjustment.learnerId === learnerId,
+          )
+          .map((adjustment) => ({
+            type: adjustment.type,
+            amount: Number(adjustment.amount || 0),
+          }));
+
+        const balance = calculateFinancialBalance({
+          totalCharges:
+            chargeTotalByLearner.get(learnerId) || 0,
+          totalPayments:
+            paymentTotalByLearner.get(learnerId) || 0,
+          adjustments,
+        });
+
+        return balance > 0;
+      },
+    );
+
     if (!learnerIds.length) return [];
-    const rows = await db.select({ userId: guardians.userId }).from(learnerGuardians).innerJoin(guardians, eq(learnerGuardians.guardianId, guardians.id)).where(inArray(learnerGuardians.learnerId, learnerIds));
-    return Array.from(new Set(rows.map((row) => row.userId).filter((id): id is string => Boolean(id))));
+
+    const rows = await db
+      .select({ userId: guardians.userId })
+      .from(learnerGuardians)
+      .innerJoin(
+        guardians,
+        eq(learnerGuardians.guardianId, guardians.id),
+      )
+      .where(
+        inArray(
+          learnerGuardians.learnerId,
+          learnerIds,
+        ),
+      );
+
+    return Array.from(
+      new Set(
+        rows
+          .map((row) => row.userId)
+          .filter(
+            (id): id is string => Boolean(id),
+          ),
+      ),
+    );
   }
   return [];
 }

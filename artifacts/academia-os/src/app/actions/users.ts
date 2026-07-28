@@ -40,7 +40,7 @@ async function availableUsername(name: string) {
 
 function mayManageTarget(actorRole: UserRole, activeSchoolId: string, target: typeof users.$inferSelect) {
   if (actorRole === 'SUPER_ADMIN') return target.schoolId === null || target.schoolId === activeSchoolId;
-  return target.schoolId === activeSchoolId && target.role !== 'SUPER_ADMIN';
+  return target.schoolId === activeSchoolId && target.role !== 'SUPER_ADMIN' && target.role !== 'PROPRIETOR';
 }
 
 const DELEGATED_STAFF_ROLES: UserRole[] = [
@@ -224,7 +224,7 @@ export async function resetUserPasswordAction(
   formData: FormData
 ): Promise<CredentialActionState> {
   const actor = await requireUser();
-  if (!canManageUsers(actor.role)) return { status: 'error', message: 'Permission denied.' };
+  if (actor.role !== 'SUPER_ADMIN') return { status: 'error', message: 'Only the AcademiaOS Super Admin can reset passwords.' };
 
   const schoolId = await getActiveSchoolId(actor);
   const userId = cleanText(formData.get('userId'), 100);

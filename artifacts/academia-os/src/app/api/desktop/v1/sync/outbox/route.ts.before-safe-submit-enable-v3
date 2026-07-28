@@ -1,0 +1,330 @@
+/**
+ * POST /api/desktop/v1/sync/outbox
+ *
+ * Accepts an array of offline operations captured by the desktop client and
+ * applies them server-side with DB-persisted idempotency enforcement.
+ *
+ * Idempotency keys are stored in `desktop_outbox_idempotency_keys` so that
+ * duplicate transmissions produce exactly one logical server mutation even
+ * across server restarts and multi-instance deployments.
+ *
+ * HIGH-RISK operations (final financial postings, approvals, user creation,
+ * etc.) are explicitly rejected here.  They must be performed online via the
+ * main web UI where proper authorisation and audit trails exist.
+ *
+ * Financial conflicts NEVER use silent last-write-wins.
+ * CONFLICT status is returned and preserved for manual review.
+ */
+import { and, eq } from 'drizzle-orm';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { db } from '@/db';
+import { desktopOutboxIdempotencyKeys } from '@/db/schema';
+import { saveAttendanceDraft } from '@/lib/attendance-draft';
+import { submitAttendanceRegister, type AttendanceSubmitSuccess } from '@/lib/attendance-submit';
+import { audit } from '@/lib/auth';
+import {
+  authenticateDesktopRequest, desktopError, desktopJson, resolveDesktopSchoolId,
+} from '@/lib/desktop-api';
+import { notifyLearnerGuardians } from '@/lib/notifications';
+import type { UserRole } from '@/lib/types';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// ── Operation schemas ─────────────────────────────────────────────────────────
+const baseOp = z.object({
+  operationId:    z.string().uuid(),
+  idempotencyKey: z.string().uuid(),
+  deviceId:       z.string(),
+  schoolId:       z.string(),
+  createdAt:      z.string().datetime(),
+  recordVersion:  z.number().optional(),
+});
+
+const attendanceOp = baseOp.extend({
+  type:    z.literal('ATTENDANCE_RECORD'),
+  payload: z.object({
+    learnerId:    z.string(),
+    date:         z.string().date(),
+    status:       z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'SICK', 'PARTIAL', 'HALF_DAY_MORNING', 'HALF_DAY_AFTERNOON', 'SCHOOL_ACTIVITY', 'SUSPENDED', 'HOLIDAY', 'HALF_DAY']),
+    checkInTime:  z.string().datetime().nullable().optional(),
+    checkOutTime: z.string().datetime().nullable().optional(),
+    reason:       z.string().max(500).optional(),
+  }),
+});
+
+const attendanceSubmitOp = baseOp.extend({
+  type: z.literal("ATTENDANCE_REGISTER_SUBMIT"),
+  payload: z.object({
+    classId: z.string(),
+    date: z.string().date(),
+    substitutionReason: z.string().trim().max(500).nullable().optional(),
+  }),
+});
+
+// Extend here for future operation types: daily fees, marks, visitor, etc.
+// Financial operations must be explicitly listed and guarded below.
+const BLOCKED_TYPES = new Set([
+  'FEE_FINAL_POST', 'PAYMENT_APPROVAL', 'REFUND', 'WITHDRAWAL',
+  'RESULT_PUBLISH', 'USER_CREATE', 'USER_ROLE_CHANGE',
+]);
+
+const anyOp = z.discriminatedUnion('type', [attendanceOp]);
+const bodySchema = z.object({ operations: z.array(anyOp).min(1).max(100) });
+
+// ── Idempotency helpers ───────────────────────────────────────────────────────
+async function findExistingKey(idempotencyKey: string) {
+  return (await db
+    .select()
+    .from(desktopOutboxIdempotencyKeys)
+    .where(eq(desktopOutboxIdempotencyKeys.idempotencyKey, idempotencyKey))
+    .limit(1))[0] ?? null;
+}
+
+async function recordKey(opts: {
+  idempotencyKey: string;
+  schoolId: string | null;
+  userId: string;
+  operationType: string;
+  result: 'ok' | 'rejected';
+  errorMessage?: string;
+}) {
+  await db.insert(desktopOutboxIdempotencyKeys).values({
+    idempotencyKey: opts.idempotencyKey,
+    schoolId:       opts.schoolId,
+    userId:         opts.userId,
+    operationType:  opts.operationType,
+    result:         opts.result,
+    errorMessage:   opts.errorMessage ?? null,
+  }).onConflictDoNothing(); // race-safe: two pods may race; first writer wins
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+async function completeDesktopAttendanceSubmission(
+  schoolId: string,
+  userId: string,
+  idempotencyKey: string,
+  result: AttendanceSubmitSuccess,
+) {
+  for (const learner of result.learners) {
+    const statusLabel = learner.status.replaceAll("_", " ");
+
+    await notifyLearnerGuardians({
+      schoolId,
+      learnerId: learner.learnerId,
+      type: "ATTENDANCE",
+      title: learner.firstName + " " + learner.lastName + ": " + statusLabel,
+      body:
+        "Attendance for " +
+        result.date.toLocaleDateString("en-GH") +
+        " was submitted as " +
+        statusLabel.toLowerCase() +
+        ".",
+      link: "/attendance",
+    }).catch((err: unknown) => {
+      console.error("Desktop attendance guardian notification failed after lock:", err);
+    });
+  }
+
+  await audit({
+    schoolId,
+    userId,
+    action: "ATTENDANCE_REGISTER_SUBMITTED",
+    entityType: "AttendanceRegister",
+    entityId: result.registerId,
+    newValue: {
+      source: "DESKTOP",
+      idempotencyKey,
+      classId: result.classId,
+      className: result.className,
+      academicYearId: result.academicYearId,
+      termId: result.termId,
+      termName: result.termName,
+      date: result.date.toISOString(),
+      markedById: result.markedById,
+      markedByRole: result.markedByRole,
+      officialClassTeacherId: result.officialClassTeacherId,
+      substitutionReason: result.substitutionReason,
+      learnerCount: result.learners.length,
+      status: "LOCKED",
+    },
+  }).catch((err: unknown) => {
+    console.error("Desktop attendance audit write failed after lock:", err);
+  });
+}
+
+async function processDesktopAttendanceSubmit(
+  op: z.infer<typeof attendanceSubmitOp>,
+  schoolId: string,
+  userId: string,
+  role: UserRole,
+) {
+  const attendanceDate = new Date(op.payload.date + "T00:00:00.000Z");
+
+  if (
+    Number.isNaN(attendanceDate.getTime()) ||
+    attendanceDate.toISOString().slice(0, 10) !== op.payload.date
+  ) {
+    throw new Error("[INVALID_DATE] Enter a valid attendance date.");
+  }
+
+  const result = await submitAttendanceRegister({
+    schoolId,
+    userId,
+    role,
+    classId: op.payload.classId,
+    date: attendanceDate,
+    substitutionReason: op.payload.substitutionReason ?? null,
+  });
+
+  if (result.ok === false) {
+    throw new Error("[" + result.code + "] " + result.message);
+  }
+
+  await completeDesktopAttendanceSubmission(
+    schoolId,
+    userId,
+    op.idempotencyKey,
+    result,
+  );
+
+  return result;
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await authenticateDesktopRequest(request);
+  if ('response' in auth) return auth.response;
+  const ctx = auth.context;
+
+  let body: unknown;
+  try { body = await request.json(); } catch {
+    return desktopError(400, 'INVALID_JSON', 'Send a valid JSON body.');
+  }
+
+  // Validate structure — discriminatedUnion only accepts known types
+  // Unknown operation types that are not in BLOCKED_TYPES just fail validation
+  const parsed = bodySchema.safeParse(body);
+
+  // Check for blocked types before full validation error
+  const rawOps = Array.isArray((body as Record<string, unknown>)?.operations)
+    ? (body as { operations: Array<{ type?: string }> }).operations
+    : [];
+  const blockedOp = rawOps.find((op) => BLOCKED_TYPES.has(op?.type ?? ''));
+  if (blockedOp) {
+    return desktopError(400, 'BLOCKED_OPERATION',
+      `Operation type '${blockedOp.type}' is not permitted via offline sync. Use the web interface.`);
+  }
+
+  if (!parsed.success) {
+    return desktopError(400, 'INVALID_OPERATIONS',
+      parsed.error.issues[0]?.message ?? 'Invalid operations payload.');
+  }
+
+  const schoolId = await resolveDesktopSchoolId(ctx, request);
+  if (!schoolId) return desktopError(400, 'NO_SCHOOL', 'Could not resolve school for this session.');
+
+  const results: Array<{
+    operationId: string; idempotencyKey: string; status: string; message?: string;
+  }> = [];
+
+  for (const op of parsed.data.operations) {
+    // Guard: schoolId in payload must match authenticated session
+    if (op.schoolId !== schoolId) {
+      results.push({
+        operationId:    op.operationId,
+        idempotencyKey: op.idempotencyKey,
+        status: 'REJECTED', message: 'schoolId mismatch',
+      });
+      continue;
+    }
+
+    // ── DB-persisted idempotency check ────────────────────────────────────
+    const existing = await findExistingKey(op.idempotencyKey);
+    if (existing) {
+      results.push({
+        operationId:    op.operationId,
+        idempotencyKey: op.idempotencyKey,
+        status: 'ALREADY_PROCESSED',
+      });
+      continue;
+    }
+
+    // ── Execute the operation ─────────────────────────────────────────────
+    try {
+        if (op.type === 'ATTENDANCE_RECORD') {
+          const attendanceDate = new Date(op.payload.date + 'T00:00:00.000Z');
+
+          const normalizedStatus =
+            op.payload.status === 'HALF_DAY'
+              ? 'PARTIAL'
+              : op.payload.status;
+
+          const result = await saveAttendanceDraft({
+            schoolId,
+            userId: ctx.user.id,
+            role: ctx.user.role,
+            learnerId: op.payload.learnerId,
+            date: attendanceDate,
+            status: normalizedStatus,
+            reason: op.payload.reason ?? null,
+            checkInTime: op.payload.checkInTime
+              ? new Date(op.payload.checkInTime)
+              : undefined,
+            checkOutTime: op.payload.checkOutTime
+              ? new Date(op.payload.checkOutTime)
+              : undefined,
+          });
+
+          if (result.ok === false) {
+            throw new Error('[' + result.code + '] ' + result.message);
+          }
+
+          await audit({
+            schoolId,
+            userId: ctx.user.id,
+            action: 'DESKTOP_ATTENDANCE_DRAFT_SYNCED',
+            entityType: 'AttendanceRecord',
+            entityId: result.record.id,
+            newValue: {
+              idempotencyKey: op.idempotencyKey,
+              learnerId: op.payload.learnerId,
+              date: op.payload.date,
+              status: normalizedStatus,
+              sourceStatus: op.payload.status,
+              classId: result.classId,
+              registerId: result.registerId,
+            },
+          });
+        }
+
+      // Record successful idempotency key in DB
+      await recordKey({
+        idempotencyKey: op.idempotencyKey, schoolId, userId: ctx.user.id,
+        operationType: op.type, result: 'ok',
+      });
+      results.push({
+        operationId:    op.operationId,
+        idempotencyKey: op.idempotencyKey,
+        status: 'SYNCED',
+      });
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // Record failed idempotency key — prevents the client from retrying
+      // indefinitely for a hard error (learner not found, schema mismatch, etc.)
+      await recordKey({
+        idempotencyKey: op.idempotencyKey, schoolId, userId: ctx.user.id,
+        operationType: op.type, result: 'rejected', errorMessage: msg,
+      }).catch(() => {}); // best-effort; don't mask the original error
+
+      results.push({
+        operationId:    op.operationId,
+        idempotencyKey: op.idempotencyKey,
+        status: 'REJECTED', message: msg,
+      });
+    }
+  }
+
+  return desktopJson({ data: { results } });
+}

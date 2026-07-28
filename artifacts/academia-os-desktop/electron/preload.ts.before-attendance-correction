@@ -1,0 +1,53 @@
+/**
+ * Preload script — runs in a privileged context but exposes ONLY a narrow
+ * contextBridge API to the renderer.  No Node.js APIs are exposed directly.
+ *
+ * Security rules:
+ * - contextIsolation: true  (enforced in main.ts)
+ * - nodeIntegration: false  (enforced in main.ts)
+ * - All inputs are validated before being passed to ipcRenderer
+ */
+import { contextBridge, ipcRenderer } from 'electron';
+
+// ── Type-safe channel allowlists ──────────────────────────────────────────────
+const INVOKE_CHANNELS = [
+  // Auth
+  'auth:login', 'auth:refresh', 'auth:logout', 'auth:getSession',
+  // Sync
+  'sync:initial', 'sync:incremental', 'sync:uploadOutbox', 'sync:status',
+  // Local DB
+  'db:getClasses', 'db:getLearners', 'db:getStaff', 'db:getAttendance', 'db:saveAttendance', 'db:submitAttendanceRegister', 'db:getAttendanceSubmitState',
+  'db:getPendingOps', 'db:markOpSynced', 'db:getConflicts',
+  // App
+  'app:getVersion', 'app:getPlatform',
+] as const;
+
+type InvokeChannel = typeof INVOKE_CHANNELS[number];
+
+function isInvokeChannel(c: string): c is InvokeChannel {
+  return (INVOKE_CHANNELS as readonly string[]).includes(c);
+}
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  /**
+   * Invoke an IPC handler registered in main.ts.
+   * Only channels in the allowlist are forwarded.
+   */
+  invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+    if (!isInvokeChannel(channel)) {
+      return Promise.reject(new Error(`Channel not allowed: ${channel}`));
+    }
+    return ipcRenderer.invoke(channel, ...args);
+  },
+
+  /** App metadata */
+  getVersion: (): string => process.versions.electron ?? 'unknown',
+  getPlatform: (): string => process.platform,
+});
+
+// Expose a minimal subset for type-checking in renderer
+export type ElectronAPI = {
+  invoke(channel: string, ...args: unknown[]): Promise<unknown>;
+  getVersion(): string;
+  getPlatform(): string;
+};

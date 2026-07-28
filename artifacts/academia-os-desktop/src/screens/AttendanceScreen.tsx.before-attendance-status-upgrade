@@ -1,0 +1,131 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { db as localDb, type LocalLearner, type AttendanceStatus } from '../api/client';
+import { useAuth } from '../store/auth';
+import type { useSyncStore } from '../store/sync';
+
+interface Props { syncStore: ReturnType<typeof useSyncStore> }
+
+const STATUS_OPTS: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'HALF_DAY'];
+const STATUS_COLOR: Record<AttendanceStatus, string> = {
+  PRESENT: 'pill-green', ABSENT: 'pill-red', LATE: 'pill-amber',
+  EXCUSED: 'pill-blue',  HALF_DAY: 'pill-slate',
+};
+
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+
+export default function AttendanceScreen({ syncStore }: Props) {
+  const { authState } = useAuth();
+  const [learners, setLearners] = useState<LocalLearner[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
+  const [saving, setSaving]   = useState<Record<string, boolean>>({});
+  const [saved,  setSaved]    = useState<Record<string, boolean>>({});
+  const [date, setDate]       = useState(todayIso());
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await localDb.getLearners();
+    if (res.ok) setLearners(res.learners);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function markAttendance(learnerId: string, status: AttendanceStatus) {
+    if (authState.status !== 'authenticated') return;
+    const { user } = authState;
+    if (!user.school) return;
+
+    setSaving((s) => ({ ...s, [learnerId]: true }));
+    setAttendance((a) => ({ ...a, [learnerId]: status }));
+
+    await localDb.saveAttendance({
+      learnerId, date, status,
+      schoolId: user.school.id,
+      userId:   user.id,
+      deviceId: 'desktop',
+    });
+
+    setSaving((s) => ({ ...s, [learnerId]: false }));
+    setSaved((s)  => ({ ...s, [learnerId]: true }));
+    setTimeout(() => setSaved((s) => ({ ...s, [learnerId]: false })), 2000);
+
+    syncStore.refreshStatus();
+  }
+
+  if (loading) return <div className="empty"><span className="spin">⟳</span> Loading…</div>;
+
+  return (
+    <div style={{ maxWidth: 960 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h1>Attendance</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Records save locally and sync when online · {learners.length} learners
+          </p>
+        </div>
+        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 'auto' }} />
+      </div>
+
+      {!syncStore.status.online && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, fontWeight: 600, color: '#92400e' }}>
+          ⚠ Offline — attendance will sync automatically when connected.
+        </div>
+      )}
+
+      {learners.length === 0 ? (
+        <div className="empty">
+          <p>No learner records. Run a sync first.</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Learner</th>
+                <th>Admission No.</th>
+                <th>Status</th>
+                <th>Mark</th>
+              </tr>
+            </thead>
+            <tbody>
+              {learners.map((l) => {
+                const current = attendance[l.id];
+                return (
+                  <tr key={l.id}>
+                    <td style={{ fontWeight: 600 }}>{l.first_name} {l.last_name}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{l.admission_no}</td>
+                    <td>
+                      {current && <span className={`pill ${STATUS_COLOR[current]}`}>{current}</span>}
+                      {saved[l.id] && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--success)' }}>✓ saved</span>}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {STATUS_OPTS.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => markAttendance(l.id, s)}
+                            disabled={saving[l.id]}
+                            style={{
+                              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+                              fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                              background: current === s ? 'var(--chalk)' : 'var(--surface)',
+                              color: current === s ? '#fff' : 'var(--text)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {s.charAt(0)}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

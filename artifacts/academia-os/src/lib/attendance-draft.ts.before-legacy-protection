@@ -1,0 +1,365 @@
+import { and, eq } from 'drizzle-orm';
+import { db } from '@/db';
+import {
+  attendanceRecords,
+  attendanceRegisters,
+  classes,
+  learners,
+} from '@/db/schema';
+import { canMarkClassAttendance } from '@/lib/attendance-access';
+import { findAttendancePeriod } from '@/lib/attendance-period';
+import type { UserRole } from '@/lib/types';
+
+export const OFFICIAL_ATTENDANCE_STATUSES = [
+  'PRESENT',
+  'ABSENT',
+  'LATE',
+  'EXCUSED',
+  'SICK',
+  'PARTIAL',
+  'HALF_DAY_MORNING',
+  'HALF_DAY_AFTERNOON',
+  'SCHOOL_ACTIVITY',
+  'SUSPENDED',
+  'HOLIDAY',
+] as const;
+
+type AttendanceDraftFailure = {
+  ok: false;
+  code:
+    | 'INVALID_STATUS'
+    | 'LEARNER_NOT_FOUND'
+    | 'LEARNER_WITHOUT_CLASS'
+    | 'CLASS_NOT_FOUND'
+    | 'PERMISSION_DENIED'
+    | 'PERIOD_NOT_CONFIGURED'
+    | 'REGISTER_LOCKED'
+    | 'REGISTER_CLASS_MISMATCH';
+  message: string;
+};
+
+function fail(
+  code: AttendanceDraftFailure['code'],
+  message: string,
+): AttendanceDraftFailure {
+  return { ok: false, code, message };
+}
+
+export function isOfficialAttendanceStatus(value: string) {
+  return (OFFICIAL_ATTENDANCE_STATUSES as readonly string[]).includes(value);
+}
+
+export async function saveAttendanceDraft(input: {
+  schoolId: string;
+  userId: string;
+  role: UserRole;
+  learnerId: string;
+  date: Date;
+  status: string;
+  reason?: string | null;
+  checkInTime?: Date | null;
+  checkOutTime?: Date | null;
+}) {
+  if (!isOfficialAttendanceStatus(input.status)) {
+    return fail('INVALID_STATUS', 'Enter a valid attendance status.');
+  }
+
+  const learner = (
+    await db
+      .select({
+        id: learners.id,
+        classId: learners.classId,
+      })
+      .from(learners)
+      .where(
+        and(
+          eq(learners.id, input.learnerId),
+          eq(learners.schoolId, input.schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!learner) {
+    return fail('LEARNER_NOT_FOUND', 'Learner not found.');
+  }
+
+  if (!learner.classId) {
+    return fail(
+      'LEARNER_WITHOUT_CLASS',
+      'Learner is not assigned to a class.',
+    );
+  }
+
+  const classRecord = (
+    await db
+      .select({
+        id: classes.id,
+        classTeacherId: classes.classTeacherId,
+      })
+      .from(classes)
+      .where(
+        and(
+          eq(classes.id, learner.classId),
+          eq(classes.schoolId, input.schoolId),
+          eq(classes.isActive, true),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!classRecord) {
+    return fail('CLASS_NOT_FOUND', 'Class not found.');
+  }
+
+  const mayMark = await canMarkClassAttendance({
+    role: input.role,
+    userId: input.userId,
+    schoolId: input.schoolId,
+    classId: classRecord.id,
+  });
+
+  if (!mayMark) {
+    return fail(
+      'PERMISSION_DENIED',
+      'Only the assigned Class Teacher, Headteacher, Proprietor, or Super Admin may mark this class.',
+    );
+  }
+
+  const period = await findAttendancePeriod({
+    schoolId: input.schoolId,
+    date: input.date,
+  });
+
+  if (!period) {
+    return fail(
+      'PERIOD_NOT_CONFIGURED',
+      'Attendance date does not belong to a configured academic term.',
+    );
+  }
+
+  const presentLike = [
+    'PRESENT',
+    'LATE',
+    'PARTIAL',
+    'HALF_DAY_MORNING',
+    'HALF_DAY_AFTERNOON',
+    'SCHOOL_ACTIVITY',
+  ].includes(input.status);
+
+  const checkInTime =
+    input.checkInTime === undefined
+      ? presentLike
+        ? new Date()
+        : null
+      : presentLike
+        ? input.checkInTime
+        : null;
+
+  const checkOutTime = presentLike
+    ? input.checkOutTime ?? null
+    : null;
+
+  const reason = input.reason?.trim().slice(0, 500) || null;
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    let register = (
+      await tx
+        .select({
+          id: attendanceRegisters.id,
+          status: attendanceRegisters.status,
+        })
+        .from(attendanceRegisters)
+        .where(
+          and(
+            eq(attendanceRegisters.schoolId, input.schoolId),
+            eq(attendanceRegisters.classId, classRecord.id),
+            eq(attendanceRegisters.date, input.date),
+          ),
+        )
+        .limit(1)
+    )[0];
+
+    if (register?.status === 'LOCKED') {
+      return fail(
+        'REGISTER_LOCKED',
+        'Attendance has already been submitted and locked. Request a correction instead.',
+      );
+    }
+
+    if (!register) {
+      const inserted = (
+        await tx
+          .insert(attendanceRegisters)
+          .values({
+            schoolId: input.schoolId,
+            classId: classRecord.id,
+            academicYearId: period.academicYearId,
+            termId: period.termId,
+            date: input.date,
+            officialClassTeacherId: classRecord.classTeacherId,
+            markedById: input.userId,
+            markedByRole: input.role,
+            status: 'DRAFT',
+          })
+          .onConflictDoNothing()
+          .returning({
+            id: attendanceRegisters.id,
+            status: attendanceRegisters.status,
+          })
+      )[0];
+
+      register =
+        inserted ??
+        (
+          await tx
+            .select({
+              id: attendanceRegisters.id,
+              status: attendanceRegisters.status,
+            })
+            .from(attendanceRegisters)
+            .where(
+              and(
+                eq(attendanceRegisters.schoolId, input.schoolId),
+                eq(attendanceRegisters.classId, classRecord.id),
+                eq(attendanceRegisters.date, input.date),
+              ),
+            )
+            .limit(1)
+        )[0];
+    }
+
+    if (!register || register.status === 'LOCKED') {
+      return fail(
+        'REGISTER_LOCKED',
+        'Attendance has already been submitted and locked. Request a correction instead.',
+      );
+    }
+
+    const draftRegister = (
+      await tx
+        .update(attendanceRegisters)
+        .set({
+          academicYearId: period.academicYearId,
+          termId: period.termId,
+          officialClassTeacherId: classRecord.classTeacherId,
+          markedById: input.userId,
+          markedByRole: input.role,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(attendanceRegisters.id, register.id),
+            eq(attendanceRegisters.status, 'DRAFT'),
+          ),
+        )
+        .returning({ id: attendanceRegisters.id })
+    )[0];
+
+    if (!draftRegister) {
+      return fail(
+        'REGISTER_LOCKED',
+        'Attendance has already been submitted and locked. Request a correction instead.',
+      );
+    }
+
+    const existingRecord = (
+      await tx
+        .select({
+          id: attendanceRecords.id,
+          registerId: attendanceRecords.registerId,
+        })
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.schoolId, input.schoolId),
+            eq(attendanceRecords.learnerId, learner.id),
+            eq(attendanceRecords.date, input.date),
+          ),
+        )
+        .limit(1)
+    )[0];
+
+    if (
+      existingRecord?.registerId &&
+      existingRecord.registerId !== draftRegister.id
+    ) {
+      const linkedRegister = (
+        await tx
+          .select({
+            classId: attendanceRegisters.classId,
+            status: attendanceRegisters.status,
+          })
+          .from(attendanceRegisters)
+          .where(
+            and(
+              eq(attendanceRegisters.id, existingRecord.registerId),
+              eq(attendanceRegisters.schoolId, input.schoolId),
+            ),
+          )
+          .limit(1)
+      )[0];
+
+      if (linkedRegister?.status === 'LOCKED') {
+        return fail(
+          'REGISTER_LOCKED',
+          'Attendance has already been submitted and locked. Request a correction instead.',
+        );
+      }
+
+      if (
+        linkedRegister &&
+        linkedRegister.classId !== classRecord.id
+      ) {
+        return fail(
+          'REGISTER_CLASS_MISMATCH',
+          'This attendance draft belongs to a different class register.',
+        );
+      }
+    }
+
+    const record = (
+      await tx
+        .insert(attendanceRecords)
+        .values({
+          schoolId: input.schoolId,
+          registerId: draftRegister.id,
+          learnerId: learner.id,
+          date: input.date,
+          status: input.status,
+          checkInTime,
+          checkOutTime,
+          reason,
+          recordedById: input.userId,
+        })
+        .onConflictDoUpdate({
+          target: [
+            attendanceRecords.learnerId,
+            attendanceRecords.date,
+          ],
+          set: {
+            registerId: draftRegister.id,
+            status: input.status,
+            checkInTime,
+            checkOutTime,
+            reason,
+            recordedById: input.userId,
+            updatedAt: now,
+          },
+        })
+        .returning()
+    )[0];
+
+    if (!record) {
+      throw new Error('Attendance draft could not be saved.');
+    }
+
+    return {
+      ok: true as const,
+      record,
+      registerId: draftRegister.id,
+      classId: classRecord.id,
+    };
+  });
+}

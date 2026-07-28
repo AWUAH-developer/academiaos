@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { academicYears, classes, feeCategories, feeStructures, schools, subjects, teacherAssignments, terms, users } from '@/db/schema';
+import { academicYears, classes, feeCategories, feeStructures, schools, subjects, curriculumTopics, teacherAssignments, terms, users } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { imageToDataUrl, ImageUploadError } from '@/lib/images';
@@ -74,11 +74,120 @@ export async function createClassAction(formData: FormData) {
   revalidatePath('/setup'); redirect('/setup?success=Class+created');
 }
 
+export async function assignClassTeacherAction(formData: FormData) {
+  const user = await requireUser();
+
+  if (!['SUPER_ADMIN','SCHOOL_ADMIN','PROPRIETOR','HEADTEACHER','ACADEMIC_ADMIN'].includes(user.role)) {
+    redirect('/setup?error=Permission+denied');
+  }
+
+  const schoolId = await getActiveSchoolId(user);
+  const classId = String(formData.get('classId') || '');
+  const teacherId = String(formData.get('teacherId') || '');
+
+  if (!classId || !teacherId) {
+    redirect('/setup?error=Select+a+class+and+class+teacher');
+  }
+
+  const classRecord = (
+    await db
+      .select()
+      .from(classes)
+      .where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId)))
+      .limit(1)
+  )[0];
+
+  if (!classRecord) {
+    redirect('/setup?error=Class+not+found');
+  }
+
+  const teacher = (
+    await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.id, teacherId),
+          eq(users.schoolId, schoolId),
+          eq(users.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!teacher || !['TEACHER','HEADTEACHER','ACADEMIC_ADMIN'].includes(teacher.role)) {
+    redirect('/setup?error=Select+a+valid+class+teacher');
+  }
+
+  await db
+    .update(classes)
+    .set({
+      classTeacherId: teacher.id,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId)));
+
+  revalidatePath('/setup');
+  revalidatePath('/attendance');
+
+  redirect('/setup?success=Class+teacher+assigned');
+}
+
 export async function createSubjectAction(formData: FormData) {
   const user = await requireUser(); if (!allowed(user.role)) redirect('/setup?error=Permission+denied'); const schoolId = await getActiveSchoolId(user);
   const name = String(formData.get('name') || '').trim(); const code = String(formData.get('code') || '').trim().toUpperCase(); if (!name || !code) redirect('/setup?error=Subject+name+and+code+are+required');
   try { await db.insert(subjects).values({ schoolId, name, code }); } catch { redirect('/setup?error=Subject+code+already+exists'); }
   revalidatePath('/setup'); redirect('/setup?success=Subject+created');
+}
+
+export async function createCurriculumTopicAction(formData: FormData) {
+  const user = await requireUser();
+
+  if (!allowed(user.role)) {
+    redirect("/setup?error=Permission+denied");
+  }
+
+  const schoolId = await getActiveSchoolId(user);
+  const classId = String(formData.get("classId") || "");
+  const subjectId = String(formData.get("subjectId") || "");
+  const name = String(formData.get("name") || "").trim();
+
+  if (!classId || !subjectId || !name) {
+    redirect("/setup?error=Class,+subject+and+topic+are+required");
+  }
+
+  const [classRecord, subjectRecord] = await Promise.all([
+    db.select({ id: classes.id })
+      .from(classes)
+      .where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId)))
+      .limit(1)
+      .then((rows) => rows[0]),
+
+    db.select({ id: subjects.id })
+      .from(subjects)
+      .where(and(eq(subjects.id, subjectId), eq(subjects.schoolId, schoolId)))
+      .limit(1)
+      .then((rows) => rows[0])
+  ]);
+
+  if (!classRecord || !subjectRecord) {
+    redirect("/setup?error=Class+or+subject+not+found");
+  }
+
+  try {
+    await db.insert(curriculumTopics).values({
+      schoolId,
+      classId,
+      subjectId,
+      name
+    });
+  } catch {
+    redirect("/setup?error=That+topic+already+exists+for+this+class+and+subject");
+  }
+
+  revalidatePath("/setup");
+  revalidatePath("/homework");
+  redirect("/setup?success=Curriculum+topic+created");
 }
 
 export async function assignTeacherAction(formData: FormData) {

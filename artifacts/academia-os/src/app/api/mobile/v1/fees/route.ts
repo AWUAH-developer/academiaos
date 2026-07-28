@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
-import { feeCategories, feeCharges, learners } from '@/db/schema';
+import { feeCategories, feeCharges, financialAdjustments, learners, payments } from '@/db/schema';
 import { accessibleLearnerIds, authenticateMobileRequest, mayAccessLearner, mobileError, mobileJson, pagination, resolveMobileSchoolId } from '@/lib/mobile-api';
+import { calculateFinancialBalance, financialAdjustmentTotals } from '@/lib/financial-balance';
 import { canAccess } from '@/lib/permissions';
 import { cleanText } from '@/lib/validation';
 
@@ -42,15 +43,99 @@ export async function GET(request: NextRequest) {
     .orderBy(desc(feeCharges.createdAt))
     .limit(limit)
     .offset(offset);
-  const aggregateRows = await db.select({
-    learnerId: feeCharges.learnerId,
-    totalCharged: sql<number>`coalesce(sum(${feeCharges.amount}), 0)::numeric`,
-    totalPaid: sql<number>`coalesce(sum(${feeCharges.paidAmount}), 0)::numeric`
-  }).from(feeCharges).where(and(...conditions)).groupBy(feeCharges.learnerId);
+  const aggregateRows = await db
+    .select({
+      learnerId: feeCharges.learnerId,
+      totalCharged: sql<number>`coalesce(sum(${feeCharges.amount}), 0)::numeric`,
+    })
+    .from(feeCharges)
+    .where(and(...conditions))
+    .groupBy(feeCharges.learnerId);
+
+  const summaryLearnerIds = aggregateRows.map(
+    (row) => row.learnerId,
+  );
+
+  const paymentRows = summaryLearnerIds.length
+    ? await db
+        .select({
+          learnerId: payments.learnerId,
+          amount: payments.amount,
+        })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.schoolId, schoolId),
+            inArray(payments.learnerId, summaryLearnerIds),
+          ),
+        )
+    : [];
+
+  const adjustmentRows = summaryLearnerIds.length
+    ? await db
+        .select({
+          learnerId: financialAdjustments.learnerId,
+          type: financialAdjustments.type,
+          amount: financialAdjustments.amount,
+        })
+        .from(financialAdjustments)
+        .where(
+          and(
+            eq(financialAdjustments.schoolId, schoolId),
+            inArray(
+              financialAdjustments.learnerId,
+              summaryLearnerIds,
+            ),
+            isNotNull(financialAdjustments.approvedAt),
+          ),
+        )
+    : [];
+
   const summary = aggregateRows.map((row) => {
     const totalCharged = Number(row.totalCharged || 0);
-    const totalPaid = Number(row.totalPaid || 0);
-    return { learnerId: row.learnerId, totalCharged, totalPaid, balance: Math.round((totalCharged - totalPaid) * 100) / 100 };
+
+    const totalPayments = paymentRows
+      .filter(
+        (payment) => payment.learnerId === row.learnerId,
+      )
+      .reduce(
+        (sum, payment) =>
+          sum + Number(payment.amount || 0),
+        0,
+      );
+
+    const adjustments = adjustmentRows
+      .filter(
+        (adjustment) =>
+          adjustment.learnerId === row.learnerId,
+      )
+      .map((adjustment) => ({
+        type: adjustment.type,
+        amount: Number(adjustment.amount || 0),
+      }));
+
+    const adjustmentTotals =
+      financialAdjustmentTotals(adjustments);
+
+    const trueBalance = calculateFinancialBalance({
+      totalCharges: totalCharged,
+      totalPayments,
+      adjustments,
+    });
+
+    return {
+      learnerId: row.learnerId,
+      totalCharged,
+      totalPaid: Math.max(
+        0,
+        totalPayments -
+          adjustmentTotals.paymentReversals,
+      ),
+      balance: trueBalance,
+      outstanding: Math.max(0, trueBalance),
+      creditCarryForward: Math.max(0, -trueBalance),
+    };
   });
+
   return mobileJson({ data: { summary, charges: rows, pagination: { limit, offset } } });
 }

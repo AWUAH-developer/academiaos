@@ -1,0 +1,430 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { db as localDb, type LocalLearner, type LocalClass, type AttendanceStatus } from '../api/client';
+import { useAuth } from '../store/auth';
+import type { useSyncStore } from '../store/sync';
+
+interface Props { syncStore: ReturnType<typeof useSyncStore> }
+
+type AttendanceSubmitState = {
+  operationId: string;
+  userId: string;
+  status: string;
+  errorMessage: string | null;
+  createdAt: string;
+  attemptedAt: string | null;
+  syncedAt: string | null;
+};
+
+const STATUS_OPTS: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'SICK', 'PARTIAL', 'HALF_DAY_MORNING', 'HALF_DAY_AFTERNOON', 'SCHOOL_ACTIVITY', 'SUSPENDED', 'HOLIDAY'];
+const STATUS_LABEL: Record<AttendanceStatus, string> = {
+  PRESENT: 'Present',
+  ABSENT: 'Absent',
+  LATE: 'Late',
+  EXCUSED: 'Excused',
+  SICK: 'Sick',
+  PARTIAL: 'Partial',
+  HALF_DAY_MORNING: 'Half AM',
+  HALF_DAY_AFTERNOON: 'Half PM',
+  SCHOOL_ACTIVITY: 'School Activity',
+  SUSPENDED: 'Suspended',
+  HOLIDAY: 'Holiday',
+};
+
+const STATUS_COLOR: Record<AttendanceStatus, string> = {
+  PRESENT: 'pill-green',
+  ABSENT: 'pill-red',
+  LATE: 'pill-amber',
+  EXCUSED: 'pill-blue',
+  SICK: 'pill-blue',
+  PARTIAL: 'pill-slate',
+  HALF_DAY_MORNING: 'pill-slate',
+  HALF_DAY_AFTERNOON: 'pill-slate',
+  SCHOOL_ACTIVITY: 'pill-green',
+  SUSPENDED: 'pill-red',
+  HOLIDAY: 'pill-blue',
+};
+
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+
+export default function AttendanceScreen({ syncStore }: Props) {
+  const { authState } = useAuth();
+    const [classes, setClasses] = useState<LocalClass[]>([]);
+    const [selectedClassId, setSelectedClassId] = useState("");
+
+  const [learners, setLearners] = useState<LocalLearner[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
+  const [saving, setSaving]   = useState<Record<string, boolean>>({});
+  const [saved,  setSaved]    = useState<Record<string, boolean>>({});
+  const [date, setDate]       = useState(todayIso());
+  const [loading, setLoading] = useState(true);
+  const [substitutionReason, setSubstitutionReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submissionState, setSubmissionState] = useState<AttendanceSubmitState | null>(null);
+
+
+    const load = useCallback(async () => {
+      setLoading(true);
+
+      if (authState.status !== "authenticated" || authState.user.school === null) {
+        setClasses([]);
+        setSelectedClassId("");
+        setLearners([]);
+        setAttendance({});
+        setLoading(false);
+        return;
+      }
+
+      const { user, session } = authState;
+      const classRes = await localDb.getClasses();
+
+      if (classRes.ok === false) {
+        setClasses([]);
+        setLearners([]);
+        setAttendance({});
+        setLoading(false);
+        return;
+      }
+
+      const canMarkAny = ["SUPER_ADMIN", "HEADTEACHER", "PROPRIETOR"].includes(user.role);
+      const canMarkOwn = ["TEACHER", "ACADEMIC_ADMIN"].includes(user.role);
+      const allowedClasses = canMarkAny
+        ? classRes.classes
+        : canMarkOwn
+          ? classRes.classes.filter((c) => c.class_teacher_id === user.id)
+          : [];
+
+      setClasses(allowedClasses);
+
+      const classId = selectedClassId && allowedClasses.some((c) => c.id === selectedClassId)
+        ? selectedClassId
+        : allowedClasses[0]?.id ?? "";
+
+      if (classId !== selectedClassId) setSelectedClassId(classId);
+
+      if (classId.length === 0) {
+        setLearners([]);
+        setAttendance({});
+        setLoading(false);
+        return;
+      }
+
+      const [learnerRes, attendanceRes, submissionRes] = await Promise.all([
+          localDb.getLearners({ classId }),
+          localDb.getAttendance({ classId, date }),
+          localDb.getAttendanceSubmitState({ classId, date }),
+        ]);
+
+      setLearners(learnerRes.ok ? learnerRes.learners : []);
+
+      const nextAttendance: Record<string, AttendanceStatus> = {};
+      if (attendanceRes.ok) {
+        for (const row of attendanceRes.attendance) {
+          nextAttendance[row.learner_id] = row.status;
+        }
+      }
+      setAttendance(nextAttendance);
+        setSubmissionState(submissionRes.ok ? submissionRes.submission : null);
+        setSaving({});
+      setSaved({});
+      setLoading(false);
+    }, [authState, date, selectedClassId]);
+
+    useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+      setSubstitutionReason("");
+      setSubmitMessage(null);
+      setSubmissionState(null);
+    }, [selectedClassId, date]);
+
+    useEffect(() => {
+      if (selectedClassId.length === 0) return;
+      let cancelled = false;
+      void localDb.getAttendanceSubmitState({ classId: selectedClassId, date }).then((res) => {
+        if (cancelled === false && res.ok) setSubmissionState(res.submission);
+      });
+      return () => { cancelled = true; };
+    }, [selectedClassId, date, syncStore.status.pendingOps, syncStore.status.syncing]);
+
+  async function markAttendance(learnerId: string, status: AttendanceStatus) {
+    if (submissionState?.status === "PENDING" || submissionState?.status === "UPLOADING" || submissionState?.status === "SYNCED") {
+      setSubmitMessage(submissionState.status === "SYNCED" ? "This attendance register is officially locked." : "Submit & Lock is pending server validation. Attendance editing is paused.");
+      return;
+    }
+    if (authState.status !== 'authenticated') return;
+    const { user, session } = authState;
+    if (!user.school) return;
+
+    setSaving((s) => ({ ...s, [learnerId]: true }));
+    setAttendance((a) => ({ ...a, [learnerId]: status }));
+
+    await localDb.saveAttendance({
+      learnerId, date, status,
+      schoolId: user.school.id,
+      userId:   user.id,
+      deviceId: session.deviceId,
+    });
+
+    setSaving((s) => ({ ...s, [learnerId]: false }));
+    setSaved((s)  => ({ ...s, [learnerId]: true }));
+    setTimeout(() => setSaved((s) => ({ ...s, [learnerId]: false })), 2000);
+
+    syncStore.refreshStatus();
+  }
+
+  async function submitRegister() {
+    if (submissionState?.status === "PENDING" || submissionState?.status === "UPLOADING") {
+      setSubmitMessage("Submit & Lock is already pending server validation.");
+      return;
+    }
+    if (submissionState?.status === "SYNCED") {
+      setSubmitMessage("This attendance register is already officially locked.");
+      return;
+    }
+    if (authState.status !== "authenticated") return;
+    const { user, session } = authState;
+    if (user.school === null) return;
+
+    const selectedClass = classes.find((c) => c.id === selectedClassId);
+    if (selectedClass === undefined) {
+      setSubmitMessage("Select a class before submitting attendance.");
+      return;
+    }
+
+    if (learners.length === 0) {
+      setSubmitMessage("There are no active learners in this class to submit.");
+      return;
+    }
+
+    if (Object.values(saving).some((value) => value)) {
+      setSubmitMessage("Please wait for all attendance records to finish saving before Submit & Lock.");
+      return;
+    }
+
+    const incompleteCount = learners.filter((learner) => attendance[learner.id] === undefined).length;
+    if (incompleteCount > 0) {
+      setSubmitMessage("Mark attendance for all learners before Submit & Lock. Missing: " + incompleteCount + ".");
+      return;
+    }
+
+    const isOfficialClassTeacher = selectedClass.class_teacher_id === user.id;
+    const reason = substitutionReason.trim();
+
+    if (isOfficialClassTeacher === false && reason.length === 0) {
+      setSubmitMessage("A substitution reason is required because you are not the assigned Class Teacher.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitMessage(null);
+
+    try {
+      const result = await localDb.submitAttendanceRegister({
+        classId: selectedClass.id,
+        date,
+        substitutionReason: isOfficialClassTeacher ? null : reason,
+        schoolId: user.school.id,
+        userId: user.id,
+        deviceId: session.deviceId,
+      });
+
+      if (result.ok === false) {
+        setSubmitMessage(result.error?.message ?? "Could not queue Submit & Lock.");
+        return;
+      }
+
+      const queuedStateRes = await localDb.getAttendanceSubmitState({
+        classId: selectedClass.id,
+        date,
+      });
+      if (queuedStateRes.ok) {
+        setSubmissionState(queuedStateRes.submission);
+      }
+
+      await syncStore.refreshStatus();
+
+      if (navigator.onLine) {
+        await syncStore.runSync();
+
+        const syncedStateRes = await localDb.getAttendanceSubmitState({
+          classId: selectedClass.id,
+          date,
+        });
+        const syncedState = syncedStateRes.ok ? syncedStateRes.submission : null;
+
+        if (syncedStateRes.ok) {
+          setSubmissionState(syncedState);
+        }
+
+        if (syncedState?.status === "SYNCED") {
+          setSubmitMessage("Attendance submitted successfully. This register is now officially locked.");
+        } else if (syncedState?.status === "REJECTED" || syncedState?.status === "CONFLICT") {
+          setSubmitMessage(syncedState.errorMessage ?? "Submit & Lock was rejected by the server.");
+        } else {
+          setSubmitMessage("Submit & Lock is still pending server validation.");
+        }
+      } else {
+        setSubmitMessage("Submit & Lock queued offline. Attendance editing is paused until server validation completes.");
+      }
+    } catch (err) {
+      setSubmitMessage(err instanceof Error ? err.message : "Could not submit attendance.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const currentClass = classes.find((c) => c.id === selectedClassId);
+  const isCurrentUserClassTeacher = authState.status === "authenticated" && currentClass?.class_teacher_id === authState.user.id;
+  const missingAttendanceCount = learners.filter((learner) => attendance[learner.id] === undefined).length;
+  const anyAttendanceSaving = Object.values(saving).some((value) => value);
+  const submissionPending = submissionState?.status === "PENDING" || submissionState?.status === "UPLOADING";
+  const submissionLocked = submissionState?.status === "SYNCED";
+  const attendanceEditingBlocked = submissionPending || submissionLocked || submitting;
+
+  if (loading) return <div className="empty"><span className="spin">⟳</span> Loading…</div>;
+
+  return (
+    <div style={{ maxWidth: 960 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h1>Attendance</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Records save locally and sync when online · {learners.length} learners
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select className="input" value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} style={{ width: 220 }}>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}{c.stream ? " - " + c.stream : ""}
+              </option>
+            ))}
+          </select>
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "auto" }} />
+        </div>
+      </div>
+
+      {!syncStore.status.online && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, fontWeight: 600, color: '#92400e' }}>
+          ⚠ Offline — attendance will sync automatically when connected.
+        </div>
+      )}
+
+        {currentClass && (
+          <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+              {submissionLocked && (
+                <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 7, background: "#dcfce7", color: "#166534", fontSize: 12, fontWeight: 700 }}>
+                  ✓ Officially locked. Direct attendance editing is disabled.
+                </div>
+              )}
+              {submissionPending && (
+                <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 7, background: "#fef3c7", color: "#92400e", fontSize: 12, fontWeight: 700 }}>
+                  ⏳ Submit & Lock is pending server validation. Attendance editing is paused.
+                </div>
+              )}
+              {(submissionState?.status === "REJECTED" || submissionState?.status === "CONFLICT") && (
+                <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 7, background: "#fee2e2", color: "#991b1b", fontSize: 12, fontWeight: 700 }}>
+                  Submit & Lock was not accepted: {submissionState.errorMessage ?? "Server validation failed."}
+                </div>
+              )}
+            {isCurrentUserClassTeacher ? (
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+                You are the assigned Class Teacher for this class.
+              </p>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                  Substitution reason
+                </label>
+                <textarea
+                  className="input"
+                  value={substitutionReason}
+                  onChange={(e) => setSubstitutionReason(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="Explain why you are marking attendance for this class."
+                  style={{ width: "100%", resize: "vertical" }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 12 }}>
+              <span style={{ fontSize: 12, color: missingAttendanceCount === 0 ? "var(--success)" : "var(--text-muted)" }}>
+                {missingAttendanceCount === 0
+                  ? "All learners marked. Ready to submit."
+                  : missingAttendanceCount + " learner(s) still need attendance."}
+              </span>
+              <button
+                onClick={submitRegister}
+                disabled={attendanceEditingBlocked || anyAttendanceSaving || learners.length === 0 || missingAttendanceCount > 0}
+                className="btn btn-primary"
+              >
+                {submissionLocked ? "Locked" : submissionPending ? "Pending Validation" : submitting ? "Submitting..." : "Submit & Lock"}
+              </button>
+            </div>
+
+            {submitMessage && (
+              <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600 }}>
+                {submitMessage}
+              </div>
+            )}
+          </div>
+        )}
+
+      {learners.length === 0 ? (
+        <div className="empty">
+          <p>No attendance learners are available for this class. Run a sync or confirm the Class Teacher assignment.</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Learner</th>
+                <th>Admission No.</th>
+                <th>Status</th>
+                <th>Mark</th>
+              </tr>
+            </thead>
+            <tbody>
+              {learners.map((l) => {
+                const current = attendance[l.id];
+                return (
+                  <tr key={l.id}>
+                    <td style={{ fontWeight: 600 }}>{l.first_name} {l.last_name}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{l.admission_no}</td>
+                    <td>
+                      {current && <span className={`pill ${STATUS_COLOR[current]}`}>{STATUS_LABEL[current]}</span>}
+                      {saved[l.id] && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--success)' }}>✓ saved</span>}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {STATUS_OPTS.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => markAttendance(l.id, s)}
+                            disabled={saving[l.id] || attendanceEditingBlocked}
+                            style={{
+                              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)',
+                              fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                              background: current === s ? 'var(--chalk)' : 'var(--surface)',
+                              color: current === s ? '#fff' : 'var(--text)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {STATUS_LABEL[s]}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

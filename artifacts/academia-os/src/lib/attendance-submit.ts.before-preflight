@@ -1,0 +1,67 @@
+import { and, eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { attendanceRecords, attendanceRegisters, classes, learners } from '@/db/schema';
+import { canMarkClassAttendance } from '@/lib/attendance-access';
+import { createDailyAttendanceCharges } from '@/lib/attendance-fees';
+import { findAttendancePeriod } from '@/lib/attendance-period';
+import type { UserRole } from '@/lib/types';
+
+export type AttendanceSubmitInput = {
+  schoolId: string;
+  userId: string;
+  role: UserRole;
+  classId: string;
+  date: Date;
+  substitutionReason?: string | null;
+};
+
+export type AttendanceSubmitFailureCode =
+  | 'CLASS_NOT_FOUND'
+  | 'PERMISSION_DENIED'
+  | 'PERIOD_NOT_CONFIGURED'
+  | 'REGISTER_NOT_FOUND'
+  | 'REGISTER_LOCKED'
+  | 'SUBSTITUTION_REASON_REQUIRED'
+  | 'NO_ACTIVE_LEARNERS'
+  | 'INCOMPLETE_REGISTER'
+  | 'REGISTER_RACE_LOST';
+
+export type AttendanceSubmitFailure = {
+  ok: false;
+  code: AttendanceSubmitFailureCode;
+  message: string;
+};
+
+export type AttendanceSubmitLearner = {
+  learnerId: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+};
+
+export type AttendanceSubmitSuccess = {
+  ok: true;
+  registerId: string;
+  classId: string;
+  className: string;
+  academicYearId: string;
+  termId: string;
+  termName: string;
+  date: Date;
+  markedById: string;
+  markedByRole: UserRole;
+  officialClassTeacherId: string | null;
+  substitutionReason: string | null;
+  learners: AttendanceSubmitLearner[];
+};
+
+export type AttendanceSubmitResult =
+  | AttendanceSubmitSuccess
+  | AttendanceSubmitFailure;
+
+function fail(
+  code: AttendanceSubmitFailureCode,
+  message: string,
+): AttendanceSubmitFailure {
+  return { ok: false, code, message };
+}

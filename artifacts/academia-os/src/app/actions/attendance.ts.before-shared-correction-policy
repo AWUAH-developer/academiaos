@@ -1,0 +1,1015 @@
+'use server';
+import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lte, or } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { db } from '@/db';
+import { academicYears, attendanceCorrectionRequests, attendanceRecords, attendanceRegisters, attendanceScans, classes, feeCategories, feeCharges, feeStructures, financialAdjustments, learners, notifications, terms, users } from '@/db/schema';
+import { audit, requireUser } from '@/lib/auth';
+import { canRecordAttendance } from '@/lib/permissions';
+import { canMarkClassAttendance } from '@/lib/attendance-access';
+import { saveAttendanceDraft } from '@/lib/attendance-draft';
+import { submitAttendanceRegister } from '@/lib/attendance-submit';
+import { getActiveSchoolId } from '@/lib/tenant';
+import { notifyLearnerGuardians } from '@/lib/notifications';
+
+function schoolDate(value: string) { const d = new Date(`${value}T00:00:00.000Z`); return Number.isNaN(d.getTime()) ? null : d; }
+
+export async function recordAttendanceAction(formData: FormData) {
+  const user = await requireUser();
+  const schoolId = await getActiveSchoolId(user);
+
+  const learnerId = String(formData.get('learnerId') || '');
+  const status = String(formData.get('status') || 'PRESENT');
+  const date = schoolDate(String(formData.get('date') || '') );
+
+  if (!date) {
+    redirect('/attendance?error=Enter+valid+attendance+details');
+  }
+
+  const result = await saveAttendanceDraft({
+    schoolId,
+    userId: user.id,
+    role: user.role,
+    learnerId,
+    date,
+    status,
+    reason: String(formData.get('reason') || '') || null,
+  });
+
+  if (!result.ok) {
+    redirect(
+      '/attendance?date=' +
+        date.toISOString().slice(0, 10) +
+        '&error=' +
+        encodeURIComponent(result.message),
+    );
+  }
+
+  await audit({
+    schoolId,
+    userId: user.id,
+    action: 'ATTENDANCE_DRAFT_SAVED',
+    entityType: 'AttendanceRecord',
+    entityId: result.record.id,
+    newValue: {
+      learnerId,
+      date: date.toISOString(),
+      status,
+      classId: result.classId,
+      registerId: result.registerId,
+    },
+  });
+
+  revalidatePath('/attendance');
+  revalidatePath('/dashboard');
+
+  redirect(
+    '/attendance?date=' +
+      date.toISOString().slice(0, 10) +
+      '&success=Attendance+draft+saved',
+  );
+}
+
+function attendanceTermNumber(name: string) {
+  const normalized = name.trim().toLowerCase().replaceAll('_', ' ');
+  const match = normalized.match(/term\s*([123])/);
+  return match ? Number(match[1]) : null;
+}
+
+function inclusiveEndOfDay(value: Date) {
+  const result = new Date(value);
+  result.setUTCHours(23, 59, 59, 999);
+  return result;
+}
+
+async function attendanceCorrectionDeadline(input: {
+  schoolId: string;
+  academicYearId: string;
+  termId: string;
+}) {
+  const period = (
+    await db
+      .select({
+        termName: terms.name,
+        termEndsOn: terms.endsOn,
+        yearStartsOn: academicYears.startsOn,
+        yearEndsOn: academicYears.endsOn,
+      })
+      .from(terms)
+      .innerJoin(
+        academicYears,
+        eq(terms.academicYearId, academicYears.id),
+      )
+      .where(
+        and(
+          eq(terms.id, input.termId),
+          eq(terms.academicYearId, input.academicYearId),
+          eq(terms.schoolId, input.schoolId),
+          eq(academicYears.schoolId, input.schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!period) return null;
+
+  const termNo = attendanceTermNumber(period.termName);
+
+  /*
+   * Term 1 and Term 2 correction requests close at the end
+   * of their own configured term.
+   */
+  if (termNo === 1 || termNo === 2) {
+    return inclusiveEndOfDay(period.termEndsOn);
+  }
+
+  /*
+   * Term 3 remains correctable through Term 3 of the following
+   * academic year.
+   */
+  if (termNo === 3) {
+    const nextYear = (
+      await db
+        .select({
+          id: academicYears.id,
+          endsOn: academicYears.endsOn,
+        })
+        .from(academicYears)
+        .where(
+          and(
+            eq(academicYears.schoolId, input.schoolId),
+            gt(academicYears.startsOn, period.yearStartsOn),
+          ),
+        )
+        .orderBy(asc(academicYears.startsOn))
+        .limit(1)
+    )[0];
+
+    /*
+     * The following academic year may not yet have been configured.
+     * In that case, do not prematurely close Term 3 corrections.
+     */
+    if (!nextYear) return null;
+
+    const nextTerms = await db
+      .select({
+        name: terms.name,
+        endsOn: terms.endsOn,
+      })
+      .from(terms)
+      .where(
+        and(
+          eq(terms.schoolId, input.schoolId),
+          eq(terms.academicYearId, nextYear.id),
+        ),
+      );
+
+    const nextTerm3 = nextTerms.find(
+      (row) => attendanceTermNumber(row.name) === 3,
+    );
+
+    return inclusiveEndOfDay(nextTerm3?.endsOn || nextYear.endsOn);
+  }
+
+  /*
+   * Non-standard term names are not silently guessed.
+   */
+  return null;
+}
+
+
+async function reconcileAttendanceCorrectionFees(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  input: {
+    schoolId: string;
+    learner: typeof learners.$inferSelect;
+    date: Date;
+    newStatus: string;
+    requestId: string;
+    actorId: string;
+    reason: string;
+  },
+) {
+  if (
+    input.learner.paymentPlan !== 'DAILY' ||
+    !input.learner.classId
+  ) {
+    return;
+  }
+
+  const structures = await tx
+    .select({
+      structure: feeStructures,
+      category: feeCategories,
+    })
+    .from(feeStructures)
+    .innerJoin(
+      feeCategories,
+      eq(feeStructures.categoryId, feeCategories.id),
+    )
+    .where(
+      and(
+        eq(feeStructures.schoolId, input.schoolId),
+        eq(feeStructures.paymentPlan, 'DAILY'),
+        eq(feeStructures.isActive, true),
+        or(
+          eq(feeStructures.classId, input.learner.classId),
+          isNull(feeStructures.classId),
+        ),
+      ),
+    );
+
+  for (const row of structures) {
+    const shouldCharge =
+      input.newStatus !== 'ABSENT' ||
+      row.structure.chargeOnAbsent;
+
+    const existing = (
+      await tx
+        .select()
+        .from(feeCharges)
+        .where(
+          and(
+            eq(feeCharges.learnerId, input.learner.id),
+            eq(feeCharges.categoryId, row.category.id),
+            eq(feeCharges.attendanceDate, input.date),
+          ),
+        )
+        .limit(1)
+    )[0];
+
+    const description =
+      `${row.category.name} for ${input.date.toISOString().slice(0,10)}`;
+
+    if (shouldCharge && !existing) {
+      await tx.insert(feeCharges).values({
+        schoolId: input.schoolId,
+        learnerId: input.learner.id,
+        categoryId: row.category.id,
+        description,
+        amount: row.structure.amount,
+        attendanceDate: input.date,
+        isAutomatic: true,
+      });
+
+      continue;
+    }
+
+    if (!existing || !existing.isAutomatic) {
+      continue;
+    }
+
+    const adjustments = await tx
+      .select()
+      .from(financialAdjustments)
+      .where(
+        and(
+          eq(financialAdjustments.schoolId, input.schoolId),
+          eq(financialAdjustments.chargeId, existing.id),
+          isNotNull(financialAdjustments.approvedAt),
+        ),
+      );
+
+    const credits = adjustments
+      .filter((item) => item.type === 'ATTENDANCE_FEE_CREDIT')
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const reversals = adjustments
+      .filter(
+        (item) =>
+          item.type === 'ATTENDANCE_FEE_CREDIT_REVERSAL',
+      )
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const netCredit = Math.max(0, credits - reversals);
+
+    if (shouldCharge) {
+      /*
+       * Attendance is chargeable again.
+       * Restore the normal fee amount and reverse any old credit.
+       */
+      if (netCredit > 0) {
+        await tx.insert(financialAdjustments).values({
+          schoolId: input.schoolId,
+          learnerId: input.learner.id,
+          chargeId: existing.id,
+          type: 'ATTENDANCE_FEE_CREDIT_REVERSAL',
+          amount: netCredit,
+          reason:
+            `Attendance correction ${input.requestId}: daily fee restored. ${input.reason}`,
+          requestedById: input.actorId,
+          approvedById: input.actorId,
+          approvedAt: new Date(),
+        });
+      }
+
+      const paid = existing.paidAmount;
+
+      const nextStatus =
+        paid <= 0
+          ? 'OPEN'
+          : paid >= row.structure.amount
+            ? 'PAID'
+            : 'PARTIALLY_PAID';
+
+      await tx
+        .update(feeCharges)
+        .set({
+          description,
+          amount: row.structure.amount,
+          status: nextStatus,
+          updatedAt: new Date(),
+        })
+        .where(eq(feeCharges.id, existing.id));
+
+      continue;
+    }
+
+    /*
+     * Attendance is no longer chargeable.
+     */
+    if (existing.paidAmount <= 0) {
+      await tx
+        .update(feeCharges)
+        .set({
+          amount: 0,
+          status: 'VOID',
+          updatedAt: new Date(),
+        })
+        .where(eq(feeCharges.id, existing.id));
+
+      continue;
+    }
+
+    /*
+     * Money has already been received against this attendance fee.
+     * Never erase or rewrite that payment.
+     *
+     * Preserve the paid portion on the historical charge and create
+     * a learner credit that can later carry forward.
+     */
+    const desiredCredit = existing.paidAmount;
+    const additionalCredit = Math.max(
+      0,
+      desiredCredit - netCredit,
+    );
+
+    if (additionalCredit > 0) {
+      await tx.insert(financialAdjustments).values({
+        schoolId: input.schoolId,
+        learnerId: input.learner.id,
+        chargeId: existing.id,
+        type: 'ATTENDANCE_FEE_CREDIT',
+        amount: additionalCredit,
+        reason:
+          `Attendance correction ${input.requestId}: fee credit after attendance change. ${input.reason}`,
+        requestedById: input.actorId,
+        approvedById: input.actorId,
+        approvedAt: new Date(),
+      });
+    }
+
+    await tx
+      .update(feeCharges)
+      .set({
+        amount: existing.paidAmount,
+        status: 'PAID',
+        updatedAt: new Date(),
+      })
+      .where(eq(feeCharges.id, existing.id));
+  }
+}
+
+export async function reviewAttendanceCorrectionAction(
+  formData: FormData,
+) {
+  const actor = await requireUser();
+  const schoolId = await getActiveSchoolId(actor);
+
+  const requestId = String(formData.get('requestId') || '');
+  const decision = String(formData.get('decision') || '');
+  const decisionReason =
+    String(formData.get('decisionReason') || '').trim();
+
+  if (
+    !requestId ||
+    !['APPROVE', 'REJECT'].includes(decision)
+  ) {
+    redirect('/attendance?error=Invalid+attendance+correction+decision');
+  }
+
+  if (decision === 'REJECT' && decisionReason.length < 5) {
+    redirect(
+      '/attendance?error=Enter+a+reason+for+rejecting+the+correction',
+    );
+  }
+
+  const request = (
+    await db
+      .select()
+      .from(attendanceCorrectionRequests)
+      .where(
+        and(
+          eq(attendanceCorrectionRequests.id, requestId),
+          eq(attendanceCorrectionRequests.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!request || request.status !== 'PENDING') {
+    redirect(
+      '/attendance?error=Attendance+correction+request+is+not+pending',
+    );
+  }
+
+  const record = (
+    await db
+      .select()
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.id, request.attendanceRecordId),
+          eq(attendanceRecords.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!record || !record.registerId) {
+    redirect('/attendance?error=Attendance+record+not+found');
+  }
+
+  const register = (
+    await db
+      .select()
+      .from(attendanceRegisters)
+      .where(
+        and(
+          eq(attendanceRegisters.id, record.registerId),
+          eq(attendanceRegisters.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!register || register.status !== 'LOCKED') {
+    redirect('/attendance?error=Locked+attendance+register+not+found');
+  }
+
+  const requester = (
+    await db
+      .select({
+        id: users.id,
+        role: users.role,
+        name: users.name,
+      })
+      .from(users)
+      .where(eq(users.id, request.requestedById))
+      .limit(1)
+  )[0];
+
+  const requiresSuperAdmin =
+    register.markedByRole === 'PROPRIETOR' ||
+    register.markedByRole === 'SUPER_ADMIN' ||
+    requester?.role === 'PROPRIETOR';
+
+  if (actor.role !== 'SUPER_ADMIN') {
+    if (
+      actor.role !== 'PROPRIETOR' ||
+      requiresSuperAdmin
+    ) {
+      redirect(
+        '/attendance?error=SUPER_ADMIN+approval+is+required+for+this+correction',
+      );
+    }
+
+    if (actor.id === request.requestedById) {
+      redirect(
+        '/attendance?error=You+cannot+approve+your+own+attendance+correction+request',
+      );
+    }
+
+    const deadline = await attendanceCorrectionDeadline({
+      schoolId,
+      academicYearId: register.academicYearId,
+      termId: register.termId,
+    });
+
+    if (deadline && new Date() > deadline) {
+      redirect(
+        '/attendance?error=The+normal+correction+period+has+closed.+SUPER_ADMIN+approval+is+required',
+      );
+    }
+  }
+
+  /*
+   * Protect against a stale correction request.
+   */
+  if (record.status !== request.originalStatus) {
+    redirect(
+      '/attendance?error=Official+attendance+has+changed+since+this+request+was+created',
+    );
+  }
+
+  const learner = (
+    await db
+      .select()
+      .from(learners)
+      .where(
+        and(
+          eq(learners.id, record.learnerId),
+          eq(learners.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!learner) {
+    redirect('/attendance?error=Learner+not+found');
+  }
+
+  const now = new Date();
+
+  if (decision === 'REJECT') {
+    await db
+      .update(attendanceCorrectionRequests)
+      .set({
+        status: 'REJECTED',
+        reviewedById: actor.id,
+        decisionReason,
+        reviewedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(attendanceCorrectionRequests.id, request.id));
+
+    await db.insert(notifications).values({
+      schoolId,
+      userId: request.requestedById,
+      type: 'ATTENDANCE_CORRECTION',
+      title: 'Attendance correction rejected',
+      body:
+        decisionReason ||
+        'The attendance correction request was rejected.',
+      link:
+        `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}`,
+    });
+
+    await audit({
+      schoolId,
+      userId: actor.id,
+      action: 'ATTENDANCE_CORRECTION_REJECTED',
+      entityType: 'AttendanceCorrectionRequest',
+      entityId: request.id,
+      oldValue: {
+        status: request.originalStatus,
+      },
+      newValue: {
+        requestedStatus: request.requestedStatus,
+        decisionReason,
+      },
+    });
+
+    revalidatePath('/attendance');
+
+    redirect(
+      `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}&success=Attendance+correction+rejected`,
+    );
+  }
+
+  await db.transaction(async (tx) => {
+    await reconcileAttendanceCorrectionFees(tx, {
+      schoolId,
+      learner,
+      date: record.date,
+      newStatus: request.requestedStatus,
+      requestId: request.id,
+      actorId: actor.id,
+      reason: request.reason,
+    });
+
+    await tx
+      .update(attendanceRecords)
+      .set({
+        status: request.requestedStatus,
+        reason: request.requestedAttendanceReason,
+        updatedAt: now,
+      })
+      .where(eq(attendanceRecords.id, record.id));
+
+    await tx
+      .update(attendanceCorrectionRequests)
+      .set({
+        status: 'APPROVED',
+        reviewedById: actor.id,
+        decisionReason: decisionReason || null,
+        reviewedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(attendanceCorrectionRequests.id, request.id));
+  });
+
+  await notifyLearnerGuardians({
+    schoolId,
+    learnerId: learner.id,
+    type: 'ATTENDANCE',
+    title: `${learner.firstName} ${learner.lastName}: attendance corrected`,
+    body:
+      `Attendance for ${record.date.toLocaleDateString('en-GH')} was corrected from ${request.originalStatus.replaceAll('_', ' ').toLowerCase()} to ${request.requestedStatus.replaceAll('_', ' ').toLowerCase()}.`,
+    link: '/attendance',
+  });
+
+  await db.insert(notifications).values({
+    schoolId,
+    userId: request.requestedById,
+    type: 'ATTENDANCE_CORRECTION',
+    title: 'Attendance correction approved',
+    body:
+      `${request.originalStatus.replaceAll('_', ' ')} → ${request.requestedStatus.replaceAll('_', ' ')} approved.`,
+    link:
+      `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}`,
+  });
+
+  await audit({
+    schoolId,
+    userId: actor.id,
+    action: 'ATTENDANCE_CORRECTION_APPROVED',
+    entityType: 'AttendanceCorrectionRequest',
+    entityId: request.id,
+    oldValue: {
+      attendanceRecordId: record.id,
+      status: request.originalStatus,
+      attendanceReason: request.originalAttendanceReason,
+    },
+    newValue: {
+      status: request.requestedStatus,
+      attendanceReason: request.requestedAttendanceReason,
+      requestedById: request.requestedById,
+      reviewedById: actor.id,
+      decisionReason: decisionReason || null,
+    },
+  });
+
+  revalidatePath('/attendance');
+  revalidatePath('/fees');
+  revalidatePath('/dashboard');
+
+  redirect(
+    `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}&success=Attendance+correction+approved`,
+  );
+}
+
+export async function requestAttendanceCorrectionAction(formData: FormData) {
+  const user = await requireUser();
+  const schoolId = await getActiveSchoolId(user);
+
+  const attendanceRecordId = String(
+    formData.get('attendanceRecordId') || '',
+  );
+
+  const requestedStatus = String(
+    formData.get('requestedStatus') || '',
+  );
+
+  const requestedAttendanceReason =
+    String(formData.get('requestedAttendanceReason') || '').trim() || null;
+
+  const correctionReason =
+    String(formData.get('correctionReason') || '').trim();
+
+  const allowedStatuses = [
+    'PRESENT',
+    'ABSENT',
+    'LATE',
+    'EXCUSED',
+    'SICK',
+    'PARTIAL',
+    'HALF_DAY_MORNING',
+    'HALF_DAY_AFTERNOON',
+    'SCHOOL_ACTIVITY',
+    'SUSPENDED',
+    'HOLIDAY',
+  ];
+
+  if (
+    !attendanceRecordId ||
+    !allowedStatuses.includes(requestedStatus)
+  ) {
+    redirect('/attendance?error=Enter+a+valid+attendance+correction');
+  }
+
+  if (correctionReason.length < 10) {
+    redirect(
+      '/attendance?error=Explain+the+attendance+mistake+before+requesting+a+correction',
+    );
+  }
+
+  const record = (
+    await db
+      .select()
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.id, attendanceRecordId),
+          eq(attendanceRecords.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!record || !record.registerId) {
+    redirect(
+      '/attendance?error=Only+submitted+attendance+can+use+the+correction+workflow',
+    );
+  }
+
+  const register = (
+    await db
+      .select()
+      .from(attendanceRegisters)
+      .where(
+        and(
+          eq(attendanceRegisters.id, record.registerId),
+          eq(attendanceRegisters.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (!register || register.status !== 'LOCKED') {
+    redirect(
+      '/attendance?error=Attendance+must+be+submitted+and+locked+before+requesting+a+correction',
+    );
+  }
+
+  const mayRequest = await canMarkClassAttendance({
+    role: user.role,
+    userId: user.id,
+    schoolId,
+    classId: register.classId,
+  });
+
+  if (!mayRequest) {
+    redirect(
+      '/attendance?error=You+are+not+authorised+to+request+a+correction+for+this+class',
+    );
+  }
+
+  if (record.status === requestedStatus) {
+    redirect(
+      `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}&error=Requested+status+is+already+the+official+attendance+status`,
+    );
+  }
+
+  const existingPending = (
+    await db
+      .select({ id: attendanceCorrectionRequests.id })
+      .from(attendanceCorrectionRequests)
+      .where(
+        and(
+          eq(
+            attendanceCorrectionRequests.attendanceRecordId,
+            record.id,
+          ),
+          eq(attendanceCorrectionRequests.status, 'PENDING'),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (existingPending) {
+    redirect(
+      `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}&error=A+correction+request+is+already+waiting+for+review`,
+    );
+  }
+
+  if (user.role !== 'SUPER_ADMIN') {
+    const deadline = await attendanceCorrectionDeadline({
+      schoolId,
+      academicYearId: register.academicYearId,
+      termId: register.termId,
+    });
+
+    if (deadline && new Date() > deadline) {
+      redirect(
+        `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}&error=The+normal+attendance+correction+period+has+closed.+SUPER_ADMIN+intervention+is+required`,
+      );
+    }
+  }
+
+  const learner = (
+    await db
+      .select({
+        firstName: learners.firstName,
+        lastName: learners.lastName,
+      })
+      .from(learners)
+      .where(
+        and(
+          eq(learners.id, record.learnerId),
+          eq(learners.schoolId, schoolId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  const request = (
+    await db
+      .insert(attendanceCorrectionRequests)
+      .values({
+        schoolId,
+        attendanceRecordId: record.id,
+        registerId: register.id,
+        requestedById: user.id,
+        originalStatus: record.status,
+        requestedStatus,
+        originalAttendanceReason: record.reason,
+        requestedAttendanceReason,
+        reason: correctionReason,
+        status: 'PENDING',
+      })
+      .returning({ id: attendanceCorrectionRequests.id })
+  )[0];
+
+  /*
+   * Normal Class Teacher / Headteacher submissions are reviewed
+   * by the Proprietor.
+   *
+   * Attendance originally submitted by a Proprietor requires
+   * SUPER_ADMIN review so the Proprietor cannot approve their own
+   * attendance change.
+   */
+  const reviewRole =
+    register.markedByRole === 'PROPRIETOR' ||
+    register.markedByRole === 'SUPER_ADMIN' ||
+    user.role === 'PROPRIETOR'
+      ? 'SUPER_ADMIN'
+      : 'PROPRIETOR';
+
+  const reviewers =
+    reviewRole === 'SUPER_ADMIN'
+      ? await db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.role, 'SUPER_ADMIN'),
+              eq(users.status, 'ACTIVE'),
+            ),
+          )
+      : await db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.schoolId, schoolId),
+              eq(users.role, 'PROPRIETOR'),
+              eq(users.status, 'ACTIVE'),
+            ),
+          );
+
+  for (const reviewer of reviewers) {
+    await db.insert(notifications).values({
+      schoolId,
+      userId: reviewer.id,
+      type: 'ATTENDANCE_CORRECTION',
+      title: 'Attendance correction requires review',
+      body:
+        `${learner ? `${learner.firstName} ${learner.lastName}: ` : ''}` +
+        `${record.status.replaceAll('_', ' ')} → ${requestedStatus.replaceAll('_', ' ')}. Reason: ${correctionReason}`,
+      link:
+        `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}`,
+    });
+  }
+
+  await audit({
+    schoolId,
+    userId: user.id,
+    action: 'ATTENDANCE_CORRECTION_REQUESTED',
+    entityType: 'AttendanceCorrectionRequest',
+    entityId: request.id,
+    oldValue: {
+      attendanceRecordId: record.id,
+      status: record.status,
+      reason: record.reason,
+    },
+    newValue: {
+      requestedStatus,
+      requestedAttendanceReason,
+      correctionReason,
+      reviewRole,
+    },
+  });
+
+  revalidatePath('/attendance');
+
+  redirect(
+    `/attendance?date=${record.date.toISOString().slice(0,10)}&classId=${register.classId}&success=Attendance+correction+request+submitted`,
+  );
+}
+
+export async function submitAttendanceRegisterAction(formData: FormData) {
+  const user = await requireUser();
+  const schoolId = await getActiveSchoolId(user);
+
+  const classId = String(formData.get("classId") || "");
+  const date = schoolDate(String(formData.get("date") || ""));
+  const substitutionReason =
+    String(formData.get("substitutionReason") || "").trim() || null;
+
+  if (classId === "" || date === null) {
+    redirect("/attendance?error=Select+a+valid+class+and+attendance+date");
+  }
+
+  const result = await submitAttendanceRegister({
+    schoolId,
+    userId: user.id,
+    role: user.role,
+    classId,
+    date,
+    substitutionReason,
+  });
+
+  if (result.ok === false) {
+    redirect(
+      "/attendance?date=" +
+        date.toISOString().slice(0, 10) +
+        "&classId=" +
+        encodeURIComponent(classId) +
+        "&error=" +
+        encodeURIComponent(result.message),
+    );
+  }
+
+  for (const learner of result.learners) {
+    const statusLabel = learner.status.replaceAll("_", " ");
+
+    await notifyLearnerGuardians({
+      schoolId,
+      learnerId: learner.learnerId,
+      type: "ATTENDANCE",
+      title: learner.firstName + " " + learner.lastName + ": " + statusLabel,
+      body:
+        "Attendance for " +
+        result.date.toLocaleDateString("en-GH") +
+        " was submitted as " +
+        statusLabel.toLowerCase() +
+        ".",
+      link: "/attendance",
+    });
+  }
+
+  await audit({
+    schoolId,
+    userId: user.id,
+    action: "ATTENDANCE_REGISTER_SUBMITTED",
+    entityType: "AttendanceRegister",
+    entityId: result.registerId,
+    newValue: {
+      classId: result.classId,
+      className: result.className,
+      academicYearId: result.academicYearId,
+      termId: result.termId,
+      termName: result.termName,
+      date: result.date.toISOString(),
+      markedById: result.markedById,
+      markedByRole: result.markedByRole,
+      officialClassTeacherId: result.officialClassTeacherId,
+      substitutionReason: result.substitutionReason,
+      learnerCount: result.learners.length,
+      status: "LOCKED",
+    },
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath("/dashboard");
+  revalidatePath("/fees");
+
+  redirect(
+    "/attendance?date=" +
+      result.date.toISOString().slice(0, 10) +
+      "&classId=" +
+      encodeURIComponent(result.classId) +
+      "&success=Class+attendance+submitted+and+locked",
+  );
+}
+
+export async function scanBadgeAction(formData: FormData) {
+  const user = await requireUser(); if (!canRecordAttendance(user.role)) redirect('/attendance?error=Permission+denied'); const schoolId = await getActiveSchoolId(user);
+  const badgeCode = String(formData.get('badgeCode') || '').trim(); const action = String(formData.get('action') || 'SCHOOL_ENTRY'); if (!['SCHOOL_ENTRY','SCHOOL_EXIT','CANTEEN_ACCESS','LIBRARY_ACCESS'].includes(action)) redirect('/attendance?error=Invalid+scan+action'); if (!badgeCode) redirect('/attendance?error=Scan+or+enter+a+badge+code');
+  const learner = (await db.select().from(learners).where(and(eq(learners.schoolId, schoolId), eq(learners.badgeCode, badgeCode))).limit(1))[0]; if (!learner) redirect('/attendance?error=Badge+not+recognised');
+  const cutoff = new Date(Date.now() - 3 * 60000); const recent = (await db.select().from(attendanceScans).where(and(eq(attendanceScans.badgeCode, badgeCode), eq(attendanceScans.action, action), gte(attendanceScans.scannedAt, cutoff))).orderBy(desc(attendanceScans.scannedAt)).limit(1))[0];
+  if (recent) { await db.insert(attendanceScans).values({ schoolId, learnerId: learner.id, recordedById: user.id, badgeCode, action, location: String(formData.get('location') || '').trim() || null, device: String(formData.get('device') || '').trim() || null, wasDuplicate: true }); redirect('/attendance?error=Duplicate+scan+blocked+within+3+minutes'); }
+  await db.insert(attendanceScans).values({
+    schoolId,
+    learnerId: learner.id,
+    recordedById: user.id,
+    badgeCode,
+    action,
+    location: String(formData.get('location') || '').trim() || null,
+    device: String(formData.get('device') || '').trim() || null,
+  });
+  if (['SCHOOL_ENTRY','SCHOOL_EXIT'].includes(action)) await notifyLearnerGuardians({ schoolId, learnerId: learner.id, type: 'ATTENDANCE', title: `${learner.firstName} ${learner.lastName} ${action === 'SCHOOL_ENTRY' ? 'arrived at school' : 'left school'}`, body: `${learner.firstName} ${learner.lastName} ${action === 'SCHOOL_ENTRY' ? 'checked in' : 'checked out'} at ${new Date().toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })}.`, link: '/attendance' });
+  await audit({ schoolId, userId: user.id, action: `BADGE_${action}`, entityType: 'Learner', entityId: learner.id, newValue: { badgeCode } });
+  revalidatePath('/attendance'); revalidatePath('/dashboard'); redirect(`/attendance?success=${encodeURIComponent(`${learner.firstName} ${learner.lastName} scan recorded`)}`);
+}

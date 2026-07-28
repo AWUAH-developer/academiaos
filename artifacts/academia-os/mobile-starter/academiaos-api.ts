@@ -102,3 +102,40 @@ export async function logout() {
     await clearMobileSession();
   }
 }
+
+
+export type AttendanceCorrectionStatus =
+  | "PRESENT"
+  | "ABSENT"
+  | "LATE"
+  | "EXCUSED"
+  | "SICK"
+  | "PARTIAL"
+  | "HALF_DAY_MORNING"
+  | "HALF_DAY_AFTERNOON"
+  | "SCHOOL_ACTIVITY"
+  | "SUSPENDED"
+  | "HOLIDAY";
+
+export async function requestAttendanceCorrection(input: {
+  attendanceRecordId: string;
+  requestedStatus: AttendanceCorrectionStatus;
+  requestedAttendanceReason?: string | null;
+  correctionReason: string;
+}) {
+  return apiRequest("/attendance/corrections", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function reviewAttendanceCorrection(input: {
+  requestId: string;
+  decision: "APPROVE" | "REJECT";
+  decisionReason?: string | null;
+}) {
+  return apiRequest("/attendance/corrections/review", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}

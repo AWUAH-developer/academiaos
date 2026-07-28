@@ -1,11 +1,12 @@
-import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lte, or } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
-import { attendanceRecords, learners } from '@/db/schema';
+import { attendanceRecords, attendanceRegisters, learners } from '@/db/schema';
 import { audit } from '@/lib/auth';
 import { accessibleLearnerIds, authenticateMobileRequest, mayAccessLearner, mobileError, mobileJson, pagination, resolveMobileSchoolId } from '@/lib/mobile-api';
-import { canAccess, canRecordAttendance } from '@/lib/permissions';
+import { canAccess } from '@/lib/permissions';
+import { saveAttendanceDraft } from '@/lib/attendance-draft';
 import { cleanText } from '@/lib/validation';
 
 export const runtime = 'nodejs';
@@ -54,7 +55,8 @@ export async function GET(request: NextRequest) {
     reason: attendanceRecords.reason
   }).from(attendanceRecords)
     .innerJoin(learners, eq(attendanceRecords.learnerId, learners.id))
-    .where(and(...conditions))
+    .leftJoin(attendanceRegisters, eq(attendanceRecords.registerId, attendanceRegisters.id))
+    .where(and(...conditions, or(isNull(attendanceRecords.registerId), eq(attendanceRegisters.status, "LOCKED"))))
     .orderBy(desc(attendanceRecords.date))
     .limit(limit)
     .offset(offset);
@@ -64,34 +66,67 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticateMobileRequest(request);
   if ('response' in auth) return auth.response;
-  if (!canRecordAttendance(auth.context.user.role)) return mobileError(403, 'PERMISSION_DENIED', 'This account cannot record attendance.');
+
   const schoolId = await resolveMobileSchoolId(auth.context, request);
-  if (!schoolId) return mobileError(400, 'SCHOOL_REQUIRED', 'This account must select an active school.');
+  if (typeof schoolId !== 'string' || schoolId.length === 0) {
+    return mobileError(400, 'SCHOOL_REQUIRED', 'This account must select an active school.');
+  }
+
   let body: unknown;
-  try { body = await request.json(); } catch { return mobileError(400, 'INVALID_JSON', 'Send a valid JSON request body.'); }
+  try {
+    body = await request.json();
+  } catch {
+    return mobileError(400, 'INVALID_JSON', 'Send a valid JSON request body.');
+  }
+
   const parsed = writeSchema.safeParse(body);
-  if (!parsed.success) return mobileError(400, 'INVALID_ATTENDANCE', 'Learner, date, and a valid attendance status are required.');
-  if (!(await mayAccessLearner(auth.context, schoolId, parsed.data.learnerId))) return mobileError(404, 'LEARNER_NOT_FOUND', 'The learner was not found.');
-  const learner = (await db.select({ id: learners.id }).from(learners).where(and(eq(learners.id, parsed.data.learnerId), eq(learners.schoolId, schoolId))).limit(1))[0];
-  if (!learner) return mobileError(404, 'LEARNER_NOT_FOUND', 'The learner was not found.');
-  const date = new Date(`${parsed.data.date}T00:00:00.000Z`);
-  if (date.getTime() > Date.now() + 86_400_000) return mobileError(400, 'FUTURE_ATTENDANCE', 'Attendance cannot be recorded more than one day in advance.');
-  const [record] = await db.insert(attendanceRecords).values({
+  if (parsed.success === false) {
+    return mobileError(400, 'INVALID_ATTENDANCE', 'Learner, date, and a valid attendance status are required.');
+  }
+
+  const date = new Date(parsed.data.date + 'T00:00:00.000Z');
+  if (date.getTime() > Date.now() + 86_400_000) {
+    return mobileError(400, 'FUTURE_ATTENDANCE', 'Attendance cannot be recorded more than one day in advance.');
+  }
+
+  const result = await saveAttendanceDraft({
     schoolId,
-    learnerId: learner.id,
+    userId: auth.context.user.id,
+    role: auth.context.user.role,
+    learnerId: parsed.data.learnerId,
     date,
     status: parsed.data.status,
-    reason: parsed.data.reason ? cleanText(parsed.data.reason, 500) : null,
-    recordedById: auth.context.user.id
-  }).onConflictDoUpdate({
-    target: [attendanceRecords.learnerId, attendanceRecords.date],
-    set: {
+    reason: parsed.data.reason ?? null,
+  });
+
+  if (result.ok === false) {
+    let statusCode = 400;
+    if (result.code === 'PERMISSION_DENIED') statusCode = 403;
+    if (result.code === 'LEARNER_NOT_FOUND' || result.code === 'CLASS_NOT_FOUND') statusCode = 404;
+    if (result.code === 'REGISTER_LOCKED' || result.code === 'REGISTER_CLASS_MISMATCH') statusCode = 409;
+    return mobileError(statusCode, result.code, result.message);
+  }
+
+  await audit({
+    schoolId,
+    userId: auth.context.user.id,
+    action: 'MOBILE_ATTENDANCE_DRAFT_SAVED',
+    entityType: 'AttendanceRecord',
+    entityId: result.record.id,
+    newValue: {
+      learnerId: parsed.data.learnerId,
+      date: parsed.data.date,
       status: parsed.data.status,
-      reason: parsed.data.reason ? cleanText(parsed.data.reason, 500) : null,
-      recordedById: auth.context.user.id,
-      updatedAt: new Date()
-    }
-  }).returning();
-  await audit({ schoolId, userId: auth.context.user.id, action: 'MOBILE_ATTENDANCE_RECORDED', entityType: 'AttendanceRecord', entityId: record.id, newValue: { learnerId: learner.id, date: parsed.data.date, status: parsed.data.status } });
-  return mobileJson({ data: { attendance: record } }, 201);
+      classId: result.classId,
+      registerId: result.registerId,
+    },
+  });
+
+  return mobileJson({
+    data: {
+      attendance: result.record,
+      registerId: result.registerId,
+      registerStatus: 'DRAFT',
+    },
+  }, 201);
 }

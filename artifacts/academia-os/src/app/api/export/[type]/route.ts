@@ -1,12 +1,15 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import {
   academicSubmissions,
   academicYears,
   attendanceRecords,
+  attendanceRegisters,
   auditLogs,
   classes,
+  feeCharges,
+  financialAdjustments,
   learners,
   payments,
   staffAttendanceRecords,
@@ -18,6 +21,7 @@ import {
   vehicles
 } from '@/db/schema';
 import { visibleLearnerIds } from '@/lib/access';
+import { calculateFinancialBalance } from '@/lib/financial-balance';
 import { currentUser } from '@/lib/auth';
 import { canAccess } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
@@ -77,7 +81,8 @@ export async function GET(_request: Request, context: { params: Promise<{ type: 
       .innerJoin(learners, eq(attendanceRecords.learnerId, learners.id))
       .leftJoin(classes, eq(learners.classId, classes.id))
       .leftJoin(users, eq(attendanceRecords.recordedById, users.id))
-      .where(and(eq(attendanceRecords.schoolId, schoolId), learnerFilter))
+      .leftJoin(attendanceRegisters, eq(attendanceRecords.registerId, attendanceRegisters.id))
+      .where(and(eq(attendanceRecords.schoolId, schoolId), learnerFilter, or(isNull(attendanceRecords.registerId), eq(attendanceRegisters.status, "LOCKED"))))
       .orderBy(desc(attendanceRecords.date)).limit(10000);
     return csvResponse(type,
       ['Date','Admission number','Learner','Class','Stream','Status','Check-in','Check-out','Reason','Recorded by'],
@@ -86,13 +91,186 @@ export async function GET(_request: Request, context: { params: Promise<{ type: 
   }
 
   if (type === 'fees') {
-    if (!canAccess(user.role, 'fees')) return NextResponse.json({ error: 'Permission denied.' }, { status: 403 });
-    const rows = await db.select({ payment: payments, learner: learners, recorder: users.name })
-      .from(payments).innerJoin(learners, eq(payments.learnerId, learners.id)).leftJoin(users, eq(payments.recordedById, users.id))
-      .where(and(eq(payments.schoolId, schoolId), learnerFilter)).orderBy(desc(payments.createdAt)).limit(10000);
-    return csvResponse(type,
-      ['Receipt number','Date','Admission number','Learner','Amount','Method','Reference','Notes','Recorded by'],
-      rows.map(({ payment, learner, recorder }) => [payment.receiptNo, payment.createdAt, learner.admissionNo, `${learner.firstName} ${learner.lastName}`, payment.amount, payment.method, payment.reference, payment.notes, recorder])
+    if (!canAccess(user.role, 'fees')) {
+      return NextResponse.json(
+        { error: 'Permission denied.' },
+        { status: 403 },
+      );
+    }
+
+    const rows = await db
+      .select({
+        payment: payments,
+        learner: learners,
+        recorder: users.name,
+      })
+      .from(payments)
+      .innerJoin(
+        learners,
+        eq(payments.learnerId, learners.id),
+      )
+      .leftJoin(
+        users,
+        eq(payments.recordedById, users.id),
+      )
+      .where(
+        and(
+          eq(payments.schoolId, schoolId),
+          learnerFilter,
+        ),
+      )
+      .orderBy(desc(payments.createdAt))
+      .limit(10000);
+
+    const learnerIds = Array.from(
+      new Set(
+        rows.map(({ payment }) => payment.learnerId),
+      ),
+    );
+
+    const chargeTotals = learnerIds.length
+      ? await db
+          .select({
+            learnerId: feeCharges.learnerId,
+            total: sql<number>`coalesce(sum(${feeCharges.amount}), 0)::numeric`,
+          })
+          .from(feeCharges)
+          .where(
+            and(
+              eq(feeCharges.schoolId, schoolId),
+              inArray(
+                feeCharges.learnerId,
+                learnerIds,
+              ),
+            ),
+          )
+          .groupBy(feeCharges.learnerId)
+      : [];
+
+    const paymentTotals = learnerIds.length
+      ? await db
+          .select({
+            learnerId: payments.learnerId,
+            total: sql<number>`coalesce(sum(${payments.amount}), 0)::numeric`,
+          })
+          .from(payments)
+          .where(
+            and(
+              eq(payments.schoolId, schoolId),
+              inArray(
+                payments.learnerId,
+                learnerIds,
+              ),
+            ),
+          )
+          .groupBy(payments.learnerId)
+      : [];
+
+    const adjustments = learnerIds.length
+      ? await db
+          .select({
+            learnerId: financialAdjustments.learnerId,
+            paymentId: financialAdjustments.paymentId,
+            type: financialAdjustments.type,
+            amount: financialAdjustments.amount,
+          })
+          .from(financialAdjustments)
+          .where(
+            and(
+              eq(
+                financialAdjustments.schoolId,
+                schoolId,
+              ),
+              inArray(
+                financialAdjustments.learnerId,
+                learnerIds,
+              ),
+              isNotNull(financialAdjustments.approvedAt),
+            ),
+          )
+      : [];
+
+    const chargeTotalByLearner = new Map(
+      chargeTotals.map((row) => [
+        row.learnerId,
+        Number(row.total || 0),
+      ]),
+    );
+
+    const paymentTotalByLearner = new Map(
+      paymentTotals.map((row) => [
+        row.learnerId,
+        Number(row.total || 0),
+      ]),
+    );
+
+    const balanceByLearner = new Map(
+      learnerIds.map((learnerId) => {
+        const learnerAdjustments = adjustments
+          .filter(
+            (adjustment) =>
+              adjustment.learnerId === learnerId,
+          )
+          .map((adjustment) => ({
+            type: adjustment.type,
+            amount: Number(adjustment.amount || 0),
+          }));
+
+        const balance = calculateFinancialBalance({
+          totalCharges:
+            chargeTotalByLearner.get(learnerId) || 0,
+          totalPayments:
+            paymentTotalByLearner.get(learnerId) || 0,
+          adjustments: learnerAdjustments,
+        });
+
+        return [learnerId, balance] as const;
+      }),
+    );
+
+    return csvResponse(
+      type,
+      [
+        'Receipt number',
+        'Date',
+        'Admission number',
+        'Learner',
+        'Amount received',
+        'Payment status',
+        'Effective payment',
+        'Method',
+        'Reference',
+        'Notes',
+        'Recorded by',
+        'Outstanding balance',
+        'Credit / carry-forward',
+      ],
+      rows.map(({ payment, learner, recorder }) => {
+        const reversed = adjustments.some(
+          (adjustment) =>
+            adjustment.type === 'PAYMENT_REVERSAL' &&
+            adjustment.paymentId === payment.id,
+        );
+
+        const trueBalance =
+          balanceByLearner.get(payment.learnerId) || 0;
+
+        return [
+          payment.receiptNo,
+          payment.createdAt,
+          learner.admissionNo,
+          `${learner.firstName} ${learner.lastName}`,
+          payment.amount,
+          reversed ? 'REVERSED' : 'VALID',
+          reversed ? 0 : payment.amount,
+          payment.method,
+          payment.reference,
+          payment.notes,
+          recorder,
+          Math.max(0, trueBalance),
+          Math.max(0, -trueBalance),
+        ];
+      }),
     );
   }
 

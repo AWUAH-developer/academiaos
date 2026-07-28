@@ -1,0 +1,131 @@
+import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { db } from '@/db';
+import { attendanceRecords, learners } from '@/db/schema';
+import { audit } from '@/lib/auth';
+import { accessibleLearnerIds, authenticateMobileRequest, mayAccessLearner, mobileError, mobileJson, pagination, resolveMobileSchoolId } from '@/lib/mobile-api';
+import { canAccess } from '@/lib/permissions';
+import { saveAttendanceDraft } from '@/lib/attendance-draft';
+import { cleanText } from '@/lib/validation';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const attendanceStatus = z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'SICK', 'PARTIAL', 'HALF_DAY_MORNING', 'HALF_DAY_AFTERNOON', 'SCHOOL_ACTIVITY', 'SUSPENDED', 'HOLIDAY']);
+const writeSchema = z.object({
+  learnerId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status: attendanceStatus,
+  reason: z.string().trim().max(500).optional()
+});
+
+function safeDate(value: string | null, fallback: Date) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? fallback : date;
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await authenticateMobileRequest(request);
+  if ('response' in auth) return auth.response;
+  if (!canAccess(auth.context.user.role, 'attendance')) return mobileError(403, 'PERMISSION_DENIED', 'This account cannot view attendance.');
+  const schoolId = await resolveMobileSchoolId(auth.context, request);
+  if (!schoolId) return mobileError(400, 'SCHOOL_REQUIRED', 'This account must select an active school.');
+  const learnerId = cleanText(request.nextUrl.searchParams.get('learnerId'), 64);
+  if (learnerId && !(await mayAccessLearner(auth.context, schoolId, learnerId))) return mobileError(404, 'LEARNER_NOT_FOUND', 'The learner was not found.');
+  const permitted = await accessibleLearnerIds(auth.context, schoolId);
+  if (permitted !== null && permitted.length === 0) return mobileJson({ data: { attendance: [], pagination: { limit: 0, offset: 0 } } });
+  const now = new Date();
+  const from = safeDate(request.nextUrl.searchParams.get('from'), new Date(now.getTime() - 90 * 86_400_000));
+  const to = safeDate(request.nextUrl.searchParams.get('to'), now);
+  const { limit, offset } = pagination(request, 200);
+  const conditions = [eq(attendanceRecords.schoolId, schoolId), gte(attendanceRecords.date, from), lte(attendanceRecords.date, new Date(to.getTime() + 86_399_999))];
+  if (learnerId) conditions.push(eq(attendanceRecords.learnerId, learnerId));
+  if (permitted !== null) conditions.push(inArray(attendanceRecords.learnerId, permitted));
+  const rows = await db.select({
+    id: attendanceRecords.id,
+    learnerId: attendanceRecords.learnerId,
+    learnerFirstName: learners.firstName,
+    learnerLastName: learners.lastName,
+    date: attendanceRecords.date,
+    status: attendanceRecords.status,
+    checkInTime: attendanceRecords.checkInTime,
+    checkOutTime: attendanceRecords.checkOutTime,
+    reason: attendanceRecords.reason
+  }).from(attendanceRecords)
+    .innerJoin(learners, eq(attendanceRecords.learnerId, learners.id))
+    .where(and(...conditions))
+    .orderBy(desc(attendanceRecords.date))
+    .limit(limit)
+    .offset(offset);
+  return mobileJson({ data: { attendance: rows, pagination: { limit, offset } } });
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await authenticateMobileRequest(request);
+  if ('response' in auth) return auth.response;
+
+  const schoolId = await resolveMobileSchoolId(auth.context, request);
+  if (typeof schoolId !== 'string' || schoolId.length === 0) {
+    return mobileError(400, 'SCHOOL_REQUIRED', 'This account must select an active school.');
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return mobileError(400, 'INVALID_JSON', 'Send a valid JSON request body.');
+  }
+
+  const parsed = writeSchema.safeParse(body);
+  if (parsed.success === false) {
+    return mobileError(400, 'INVALID_ATTENDANCE', 'Learner, date, and a valid attendance status are required.');
+  }
+
+  const date = new Date(parsed.data.date + 'T00:00:00.000Z');
+  if (date.getTime() > Date.now() + 86_400_000) {
+    return mobileError(400, 'FUTURE_ATTENDANCE', 'Attendance cannot be recorded more than one day in advance.');
+  }
+
+  const result = await saveAttendanceDraft({
+    schoolId,
+    userId: auth.context.user.id,
+    role: auth.context.user.role,
+    learnerId: parsed.data.learnerId,
+    date,
+    status: parsed.data.status,
+    reason: parsed.data.reason ?? null,
+  });
+
+  if (result.ok === false) {
+    let statusCode = 400;
+    if (result.code === 'PERMISSION_DENIED') statusCode = 403;
+    if (result.code === 'LEARNER_NOT_FOUND' || result.code === 'CLASS_NOT_FOUND') statusCode = 404;
+    if (result.code === 'REGISTER_LOCKED' || result.code === 'REGISTER_CLASS_MISMATCH') statusCode = 409;
+    return mobileError(statusCode, result.code, result.message);
+  }
+
+  await audit({
+    schoolId,
+    userId: auth.context.user.id,
+    action: 'MOBILE_ATTENDANCE_DRAFT_SAVED',
+    entityType: 'AttendanceRecord',
+    entityId: result.record.id,
+    newValue: {
+      learnerId: parsed.data.learnerId,
+      date: parsed.data.date,
+      status: parsed.data.status,
+      classId: result.classId,
+      registerId: result.registerId,
+    },
+  });
+
+  return mobileJson({
+    data: {
+      attendance: result.record,
+      registerId: result.registerId,
+      registerStatus: 'DRAFT',
+    },
+  }, 201);
+}

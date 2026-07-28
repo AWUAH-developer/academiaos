@@ -1,8 +1,8 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import {
-  academicYears, classes, feeCategories, learners, schools, subjects, terms, users,
+  academicYears, attendanceRecords, attendanceRegisters, classes, feeCategories, learners, schools, subjects, terms, users,
 } from '@/db/schema';
 import {
   authenticateDesktopRequest, desktopError, desktopJson,
@@ -75,6 +75,42 @@ export async function POST(request: NextRequest) {
     ));
   })();
 
+  const attendanceRows = learnerRows.length
+    ? await db
+        .select({
+          id: attendanceRecords.id,
+          schoolId: attendanceRecords.schoolId,
+          learnerId: attendanceRecords.learnerId,
+          registerId: attendanceRecords.registerId,
+          date: attendanceRecords.date,
+          status: attendanceRecords.status,
+          checkInTime: attendanceRecords.checkInTime,
+          checkOutTime: attendanceRecords.checkOutTime,
+          reason: attendanceRecords.reason,
+          updatedAt: attendanceRecords.updatedAt,
+          registerStatus: attendanceRegisters.status,
+          registerMarkedById: attendanceRegisters.markedById,
+          registerMarkedByRole: attendanceRegisters.markedByRole,
+          registerSubmittedAt: attendanceRegisters.submittedAt,
+          registerLockedAt: attendanceRegisters.lockedAt,
+        })
+        .from(attendanceRecords)
+        .innerJoin(
+          attendanceRegisters,
+          and(
+            eq(attendanceRecords.registerId, attendanceRegisters.id),
+            eq(attendanceRegisters.schoolId, schoolId),
+          ),
+        )
+        .where(
+          and(
+            eq(attendanceRecords.schoolId, schoolId),
+            eq(attendanceRegisters.status, "LOCKED"),
+            inArray(attendanceRecords.learnerId, learnerRows.map((row) => row.id)),
+          ),
+        )
+    : [];
+
   return desktopJson({
     data: {
       syncCursor:   new Date().toISOString(),
@@ -86,6 +122,7 @@ export async function POST(request: NextRequest) {
       academicYears: academicYearRows,
       terms:        termRows,
       learners:     learnerRows,
+      attendance:   attendanceRows,
       counts: {
         classes:       classRows.length,
         subjects:      subjectRows.length,
@@ -94,6 +131,7 @@ export async function POST(request: NextRequest) {
         academicYears: academicYearRows.length,
         terms:         termRows.length,
         learners:      learnerRows.length,
+        attendance:    attendanceRows.length,
       },
     },
   });
