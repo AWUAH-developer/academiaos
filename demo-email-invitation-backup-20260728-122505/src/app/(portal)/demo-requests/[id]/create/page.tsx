@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { db } from '@/db';
 import { demoRequests, packages, schoolSubscriptions, schools, users } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
-import { emailDeliveryConfigured } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,7 +105,6 @@ export default async function CreateDemoAccessPage({
           }}
           packages={activePackages}
           existing={existing}
-          emailConfigured={emailDeliveryConfigured()}
         />
       </div>
     </>

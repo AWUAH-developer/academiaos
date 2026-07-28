@@ -1,17 +1,14 @@
 'use client';
 
 import { useActionState } from 'react';
-import { CalendarClock, CheckCircle2, KeyRound, MailCheck, MailWarning, ShieldX } from 'lucide-react';
+import { CalendarClock, CheckCircle2, KeyRound, ShieldX } from 'lucide-react';
 import {
   createDemoAccessAction,
   extendDemoAccessAction,
   revokeDemoAccessAction,
-  sendNewDemoInvitationAction,
   type CreateDemoAccessState,
-  type SendDemoInvitationState,
 } from '@/app/actions/demo-access';
 import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
-import { CopyDemoInvitationButton } from '@/components/CopyDemoInvitationButton';
 
 type DemoRequestData = {
   id: string;
@@ -53,19 +50,13 @@ export function DemoAccessWizard({
   request,
   packages,
   existing,
-  emailConfigured,
 }: {
   request: DemoRequestData;
   packages: DemoPackage[];
   existing?: ExistingDemo | null;
-  emailConfigured: boolean;
 }) {
   const [state, action, pending] = useActionState<CreateDemoAccessState, FormData>(
     createDemoAccessAction,
-    { status: 'idle' },
-  );
-  const [sendState, sendAction, sendPending] = useActionState<SendDemoInvitationState, FormData>(
-    sendNewDemoInvitationAction,
     { status: 'idle' },
   );
 
@@ -92,36 +83,7 @@ export function DemoAccessWizard({
           </p>
         </div>
 
-        <div className={`mt-5 rounded-2xl border p-4 ${state.emailStatus === 'sent' ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-          <div className="flex items-start gap-3">
-            {state.emailStatus === 'sent' ? (
-              <MailCheck className="mt-0.5 shrink-0 text-emerald-700" size={22} />
-            ) : (
-              <MailWarning className="mt-0.5 shrink-0 text-amber-700" size={22} />
-            )}
-            <div>
-              <p className="font-black text-slate-900">
-                {state.emailStatus === 'sent' ? 'Invitation emailed' : 'Email not sent'}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">{state.emailMessage}</p>
-              {state.recipientEmail && (
-                <p className="mt-1 break-all text-xs font-bold text-slate-500">Recipient: {state.recipientEmail}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          {state.username && state.temporaryPassword && state.expiresAt && (
-            <CopyDemoInvitationButton
-              schoolName={state.schoolName || request.schoolName}
-              username={state.username}
-              temporaryPassword={state.temporaryPassword}
-              expiresAt={state.expiresAt}
-            />
-          )}
-          <a href="/demo-requests" className="btn-primary inline-flex">Return to demo requests</a>
-        </div>
+        <a href="/demo-requests" className="btn-primary mt-5 inline-flex">Return to demo requests</a>
       </div>
     );
   }
@@ -153,51 +115,6 @@ export function DemoAccessWizard({
             <p className="mt-1 font-black text-slate-800">Seven-day web demo</p>
           </div>
         </div>
-
-        {sendState.status === 'error' && (
-          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">
-            {sendState.message}
-          </div>
-        )}
-
-        {sendState.status === 'success' && sendState.username && sendState.temporaryPassword && sendState.expiresAt && (
-          <div className="mt-5 space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-            <div>
-              <p className="font-black text-emerald-900">New invitation prepared</p>
-              <p className="mt-1 text-sm text-emerald-800">{sendState.message}</p>
-            </div>
-            <div className="space-y-2 font-mono text-sm text-slate-800">
-              <p>Username: <strong>{sendState.username}</strong></p>
-              <p>Temporary password: <strong>{sendState.temporaryPassword}</strong></p>
-              <p>Expires: <strong>{ghanaDateTime(sendState.expiresAt)}</strong></p>
-            </div>
-            <div className={`rounded-xl border p-3 text-sm ${sendState.emailStatus === 'sent' ? 'border-emerald-300 bg-white text-emerald-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
-              <p className="font-black">{sendState.emailStatus === 'sent' ? 'Invitation emailed' : 'Email not sent'}</p>
-              <p className="mt-1">{sendState.emailMessage}</p>
-            </div>
-            <CopyDemoInvitationButton
-              schoolName={sendState.schoolName || existing.schoolName}
-              username={sendState.username}
-              temporaryPassword={sendState.temporaryPassword}
-              expiresAt={sendState.expiresAt}
-            />
-          </div>
-        )}
-
-        <form action={sendAction} className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <input type="hidden" name="requestId" value={request.id} />
-          <label className="label">Invitation email</label>
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-            <input className="input flex-1" name="recipientEmail" type="email" defaultValue={request.email} required />
-            <button className="btn-secondary whitespace-nowrap" disabled={sendPending}>
-              {sendPending ? 'Preparing invitation…' : emailConfigured ? 'Reset password and email' : 'Generate new invitation'}
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            This creates a new temporary password and immediately disables the previous password.
-            {emailConfigured ? ' The new credentials will be emailed.' : ' Email is not configured, so copy the new credentials manually.'}
-          </p>
-        </form>
 
         <div className="mt-5 flex flex-wrap gap-3">
           <form action={extendDemoAccessAction}>
@@ -267,24 +184,6 @@ export function DemoAccessWizard({
           <input className="input" name="adminPhone" type="tel" defaultValue={request.phone} placeholder="Phone" required />
           <input className="input" name="adminEmail" type="email" defaultValue={request.email} placeholder="Email" required />
         </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="font-black text-slate-900">Email invitation</h2>
-        {emailConfigured ? (
-          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <input name="sendInvitation" type="checkbox" defaultChecked className="mt-1 h-4 w-4" />
-            <span>
-              <span className="block font-black text-emerald-900">Email the login details immediately</span>
-              <span className="mt-1 block text-sm text-emerald-800">The administrator email above will receive the username, temporary password, login link and expiry date after creation.</span>
-            </span>
-          </label>
-        ) : (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="font-black">Email delivery is not configured yet</p>
-            <p className="mt-1">Add RESEND_API_KEY and EMAIL_FROM in Replit Secrets. The demo can still be created and the invitation copied manually.</p>
-          </div>
-        )}
       </section>
 
       <section className="space-y-3">

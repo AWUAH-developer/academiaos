@@ -1,0 +1,22 @@
+ACADEMIAOS DEMO EMAIL INVITATION SETUP
+
+1. Create a Resend account.
+2. Add and verify academiaos.cc in Resend.
+3. Copy the DNS records provided by Resend into Cloudflare DNS.
+4. Create a Resend API key.
+5. In Replit Secrets, add:
+
+   RESEND_API_KEY=<your Resend API key>
+   EMAIL_FROM=AcademiaOS <no-reply@academiaos.cc>
+   APP_URL=https://academiaos.cc
+
+6. Restart Preview after adding the secrets.
+7. Open an existing demo and use "Reset password and email" to test delivery.
+8. After successful testing, Republish.
+
+SECURITY
+- API keys stay in Replit Secrets and are never stored in browser code.
+- A resend generates a new temporary password and disables the previous password.
+- If delivery fails, the new credentials remain visible once for manual copying.
+- Existing school and demo records are preserved.
+- No database migration is required.
