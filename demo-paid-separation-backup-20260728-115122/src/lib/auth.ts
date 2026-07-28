@@ -108,7 +108,6 @@ export async function currentUser(): Promise<AuthUser | null> {
     role: users.role,
     status: users.status,
     mustChangePassword: users.mustChangePassword,
-    temporaryPasswordExpiresAt: users.temporaryPasswordExpiresAt,
     schoolRecordId: schools.id,
     schoolName: schools.name,
     schoolCode: schools.code,
@@ -123,10 +122,7 @@ export async function currentUser(): Promise<AuthUser | null> {
     .limit(1);
 
   const row = rows[0];
-  const temporaryAccessExpired = Boolean(
-    row?.temporaryPasswordExpiresAt && row.temporaryPasswordExpiresAt <= new Date()
-  );
-  if (!row || temporaryAccessExpired || row.status !== 'ACTIVE' || (row.schoolId && row.schoolIsActive === false)) {
+  if (!row || row.status !== 'ACTIVE' || (row.schoolId && row.schoolIsActive === false)) {
     if (row) await db.delete(sessions).where(eq(sessions.id, row.sessionId));
     // Cookie writes are only allowed in Server Actions/Route Handlers, not Server Components.
     // The session row is already deleted; the cookie will expire naturally if deletion fails here.

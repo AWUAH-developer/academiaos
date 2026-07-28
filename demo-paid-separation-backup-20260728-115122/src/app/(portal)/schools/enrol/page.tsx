@@ -66,7 +66,7 @@ export default async function EnrolSchoolPage({
     <>
       <PageHeader
         eyebrow="Platform administration"
-        title="Enrol a school"
+        title="Enroll a school"
         description="Create a paid production school, its first administrator, package, subscription and payment record."
         action={
           <Link href="/schools" className="btn-secondary flex items-center gap-2 text-sm">

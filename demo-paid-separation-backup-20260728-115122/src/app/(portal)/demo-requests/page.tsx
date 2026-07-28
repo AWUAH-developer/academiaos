@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { desc } from 'drizzle-orm';
-import { Building2, CheckCircle2, Clock, KeyRound, Mail, Phone, School, Users, XCircle } from 'lucide-react';
+import { Building2, CheckCircle2, Clock, Mail, Phone, School, Users, XCircle } from 'lucide-react';
 import { CopyDemoRequestDetailsButton } from '@/components/CopyDemoRequestDetailsButton';
 import { DeleteDemoRequestButton } from '@/components/DeleteDemoRequestButton';
 import { PageHeader } from '@/components/PageHeader';
@@ -55,7 +55,7 @@ export default async function DemoRequestsPage() {
       <PageHeader
         eyebrow="School onboarding"
         title="Demo requests"
-        description="Review each request, create a separate 7-day demo, or start paid production enrolment only when the school subscribes."
+        description="Schools that filled in the request form on academiaos.cc. Review each request, copy the details, then create demo access or register the school."
         action={
           pending > 0 ? (
             <span className="rounded-xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-800">
@@ -177,7 +177,7 @@ export default async function DemoRequestsPage() {
 
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs font-bold text-slate-500">
-                      Demo access and paid production enrolment are separate. Demo records never become production records automatically.
+                      Copy the request details, then paste them into the demo-access or school-registration form.
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -191,17 +191,10 @@ export default async function DemoRequestsPage() {
                       />
 
                       <Link
-                        href={`/demo-requests/${request.id}/create`}
+                        href={schoolEnrolmentHref(request)}
                         className="btn-primary py-2 text-sm whitespace-nowrap"
                       >
-                        <KeyRound size={15} /> Create 7-day demo
-                      </Link>
-
-                      <Link
-                        href={schoolEnrolmentHref(request)}
-                        className="btn-secondary py-2 text-sm whitespace-nowrap"
-                      >
-                        <School size={15} /> Convert to paid school
+                        <School size={15} /> Create paid school
                       </Link>
 
                       <DeleteDemoRequestButton id={request.id} />
@@ -218,10 +211,11 @@ export default async function DemoRequestsPage() {
         <p className="font-black text-slate-700">To create a school directly (in-person meeting)</p>
         <p className="mt-1">
           Go to{' '}
-          <Link href="/schools/enrol" className="font-bold text-chalk-700 hover:underline">
-            Schools → Enrol a school
-          </Link>
-          . This is the paid production workflow and is separate from demo access.
+          <Link href="/schools" className="font-bold text-chalk-700 hover:underline">
+            Schools
+          </Link>{' '}
+          → Register a school. Fill in the school and first administrator details. The system generates a temporary
+          password you forward to them.
         </p>
       </div>
     </>

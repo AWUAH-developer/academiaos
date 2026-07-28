@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   const passwordValid = await bcrypt.compare(parsed.data.password, user?.passwordHash || DUMMY_PASSWORD_HASH);
   const locked = Boolean(user?.lockedUntil && user.lockedUntil > now);
   const temporaryPasswordExpired = Boolean(
-    user && passwordValid && user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt <= now
+    user && passwordValid && user.mustChangePassword && user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt <= now
   );
   const success = Boolean(
     user && passwordValid && !locked && !temporaryPasswordExpired && user.status === 'ACTIVE' && (!user.schoolId || school?.isActive)

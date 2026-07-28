@@ -70,7 +70,7 @@ export async function loginAction(formData: FormData) {
 
   const passwordValid = await bcrypt.compare(parsed.data.password, user?.passwordHash || DUMMY_PASSWORD_HASH);
   const temporaryPasswordExpired = Boolean(
-    user && passwordValid &&
+    user && passwordValid && user.mustChangePassword &&
     user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt <= now
   );
   const success = Boolean(
@@ -104,7 +104,7 @@ export async function loginAction(formData: FormData) {
       });
     }
     if (temporaryPasswordExpired) {
-      redirect('/login?error=Temporary+access+or+password+expired.+Contact+an+administrator');
+      redirect('/login?error=Temporary+password+expired.+Ask+an+administrator+to+reset+it');
     }
     redirect('/login?error=Invalid+login+details+or+account+temporarily+locked');
   }
