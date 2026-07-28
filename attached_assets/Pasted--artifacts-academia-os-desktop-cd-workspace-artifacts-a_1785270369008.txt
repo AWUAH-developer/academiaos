@@ -1,0 +1,119 @@
+~/.../artifacts/academia-os-desktop$ cd ~/workspace/artifacts/academia-os-desktop
+
+echo "===== APPLICATION VERSION ====="
+node -p "require('./package.json').version"
+
+echo
+echo "===== API AND ENVIRONMENT REFERENCES ====="
+grep -Rni \
+  --exclude-dir=node_modules \
+  --exclude-dir=dist \
+  --exclude-dir=release \
+  --exclude='*.before-*' \
+  --exclude='*.tar.gz' \
+  -E 'academiaos\.cc|replit\.dev|localhost|127\.0\.0\.1|API_BASE|BASE_URL|VITE_|process\.env' \
+  electron src package.json vite.config.ts 2>/dev/null | head -300
+
+echo
+echo "===== WINDOWS AND MAC ICONS ====="
+find build-resources -maxdepth 3 -type f -printf '%p  %s bytes\n' | sort
+
+echo
+echo "===== NOTARIZATION SCRIPT ====="
+if [ -f scripts/notarize.js ]; then
+  sed -n '1,240p' scripts/notarize.js
+else
+  echo "MISSING: scripts/notarize.js"
+fi
+
+echo
+echo "===== INSTALL FILES ====="
+ls -la pnpm-lock.yaml package-lock.json yarn.lock 2>/dev/null || true
+
+echo
+echo "===== TYPECHECK ====="
+pnpm typecheck
+
+echo
+echo "===== TESTS ====="
+pnpm test
+
+echo
+echo "===== APPLICATION BUILD ====="
+echo "Desktop inspection and validation completed."
+===== APPLICATION VERSION =====
+1.0.0
+
+===== API AND ENVIRONMENT REFERENCES =====
+electron/main.ts:27:const isDev  = process.env.NODE_ENV === 'development';
+electron/main.ts:34:      ? ['http://localhost:5173']
+electron/main.ts:82:                "connect-src https://academiaos.cc https://*.academiaos.cc",
+electron/main.ts:88:                "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 ws://localhost:5173",
+electron/main.ts:98:    win.loadURL('http://localhost:5173');
+electron/main.ts:132:// Block localhost in production (dev server must not be reachable)
+electron/main.ts:136:      { urls: ['http://localhost/*', 'http://127.0.0.1/*'] },
+electron/ipc-handlers.ts:26:const API_BASE    = 'https://academiaos.cc/api/desktop/v1';
+electron/ipc-handlers.ts:37:    const url     = new URL(`${API_BASE}${urlPath}`);
+src/screens/SettingsScreen.tsx:32:          <Row label="API"      value="https://academiaos.cc/api/desktop/v1" />
+package.json:5:  "author": "AcademiaOS <hello@academiaos.cc>",
+
+===== WINDOWS AND MAC ICONS =====
+build-resources/icons/README.md  520 bytes
+build-resources/LICENSE.txt  196 bytes
+
+===== NOTARIZATION SCRIPT =====
+MISSING: scripts/notarize.js
+
+===== INSTALL FILES =====
+
+===== TYPECHECK =====
+
+> academiaos-desktop@1.0.0 typecheck /home/runner/workspace/artifacts/academia-os-desktop
+> tsc --noEmit && tsc -p tsconfig.electron.json --noEmit
+
+
+===== TESTS =====
+
+> academiaos-desktop@1.0.0 test /home/runner/workspace/artifacts/academia-os-desktop
+> vitest run
+
+sh: 1: vitest: not found
+ ELIFECYCLE  Test failed. See above for more details.
+
+===== APPLICATION BUILD =====
+
+> academiaos-desktop@1.0.0 build /home/runner/workspace/artifacts/academia-os-desktop
+> pnpm run build:renderer && pnpm run build:electron
+
+
+> academiaos-desktop@1.0.0 build:renderer /home/runner/workspace/artifacts/academia-os-desktop
+> vite build
+
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+vite v7.3.6 building client environment for production...
+✓ 50 modules transformed.
+dist/renderer/index.html                                0.49 kB │ gzip:  0.32 kB
+dist/renderer/assets/index-C3Bm4n7Q.css                 4.10 kB │ gzip:  1.50 kB
+dist/renderer/assets/NotificationsScreen-z3UWpTtB.js    0.49 kB │ gzip:  0.31 kB
+dist/renderer/assets/StaffScreen-CdKWDCrw.js            0.60 kB │ gzip:  0.38 kB
+dist/renderer/assets/ReportsScreen-D_sQyMiR.js          0.76 kB │ gzip:  0.46 kB
+dist/renderer/assets/SecurityScreen-ANbrQtom.js         0.78 kB │ gzip:  0.48 kB
+dist/renderer/assets/DailyFeesScreen-DnbcqFkf.js        0.80 kB │ gzip:  0.49 kB
+dist/renderer/assets/AcademicsScreen-cIZrDHeG.js        0.80 kB │ gzip:  0.49 kB
+dist/renderer/assets/FinanceScreen-CC7XsZ90.js          0.84 kB │ gzip:  0.50 kB
+dist/renderer/assets/SmartIdScreen-CmGOyvgb.js          1.79 kB │ gzip:  0.88 kB
+dist/renderer/assets/DashboardScreen-WLZ3Aa9V.js        1.90 kB │ gzip:  0.95 kB
+dist/renderer/assets/LearnersScreen-BayPyLpx.js         1.94 kB │ gzip:  0.90 kB
+dist/renderer/assets/SettingsScreen-Bqbd2eJl.js         2.09 kB │ gzip:  0.86 kB
+dist/renderer/assets/AttendanceScreen-BTv4bf_q.js       3.04 kB │ gzip:  1.43 kB
+dist/renderer/assets/SyncScreen-CvlIUX2R.js             3.90 kB │ gzip:  1.37 kB
+dist/renderer/assets/index-MsKd_zFP.js                160.43 kB │ gzip: 51.77 kB
+✓ built in 1.39s
+
+> academiaos-desktop@1.0.0 build:electron /home/runner/workspace/artifacts/academia-os-desktop
+> tsc -p tsconfig.electron.json
+
+
+===== RESULT =====
+Desktop inspection and validation completed.
+~/.../artifacts/academia-os-desktop$ 

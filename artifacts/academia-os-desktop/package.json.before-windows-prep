@@ -1,6 +1,6 @@
 {
   "name": "academiaos-desktop",
-  "version": "1.0.4",
+  "version": "1.0.0",
   "description": "AcademiaOS — School Command Centre",
   "author": "AcademiaOS <hello@academiaos.cc>",
   "license": "UNLICENSED",
@@ -41,7 +41,7 @@
   "build": {
     "appId": "com.academiaos.desktop",
     "productName": "AcademiaOS",
-    "copyright": "Copyright © 2026 AcademiaOS",
+    "copyright": "Copyright © 2025 AcademiaOS",
     "directories": {
       "output": "release",
       "buildResources": "build-resources"
@@ -52,20 +52,10 @@
       "package.json"
     ],
     "extraResources": [
-      {
-        "from": "build-resources/icons",
-        "to": "icons"
-      }
+      { "from": "build-resources/icons", "to": "icons" }
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "build-resources/icons/icon.ico",
       "artifactName": "AcademiaOS-Desktop-Windows-${version}-Setup.exe"
     },
@@ -81,31 +71,17 @@
       "license": "build-resources/LICENSE.txt"
     },
     "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
       "icon": "build-resources/icons/icon.icns",
       "category": "public.app-category.education",
       "artifactName": "AcademiaOS-Desktop-Mac-${version}.dmg"
     },
     "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
       "icon": "build-resources/icons/icon.png",
       "category": "Education",
       "artifactName": "AcademiaOS-Desktop-Linux-${version}.AppImage"
-    }
+    },
+    "afterSign": "scripts/notarize.js"
   }
 }
