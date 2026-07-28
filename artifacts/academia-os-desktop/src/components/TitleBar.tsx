@@ -27,8 +27,8 @@ export default function TitleBar({ schoolName, userName, onLogout }: Props) {
       padding: '0 16px 0 80px', /* 80px left margin for macOS traffic lights */
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em', color: '#d4edda' }}>
-          AcademiaOS
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em' }} aria-label="AcademiaOS">
+          <span style={{ color: '#fff8ea' }}>Academia</span><span style={{ color: '#f4c542' }}>OS</span>
         </span>
         {schoolName && (
           <>

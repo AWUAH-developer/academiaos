@@ -19,7 +19,7 @@ import {
   ACCOUNT_ACCESS_TOKEN, ACCOUNT_REFRESH_TOKEN, ACCOUNT_DEVICE_ID,
 } from './secure-storage';
 import {
-  getDb, upsertLearners, upsertClasses, upsertStaff, upsertAttendance, addToOutbox, getPendingOps, markOpStatus,
+  getDb, upsertLearners, addToOutbox, getPendingOps, markOpStatus,
 } from './sqlite';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -208,49 +208,7 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         VALUES (?, ?, ?)
       `).run('learners', d.syncCursor, (d.learners as unknown[])?.length ?? 0);
 
-            const deviceMeta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as
-        { school_id?: string | null } | undefined;
-      const activeSchoolId = deviceMeta?.school_id ?? null;
-
-      if (!activeSchoolId) {
-        throw new Error('Active school ID is missing from desktop device metadata.');
-      }
-
-      // Full sync is authoritative: remove stale staff rows for this school.
-      db.prepare('DELETE FROM cached_staff WHERE school_id = ?').run(activeSchoolId);
-        db.prepare('DELETE FROM cached_attendance WHERE school_id = ? AND is_local = 0').run(activeSchoolId);
-
-      if (Array.isArray(d.classes) && (d.classes as unknown[]).length > 0) {
-        upsertClasses(db, d.classes as Record<string, unknown>[]);
-      }
-        if (Array.isArray(d.attendance) && (d.attendance as unknown[]).length > 0) {
-          upsertAttendance(db, d.attendance as Record<string, unknown>[]);
-        }
-
-
-      if (Array.isArray(d.staff) && (d.staff as unknown[]).length > 0) {
-        if (!activeSchoolId) {
-          throw new Error('Active school ID is missing from desktop device metadata.');
-        }
-        upsertStaff(db, d.staff as Record<string, unknown>[], activeSchoolId);
-      }
-
-      const cursorStmt = db.prepare(`
-        INSERT OR REPLACE INTO sync_cursor
-          (entity_type, last_synced, record_count)
-        VALUES (?, ?, ?)
-      `);
-
-      const learnerCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_learners").get() as { n: number }).n;
-      const classCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_classes").get() as { n: number }).n;
-      const staffCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_staff").get() as { n: number }).n;
-        const attendanceCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_attendance WHERE school_id = ?").get(activeSchoolId) as { n: number }).n;
-
-      cursorStmt.run('learners', d.syncCursor, learnerCount);
-      cursorStmt.run('classes', d.syncCursor, classCount);
-      cursorStmt.run('staff', d.syncCursor, staffCount);
-        cursorStmt.run('attendance', d.syncCursor, attendanceCount);
-return { ok: true, data: d };
+      return { ok: true, data: d };
     } catch (err) {
       return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
     }
@@ -275,59 +233,7 @@ return { ok: true, data: d };
         VALUES (?, ?, ?)
       `).run('learners', d.syncCursor, chg?.learners?.length ?? 0);
 
-            const deviceMeta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as
-        { school_id?: string | null } | undefined;
-      const activeSchoolId = deviceMeta?.school_id ?? null;
-
-      if (!activeSchoolId) {
-        throw new Error('Active school ID is missing from desktop device metadata.');
-      }
-
-      if (Array.isArray(chg?.staffRemovedIds) && chg.staffRemovedIds.length > 0) {
-        const removeStaff = db.prepare(
-          'DELETE FROM cached_staff WHERE id = ? AND school_id = ?',
-        );
-
-        const removeMany = db.transaction((ids: string[]) => {
-          for (const id of ids) {
-            removeStaff.run(id, activeSchoolId);
-          }
-        });
-
-        removeMany(chg.staffRemovedIds as string[]);
-      }
-
-      if (chg?.classes?.length) {
-        upsertClasses(db, chg.classes as Record<string, unknown>[]);
-      }
-
-        if (chg?.attendance?.length) {
-          upsertAttendance(db, chg.attendance as Record<string, unknown>[]);
-        }
-
-      if (chg?.staff?.length) {
-        if (!activeSchoolId) {
-          throw new Error('Active school ID is missing from desktop device metadata.');
-        }
-        upsertStaff(db, chg.staff as Record<string, unknown>[], activeSchoolId);
-      }
-
-      const cursorStmt = db.prepare(`
-        INSERT OR REPLACE INTO sync_cursor
-          (entity_type, last_synced, record_count)
-        VALUES (?, ?, ?)
-      `);
-
-      const learnerCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_learners").get() as { n: number }).n;
-      const classCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_classes").get() as { n: number }).n;
-      const staffCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_staff").get() as { n: number }).n;
-        const attendanceCount = (db.prepare("SELECT COUNT(*) AS n FROM cached_attendance WHERE school_id = ?").get(activeSchoolId) as { n: number }).n;
-
-      cursorStmt.run('learners', d.syncCursor, learnerCount);
-      cursorStmt.run('classes', d.syncCursor, classCount);
-      cursorStmt.run('staff', d.syncCursor, staffCount);
-        cursorStmt.run('attendance', d.syncCursor, attendanceCount);
-return { ok: true, data: d };
+      return { ok: true, data: d };
     } catch (err) {
       return { ok: false, error: { code: 'SYNC_ERROR', message: String(err) } };
     }
@@ -348,48 +254,38 @@ return { ok: true, data: d };
 
       if (!pending.length) return { ok: true, processed: 0 };
 
-      const allResults: Array<{ operationId: string; status: string; message?: string }> = [];
-      let processed = 0;
+      const ops = pending.map((row) => ({
+        operationId:    row.id,
+        idempotencyKey: row.idempotency_key,
+        deviceId:       row.device_id,
+        schoolId:       row.school_id,
+        type:           row.operation_type,
+        payload:        JSON.parse(row.payload_json),
+        createdAt:      row.created_at,
+        recordVersion:  row.record_version ?? undefined,
+      }));
 
-      for (let offset = 0; offset < pending.length; offset += 100) {
-        const batch = pending.slice(offset, offset + 100);
-        const ops = batch.map((row) => ({
-          operationId: row.id,
-          idempotencyKey: row.idempotency_key,
-          deviceId: row.device_id,
-          schoolId: row.school_id,
-          type: row.operation_type,
-          payload: JSON.parse(row.payload_json),
-          createdAt: row.created_at,
-          recordVersion: row.record_version ?? undefined,
-        }));
+      // Mark as UPLOADING before sending
+      pending.forEach((op) => markOpStatus(db, op.id, 'UPLOADING'));
 
-        batch.forEach((op) => markOpStatus(db, op.id, "UPLOADING"));
+      const res = await apiRequest('/sync/outbox', 'POST', { operations: ops }, accessToken);
 
-        const res = await apiRequest("/sync/outbox", "POST", { operations: ops }, accessToken).catch((err) => {
-          batch.forEach((op) => markOpStatus(db, op.id, "PENDING"));
-          throw err;
-        });
-
-        if (res.ok === false) {
-          batch.forEach((op) => markOpStatus(db, op.id, "PENDING"));
-          return { ok: false, error: errOf(res), processed, results: allResults };
-        }
-
-        const results = data(res).results as Array<{
-          operationId: string; status: string; message?: string;
-        }>;
-
-        for (const r of results) {
-          const finalStatus = r.status === "ALREADY_PROCESSED" ? "SYNCED" : r.status;
-          markOpStatus(db, r.operationId, finalStatus, r.message);
-        }
-
-        allResults.push(...results);
-        processed += batch.length;
+      if (!res.ok) {
+        // Revert to PENDING so next sync can retry
+        pending.forEach((op) => markOpStatus(db, op.id, 'PENDING'));
+        return { ok: false, error: errOf(res) };
       }
 
-      return { ok: true, processed, results: allResults };
+      const results = (data(res).results as Array<{
+        operationId: string; status: string; message?: string;
+      }>);
+
+      for (const r of results) {
+        const finalStatus = r.status === 'ALREADY_PROCESSED' ? 'SYNCED' : r.status;
+        markOpStatus(db, r.operationId, finalStatus, r.message);
+      }
+
+      return { ok: true, processed: pending.length, results };
     } catch (err) {
       return { ok: false, error: { code: 'UPLOAD_ERROR', message: String(err) } };
     }
@@ -406,258 +302,30 @@ return { ok: true, data: d };
     return { ok: true, cursors, pendingOps: pending.n, conflictCount: conflicts.n };
   });
 
-  // ── db:getClasses ───────────────────────────────────────────────────────────
-  ipcMain.handle('db:getClasses', async () => {
-    const db = getDb();
-    const deviceMeta = db
-      .prepare('SELECT school_id FROM device_meta WHERE id = 1')
-      .get() as { school_id?: string | null } | undefined;
-    const activeSchoolId = deviceMeta?.school_id ?? null;
-
-    if (activeSchoolId === null) {
-      return { ok: true, classes: [] };
-    }
-
-    const rows = db.prepare(`
-      SELECT id, school_id, name, stream, level, class_teacher_id, is_active
-      FROM cached_classes
-      WHERE school_id = ? AND is_active = 1
-      ORDER BY name, stream
-    `).all(activeSchoolId);
-
-    return { ok: true, classes: rows };
-  });
-
   // ── db:getLearners ──────────────────────────────────────────────────────────
   ipcMain.handle('db:getLearners', async (_, opts: { classId?: string; search?: string } = {}) => {
     const db   = getDb();
-    let sql    = `SELECT l.*, c.name AS class_name FROM cached_learners l LEFT JOIN cached_classes c ON c.id = l.class_id WHERE l.status = 'ACTIVE'`;
+    let sql    = `SELECT * FROM cached_learners WHERE status = 'ACTIVE'`;
     const args: (string | number)[] = [];
 
-    if (opts.classId) { sql += ` AND l.class_id = ?`;  args.push(opts.classId); }
+    if (opts.classId) { sql += ` AND class_id = ?`;  args.push(opts.classId); }
     if (opts.search) {
       const q = `%${opts.search}%`;
-      sql += ` AND (l.first_name LIKE ? OR l.last_name LIKE ? OR l.admission_no LIKE ?)`;
+      sql += ` AND (first_name LIKE ? OR last_name LIKE ? OR admission_no LIKE ?)`;
       args.push(q, q, q);
     }
-    sql += ` ORDER BY l.last_name, l.first_name LIMIT 500`;
+    sql += ` ORDER BY last_name, first_name LIMIT 500`;
 
     const rows = db.prepare(sql).all(...args);
     return { ok: true, learners: rows };
   });
 
   // ── db:saveAttendance ───────────────────────────────────────────────────────
-
-  // — db:getStaff ------------------------------------------------------------
-
-  ipcMain.handle('db:getStaff', async (_, opts: { search?: string } = {}) => {
-    const db = getDb();
-
-    const deviceMeta = db
-      .prepare('SELECT school_id FROM device_meta WHERE id = 1')
-      .get() as { school_id?: string | null } | undefined;
-
-    const activeSchoolId = deviceMeta?.school_id ?? null;
-
-    if (!activeSchoolId) {
-      return { ok: true, staff: [] };
-    }
-
-    let sql = `SELECT * FROM cached_staff WHERE school_id = ? AND status = 'ACTIVE'`;
-    const args: (string | number)[] = [activeSchoolId];
-
-    if (opts.search) {
-      const q = `%${opts.search}%`;
-      sql += ` AND (name LIKE ? OR username LIKE ? OR role LIKE ?)`;
-      args.push(q, q, q);
-    }
-
-    sql += ` ORDER BY name LIMIT 500`;
-
-    const rows = db.prepare(sql).all(...args);
-    return { ok: true, staff: rows };
-  });
-
-  // ── db:getAttendance ────────────────────────────────────────────────────────
-  ipcMain.handle("attendance:listCorrections", async (_, params: { classId?: string; date?: string }) => {
-      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
-      if (!accessToken) return { ok: false, error: { code: "NOT_AUTHENTICATED", message: "Sign in again." } };
-
-      const query = new URLSearchParams();
-      if (params?.classId) query.set("classId", params.classId);
-      if (params?.date) query.set("date", params.date);
-
-      const path = "/attendance/corrections" + (query.size ? "?" + query.toString() : "");
-      const res = await apiRequest(path, "GET", undefined, accessToken);
-
-      if (!res.ok) {
-        const body = res.data as { error?: { code?: string; message?: string } };
-        return {
-          ok: false,
-          error: {
-            code: body?.error?.code ?? "REQUEST_FAILED",
-            message: body?.error?.message ?? "Could not load attendance corrections.",
-          },
-        };
-      }
-
-      const body = res.data as { data?: { corrections?: unknown[] } };
-      return { ok: true, corrections: body.data?.corrections ?? [] };
-    });
-
-    ipcMain.handle("attendance:reviewCorrection", async (_, params: {
-      requestId: string;
-      decision: "APPROVE" | "REJECT";
-      decisionReason?: string | null;
-    }) => {
-      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
-      if (!accessToken) return { ok: false, error: { code: "NOT_AUTHENTICATED", message: "Sign in again." } };
-
-      const res = await apiRequest("/attendance/corrections", "POST", params, accessToken);
-
-      if (!res.ok) {
-        const body = res.data as { error?: { code?: string; message?: string } };
-        return {
-          ok: false,
-          error: {
-            code: body?.error?.code ?? "REQUEST_FAILED",
-            message: body?.error?.message ?? "Could not review attendance correction.",
-          },
-        };
-      }
-
-      const body = res.data as { data?: { correction?: unknown } };
-      return { ok: true, correction: body.data?.correction ?? null };
-    });
-
-    ipcMain.handle('db:getAttendance', async (_, params: { classId: string; date: string }) => {
-    const db = getDb();
-    const deviceMeta = db
-      .prepare('SELECT school_id FROM device_meta WHERE id = 1')
-      .get() as { school_id?: string | null } | undefined;
-    const activeSchoolId = deviceMeta?.school_id ?? null;
-
-    if (activeSchoolId === null) {
-      return { ok: true, attendance: [] };
-    }
-
-    const rows = db.prepare(`
-      SELECT
-          a.id,
-          a.learner_id,
-          a.date,
-          a.status,
-          a.reason,
-          a.is_local,
-          a.register_id,
-          a.register_status,
-          a.register_marked_by_id,
-          a.register_marked_by_role,
-          a.register_submitted_at,
-          a.register_locked_at,
-          a.server_updated_at
-      FROM cached_attendance a
-      INNER JOIN cached_learners l ON l.id = a.learner_id
-      WHERE a.school_id = ?
-        AND l.school_id = ?
-        AND l.class_id = ?
-        AND a.date = ?
-      ORDER BY l.last_name, l.first_name
-    `).all(activeSchoolId, activeSchoolId, params.classId, params.date);
-
-    const correctionOps = db.prepare(
-        "SELECT id, status, error_message, created_at, attempted_at, synced_at, payload_json FROM outbox WHERE school_id = ? AND operation_type = ? ORDER BY created_at DESC, rowid DESC",
-      ).all(activeSchoolId, "ATTENDANCE_CORRECTION_REQUEST") as Array<{
-        id: string;
-        status: string;
-        error_message: string | null;
-        created_at: string;
-        attempted_at: string | null;
-        synced_at: string | null;
-        payload_json: string;
-      }>;
-
-      const latestCorrection = new Map<string, {
-        id: string;
-        status: string;
-        errorMessage: string | null;
-        requestedStatus: string | null;
-        createdAt: string;
-        attemptedAt: string | null;
-        syncedAt: string | null;
-      }>();
-
-      for (const op of correctionOps) {
-        try {
-          const payload = JSON.parse(op.payload_json) as {
-            attendanceRecordId?: string;
-            requestedStatus?: string;
-          };
-
-          if (
-            payload.attendanceRecordId &&
-            latestCorrection.has(payload.attendanceRecordId) === false
-          ) {
-            latestCorrection.set(payload.attendanceRecordId, {
-              id: op.id,
-              status: op.status,
-              errorMessage: op.error_message,
-              requestedStatus: payload.requestedStatus ?? null,
-              createdAt: op.created_at,
-              attemptedAt: op.attempted_at,
-              syncedAt: op.synced_at,
-            });
-          }
-        } catch {
-          // Ignore malformed historical outbox payloads.
-        }
-      }
-
-      const enrichedAttendance = (rows as Array<Record<string, unknown>>).map(
-        (row) => {
-          const correction = latestCorrection.get(String(row.id)) ?? null;
-
-          return {
-            ...row,
-            correction_operation_id: correction?.id ?? null,
-            correction_state: correction?.status ?? null,
-            correction_error_message: correction?.errorMessage ?? null,
-            correction_requested_status: correction?.requestedStatus ?? null,
-            correction_created_at: correction?.createdAt ?? null,
-            correction_attempted_at: correction?.attemptedAt ?? null,
-            correction_synced_at: correction?.syncedAt ?? null,
-          };
-        },
-      );
-
-      return { ok: true, attendance: enrichedAttendance };
-  });
-
   ipcMain.handle('db:saveAttendance', async (_, params: {
     learnerId: string; date: string; status: string;
     schoolId: string; userId: string; deviceId: string;
   }) => {
     const db  = getDb();
-
-      const lockedOfficial = db.prepare(`
-        SELECT register_status
-        FROM cached_attendance
-        WHERE school_id = ?
-          AND learner_id = ?
-          AND date = ?
-        LIMIT 1
-      `).get(params.schoolId, params.learnerId, params.date) as
-        { register_status?: string | null } | undefined;
-
-      if (lockedOfficial?.register_status === "LOCKED") {
-        return {
-          ok: false,
-          error: {
-            code: "REGISTER_LOCKED",
-            message: "Official attendance is locked. Submit a correction request instead.",
-          },
-        };
-      }
     const id  = crypto.randomUUID();
     const idk = crypto.randomUUID();
 
@@ -680,221 +348,6 @@ return { ok: true, data: d };
     });
 
     return { ok: true, operationId: id, idempotencyKey: idk };
-  });
-
-  // ── db:submitAttendanceRegister ─────────────────────────────────────────────
-  ipcMain.handle("db:requestAttendanceCorrection", async (_, params: {
-      attendanceRecordId: string;
-      requestedStatus: string;
-      requestedAttendanceReason?: string | null;
-      correctionReason: string;
-      schoolId: string;
-      userId: string;
-      deviceId: string;
-    }) => {
-      const db = getDb();
-      const correctionReason = params.correctionReason.trim();
-
-      const allowedStatuses = new Set([
-        "PRESENT",
-        "ABSENT",
-        "LATE",
-        "EXCUSED",
-        "SICK",
-        "PARTIAL",
-        "HALF_DAY_MORNING",
-        "HALF_DAY_AFTERNOON",
-        "SCHOOL_ACTIVITY",
-        "SUSPENDED",
-        "HOLIDAY",
-      ]);
-
-      if (allowedStatuses.has(params.requestedStatus) === false) {
-        return {
-          ok: false,
-          error: {
-            code: "INVALID_CORRECTION",
-            message: "Select a valid corrected attendance status.",
-          },
-        };
-      }
-
-      if (correctionReason.length < 10) {
-        return {
-          ok: false,
-          error: {
-            code: "CORRECTION_REASON_REQUIRED",
-            message: "Explain the attendance mistake in at least 10 characters.",
-          },
-        };
-      }
-
-      const official = db.prepare(`
-        SELECT id, status, register_status
-        FROM cached_attendance
-        WHERE id = ?
-          AND school_id = ?
-          AND is_local = 0
-        LIMIT 1
-      `).get(params.attendanceRecordId, params.schoolId) as
-        { id: string; status: string; register_status: string | null } | undefined;
-
-      if (!official || official.register_status !== "LOCKED") {
-        return {
-          ok: false,
-          error: {
-            code: "REGISTER_NOT_LOCKED",
-            message: "Only synchronized, officially locked attendance can be corrected.",
-          },
-        };
-      }
-
-      if (official.status === params.requestedStatus) {
-        return {
-          ok: false,
-          error: {
-            code: "STATUS_UNCHANGED",
-            message: "The corrected status must differ from the official status.",
-          },
-        };
-      }
-
-      const queued = db.prepare(
-        "SELECT payload_json FROM outbox WHERE school_id = ? AND operation_type = ? AND status IN (?, ?) ORDER BY created_at DESC, rowid DESC",
-      ).all(
-        params.schoolId,
-        "ATTENDANCE_CORRECTION_REQUEST",
-        "PENDING",
-        "UPLOADING",
-      ) as Array<{ payload_json: string }>;
-
-      for (const op of queued) {
-        try {
-          const payload = JSON.parse(op.payload_json) as {
-            attendanceRecordId?: string;
-          };
-
-          if (payload.attendanceRecordId === params.attendanceRecordId) {
-            return {
-              ok: false,
-              error: {
-                code: "CORRECTION_ALREADY_QUEUED",
-                message: "A correction request is already queued for this attendance record.",
-              },
-            };
-          }
-        } catch {
-          // Ignore malformed historical outbox payloads.
-        }
-      }
-
-      const id = crypto.randomUUID();
-      const idempotencyKey = crypto.randomUUID();
-
-      addToOutbox(db, {
-        id,
-        idempotencyKey,
-        deviceId: params.deviceId,
-        userId: params.userId,
-        schoolId: params.schoolId,
-        operationType: "ATTENDANCE_CORRECTION_REQUEST",
-        payload: {
-          attendanceRecordId: params.attendanceRecordId,
-          requestedStatus: params.requestedStatus,
-          requestedAttendanceReason:
-            params.requestedAttendanceReason?.trim() || null,
-          correctionReason,
-        },
-      });
-
-      return {
-        ok: true,
-        operationId: id,
-        idempotencyKey,
-      };
-    });
-
-    ipcMain.handle('db:submitAttendanceRegister', async (_, params: {
-    classId: string;
-    date: string;
-    substitutionReason?: string | null;
-    schoolId: string;
-    userId: string;
-    deviceId: string;
-  }) => {
-    const db = getDb();
-    const id = crypto.randomUUID();
-    const idk = crypto.randomUUID();
-
-    addToOutbox(db, {
-      id,
-      idempotencyKey: idk,
-      deviceId: params.deviceId,
-      userId: params.userId,
-      schoolId: params.schoolId,
-      operationType: 'ATTENDANCE_REGISTER_SUBMIT',
-      payload: {
-        classId: params.classId,
-        date: params.date,
-        substitutionReason: params.substitutionReason ?? null,
-      },
-    });
-
-    return { ok: true, operationId: id, idempotencyKey: idk };
-  });
-
-  // ── db:getAttendanceSubmitState ─────────────────────────────────────────────
-  ipcMain.handle("db:getAttendanceSubmitState", async (_, params: { classId: string; date: string }) => {
-    const db = getDb();
-    const deviceMeta = db
-      .prepare("SELECT school_id FROM device_meta WHERE id = 1")
-      .get() as { school_id?: string | null } | undefined;
-    const activeSchoolId = deviceMeta?.school_id ?? null;
-
-    if (activeSchoolId === null) {
-      return { ok: true, submission: null };
-    }
-
-    const rows = db.prepare(
-      "SELECT id, user_id, status, error_message, created_at, attempted_at, synced_at, payload_json FROM outbox WHERE school_id = ? AND operation_type = ? ORDER BY created_at DESC, rowid DESC",
-    ).all(activeSchoolId, "ATTENDANCE_REGISTER_SUBMIT") as Array<{
-      id: string;
-      user_id: string;
-      status: string;
-      error_message: string | null;
-      created_at: string;
-      attempted_at: string | null;
-      synced_at: string | null;
-      payload_json: string;
-    }>;
-
-    const matchingRows = rows.filter((row) => {
-      try {
-        const payload = JSON.parse(row.payload_json) as { classId?: string; date?: string };
-        return payload.classId === params.classId && payload.date === params.date;
-      } catch {
-        return false;
-      }
-    });
-
-    const row = matchingRows.find((candidate) => candidate.status === "SYNCED") ?? matchingRows[0];
-
-    if (row !== undefined) {
-      return {
-        ok: true,
-        submission: {
-          operationId: row.id,
-          userId: row.user_id,
-          status: row.status,
-          errorMessage: row.error_message,
-          createdAt: row.created_at,
-          attemptedAt: row.attempted_at,
-          syncedAt: row.synced_at,
-        },
-      };
-    }
-
-    return { ok: true, submission: null };
   });
 
   // ── db:getPendingOps ────────────────────────────────────────────────────────

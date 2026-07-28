@@ -63,7 +63,7 @@ export default function LearnersScreen() {
                 <tr key={l.id}>
                   <td style={{ fontWeight: 600 }}>{l.first_name} {l.last_name}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{l.admission_no}</td>
-                  <td>{l.class_name ?? l.class_id ?? '—'}</td>
+                  <td>{l.class_id ?? '—'}</td>
                   <td>{l.gender ?? '—'}</td>
                   <td>
                     <span className={`pill ${l.status === 'ACTIVE' ? 'pill-green' : 'pill-slate'}`}>

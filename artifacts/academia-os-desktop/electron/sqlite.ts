@@ -55,7 +55,6 @@ export function initializeDb(encryptionKey: string): void {
   _db = openOrMigrate(dbPath, encryptionKey);
   applyPragmas(_db);
   createSchema(_db);
-  applySchemaUpgrades(_db);
 }
 
 /**
@@ -186,7 +185,6 @@ function createSchema(db: InstanceType<typeof Database>): void {
       name        TEXT NOT NULL,
       stream      TEXT,
       level       TEXT,
-      class_teacher_id TEXT,
       is_active   INTEGER NOT NULL DEFAULT 1,
       synced_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -253,13 +251,6 @@ function createSchema(db: InstanceType<typeof Database>): void {
       check_in_time   TEXT,
       check_out_time  TEXT,
       reason          TEXT,
-      register_id     TEXT,
-      register_status TEXT,
-      register_marked_by_id TEXT,
-      register_marked_by_role TEXT,
-      register_submitted_at TEXT,
-      register_locked_at TEXT,
-      server_updated_at TEXT,
       is_local        INTEGER NOT NULL DEFAULT 0,
       synced_at       TEXT
     );
@@ -271,32 +262,6 @@ function createSchema(db: InstanceType<typeof Database>): void {
     CREATE INDEX IF NOT EXISTS idx_learner_class  ON cached_learners(class_id);
     CREATE INDEX IF NOT EXISTS idx_outbox_status  ON outbox(status, created_at);
   `);
-}
-
-function applySchemaUpgrades(db: InstanceType<typeof Database>): void {
-  const classColumns = db.pragma("table_info(cached_classes)") as Array<{ name: string }>;
-
-  if (classColumns.some((column) => column.name === "class_teacher_id") === false) {
-    db.exec("ALTER TABLE cached_classes ADD COLUMN class_teacher_id TEXT");
-  }
-  const attendanceColumns = db.pragma("table_info(cached_attendance)") as Array<{ name: string }>;
-  const attendanceColumnNames = new Set(attendanceColumns.map((column) => column.name));
-  const attendanceUpgrades: Array<[string, string]> = [
-    ["register_id", "TEXT"],
-    ["register_status", "TEXT"],
-    ["register_marked_by_id", "TEXT"],
-    ["register_marked_by_role", "TEXT"],
-    ["register_submitted_at", "TEXT"],
-    ["register_locked_at", "TEXT"],
-    ["server_updated_at", "TEXT"],
-  ];
-
-  for (const [column, definition] of attendanceUpgrades) {
-    if (attendanceColumnNames.has(column) === false) {
-      db.exec(`ALTER TABLE cached_attendance ADD COLUMN ${column} ${definition}`);
-    }
-  }
-
 }
 
 // ── Query helpers ─────────────────────────────────────────────────────────────
@@ -349,131 +314,6 @@ export function upsertLearners(
   );
 }
 
-export function upsertClasses(
-  db: InstanceType<typeof Database>,
-  rows: Record<string, unknown>[],
-): void {
-  const stmt = db.prepare(`
-    INSERT INTO cached_classes
-      (id, school_id, name, stream, level, class_teacher_id, is_active, synced_at)
-    VALUES
-      (@id, @school_id, @name, @stream, @level, @class_teacher_id, @is_active, datetime('now'))
-    ON CONFLICT(id) DO UPDATE SET
-      school_id = excluded.school_id,
-      name = excluded.name,
-      stream = excluded.stream,
-      level = excluded.level,
-      class_teacher_id = excluded.class_teacher_id,
-      is_active = excluded.is_active,
-      synced_at = datetime('now')
-  `);
-
-  const upsertMany = db.transaction((items: Record<string, unknown>[]) => {
-    for (const item of items) stmt.run(item);
-  });
-
-  upsertMany(rows.map((r) => ({
-    id: String(r.id ?? ''),
-    school_id: String(r.schoolId ?? ''),
-    name: String(r.name ?? ''),
-    stream: r.stream ?? null,
-    level: r.level ?? null,
-    class_teacher_id: r.classTeacherId ?? null,
-    is_active: r.isActive === false || r.isActive === 0 ? 0 : 1,
-  })));
-}
-
-export function upsertAttendance(
-  db: InstanceType<typeof Database>,
-  rows: Record<string, unknown>[],
-): void {
-  const stmt = db.prepare(`
-    INSERT INTO cached_attendance
-      (id, school_id, learner_id, date, status, check_in_time, check_out_time,
-       reason, register_id, register_status, register_marked_by_id,
-       register_marked_by_role, register_submitted_at, register_locked_at,
-       server_updated_at, is_local, synced_at)
-    VALUES
-      (@id, @school_id, @learner_id, @date, @status, @check_in_time, @check_out_time,
-       @reason, @register_id, @register_status, @register_marked_by_id,
-       @register_marked_by_role, @register_submitted_at, @register_locked_at,
-       @server_updated_at, 0, CURRENT_TIMESTAMP)
-    ON CONFLICT(learner_id, date) DO UPDATE SET
-      id = excluded.id,
-      school_id = excluded.school_id,
-      status = excluded.status,
-      check_in_time = excluded.check_in_time,
-      check_out_time = excluded.check_out_time,
-      reason = excluded.reason,
-      register_id = excluded.register_id,
-      register_status = excluded.register_status,
-      register_marked_by_id = excluded.register_marked_by_id,
-      register_marked_by_role = excluded.register_marked_by_role,
-      register_submitted_at = excluded.register_submitted_at,
-      register_locked_at = excluded.register_locked_at,
-      server_updated_at = excluded.server_updated_at,
-      is_local = 0,
-      synced_at = CURRENT_TIMESTAMP
-  `);
-
-  const upsertMany = db.transaction((items: Record<string, unknown>[]) => {
-    for (const item of items) stmt.run(item);
-  });
-
-  upsertMany(rows.map((r) => ({
-    id: String(r.id ?? ""),
-    school_id: String(r.schoolId ?? ""),
-    learner_id: String(r.learnerId ?? ""),
-    date: String(r.date ?? "").slice(0, 10),
-    status: String(r.status ?? ""),
-    check_in_time: r.checkInTime ?? null,
-    check_out_time: r.checkOutTime ?? null,
-    reason: r.reason ?? null,
-    register_id: r.registerId ?? null,
-    register_status: r.registerStatus ?? null,
-    register_marked_by_id: r.registerMarkedById ?? null,
-    register_marked_by_role: r.registerMarkedByRole ?? null,
-    register_submitted_at: r.registerSubmittedAt ?? null,
-    register_locked_at: r.registerLockedAt ?? null,
-    server_updated_at: r.updatedAt ?? null,
-  })));
-}
-
-export function upsertStaff(
-  db: InstanceType<typeof Database>,
-  rows: Record<string, unknown>[],
-  schoolId: string,
-): void {
-  const stmt = db.prepare(`
-    INSERT INTO cached_staff
-      (id, school_id, name, username, role, status, photo_url, synced_at)
-    VALUES
-      (@id, @school_id, @name, @username, @role, @status, @photo_url, datetime('now'))
-    ON CONFLICT(id) DO UPDATE SET
-      school_id = excluded.school_id,
-      name = excluded.name,
-      username = excluded.username,
-      role = excluded.role,
-      status = excluded.status,
-      photo_url = excluded.photo_url,
-      synced_at = datetime('now')
-  `);
-
-  const upsertMany = db.transaction((items: Record<string, unknown>[]) => {
-    for (const item of items) stmt.run(item);
-  });
-
-  upsertMany(rows.map((r) => ({
-    id: String(r.id ?? ''),
-    school_id: schoolId,
-    name: String(r.name ?? r.username ?? ''),
-    username: String(r.username ?? ''),
-    role: String(r.role ?? ''),
-    status: String(r.status ?? 'ACTIVE'),
-    photo_url: r.photoUrl ?? null,
-  })));
-}
-
 export function addToOutbox(
   db: InstanceType<typeof Database>,
   op: {
@@ -502,7 +342,7 @@ export function addToOutbox(
 
 export function getPendingOps(db: InstanceType<typeof Database>): unknown[] {
   return db
-    .prepare(`SELECT * FROM outbox WHERE status = 'PENDING' ORDER BY created_at, rowid`)
+    .prepare(`SELECT * FROM outbox WHERE status = 'PENDING' ORDER BY created_at`)
     .all();
 }
 

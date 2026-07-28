@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DevourLogo from '../components/DevourLogo';
 import { useAuth } from '../store/auth';
 
 export default function LoginScreen() {
@@ -29,12 +30,11 @@ export default function LoginScreen() {
         background: '#fff', borderRadius: 16, padding: '40px 36px', width: 380,
         boxShadow: '0 20px 60px rgba(0,0,0,.25)',
       }}>
-        {/* Logo */}
+        {/* Permanent logo icon. Only the word animates on the sign-in screen. */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--chalk)', letterSpacing: '.02em' }}>
-            AcademiaOS
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          <img src="/brand-logo.jpg" alt="AcademiaOS logo" style={{ width: 58, height: 58, borderRadius: 16, objectFit: 'cover', marginBottom: 12 }}/>
+          <DevourLogo/>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, letterSpacing: '.08em', textTransform: 'uppercase' }}>
             School Command Centre
           </div>
         </div>

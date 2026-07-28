@@ -1,131 +1,84 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
-  Animated,
-  Easing,
   StyleSheet,
+  Text,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
 import { colors } from '@/theme';
 
 const WORD = 'AcademiaOS';
+const HOLD_MS = 6000;
+const EAT_STEP_MS = 110;
+const EMPTY_PAUSE_MS = 220;
+const WRITE_STEP_MS = 85;
+
+type Mode = 'hold' | 'eat' | 'write';
 
 export function DevourLogo({ size = 32 }: { size?: number }) {
-  const travel = useRef(new Animated.Value(0)).current;
-  const letterOpacity = useMemo(() => WORD.split('').map(() => new Animated.Value(1)), []);
+  const [mode, setMode] = useState<Mode>('hold');
+  const [step, setStep] = useState(0);
   const [wordWidth, setWordWidth] = useState(0);
-  const hasPlayed = useRef(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    if (!wordWidth || hasPlayed.current) return;
-    hasPlayed.current = true;
-    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion).catch(() => undefined);
+  }, []);
 
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((reducedMotion) => {
-        if (cancelled || reducedMotion) return;
+  useEffect(() => {
+    if (reducedMotion) {
+      setMode('hold');
+      setStep(0);
+      return;
+    }
 
-        Animated.sequence([
-          Animated.delay(180),
-          Animated.parallel([
-            Animated.timing(travel, {
-              toValue: wordWidth + size * 0.22,
-              duration: 1250,
-              easing: Easing.inOut(Easing.cubic),
-              useNativeDriver: true,
-            }),
-            Animated.sequence([
-              Animated.delay(140),
-              Animated.stagger(
-                88,
-                letterOpacity.map((opacity) =>
-                  Animated.timing(opacity, {
-                    toValue: 0,
-                    duration: 1,
-                    useNativeDriver: true,
-                  }),
-                ),
-              ),
-            ]),
-          ]),
-          Animated.delay(110),
-          Animated.parallel([
-            Animated.timing(travel, {
-              toValue: 0,
-              duration: 1,
-              useNativeDriver: true,
-            }),
-            ...letterOpacity.map((opacity) =>
-              Animated.timing(opacity, {
-                toValue: 1,
-                duration: 1,
-                useNativeDriver: true,
-              }),
-            ),
-          ]),
-        ]).start();
-      })
-      .catch(() => undefined);
+    let timer: ReturnType<typeof setTimeout>;
+    if (mode === 'hold') {
+      timer = setTimeout(() => { setStep(0); setMode('eat'); }, HOLD_MS);
+    } else if (mode === 'eat') {
+      if (step < WORD.length) timer = setTimeout(() => setStep((value) => value + 1), EAT_STEP_MS);
+      else timer = setTimeout(() => { setStep(0); setMode('write'); }, EMPTY_PAUSE_MS);
+    } else if (step < WORD.length) {
+      timer = setTimeout(() => setStep((value) => value + 1), WRITE_STEP_MS);
+    } else {
+      timer = setTimeout(() => { setStep(0); setMode('hold'); }, 250);
+    }
+    return () => clearTimeout(timer);
+  }, [mode, reducedMotion, step]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [letterOpacity, size, travel, wordWidth]);
-
-  const onWordLayout = (event: LayoutChangeEvent) => {
-    const nextWidth = event.nativeEvent.layout.width;
-    if (nextWidth > 0 && Math.abs(nextWidth - wordWidth) > 1) setWordWidth(nextWidth);
-  };
-
-  const pacmanSize = size * 0.88;
-  const mouthSize = pacmanSize * 0.34;
+  const onLayout = (event: LayoutChangeEvent) => setWordWidth(event.nativeEvent.layout.width);
+  const pacmanSize = size * 0.86;
+  const progress = mode === 'eat' ? Math.min(step / WORD.length, 1) : 0;
 
   return (
     <View accessibilityRole="image" accessibilityLabel="AcademiaOS" style={styles.outer}>
-      <View style={[styles.row, { minHeight: size * 1.15, paddingLeft: pacmanSize + size * 0.2 }]}>
-        <Animated.View
-          style={[
-            styles.pacman,
-            {
-              width: pacmanSize,
-              height: pacmanSize,
-              borderRadius: pacmanSize / 2,
-              transform: [{ translateX: travel }],
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.mouth,
-              {
-                right: -1,
-                top: pacmanSize * 0.31,
-                borderTopWidth: mouthSize / 2,
-                borderBottomWidth: mouthSize / 2,
-                borderRightWidth: mouthSize,
-              },
-            ]}
-          />
-        </Animated.View>
-
-        <View onLayout={onWordLayout} style={styles.word}>
-          {WORD.split('').map((letter, index) => (
-            <Animated.Text
-              key={`${letter}-${index}`}
-              style={[
-                styles.letter,
-                {
-                  fontSize: size,
-                  lineHeight: size * 1.05,
-                  opacity: letterOpacity[index]!,
-                },
-              ]}
-            >
-              {letter}
-            </Animated.Text>
-          ))}
+      <View style={[styles.row, { minHeight: size * 1.15 }]}>
+        <View onLayout={onLayout} style={styles.word}>
+          {WORD.split('').map((letter, index) => {
+            const visible = reducedMotion || mode === 'hold' || (mode === 'eat' ? index >= step : index < step);
+            return (
+              <Text key={`${letter}-${index}`} style={[styles.letter, { color: index < 8 ? '#1F5C46' : '#F4C542', fontSize: size, lineHeight: size * 1.05, opacity: visible ? 1 : 0 }]}>
+                {letter}
+              </Text>
+            );
+          })}
         </View>
+        {!reducedMotion && mode === 'eat' && wordWidth > 0 && (
+          <View style={[styles.pacman, {
+            width: pacmanSize,
+            height: pacmanSize,
+            borderRadius: pacmanSize / 2,
+            left: Math.max(0, progress * wordWidth - pacmanSize * 0.45),
+          }]}>
+            <View style={[styles.mouth, {
+              top: pacmanSize * 0.31,
+              borderTopWidth: pacmanSize * 0.17,
+              borderBottomWidth: pacmanSize * 0.17,
+              borderRightWidth: pacmanSize * 0.34,
+            }]}/>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -135,25 +88,15 @@ const styles = StyleSheet.create({
   outer: { alignSelf: 'center' },
   row: { position: 'relative', flexDirection: 'row', alignItems: 'center' },
   word: { flexDirection: 'row', alignItems: 'center' },
-  letter: { color: colors.navy, fontWeight: '900', letterSpacing: -1.15 },
+  letter: { fontWeight: '900', letterSpacing: -1.15 },
   pacman: {
-    position: 'absolute',
-    left: 0,
-    zIndex: 3,
-    backgroundColor: colors.gold,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    overflow: 'visible',
+    position: 'absolute', top: '50%', zIndex: 3, marginTop: -14,
+    backgroundColor: '#F4C542', shadowColor: '#000', shadowOpacity: 0.08,
+    shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   mouth: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
+    position: 'absolute', right: -1, width: 0, height: 0,
+    borderTopColor: 'transparent', borderBottomColor: 'transparent',
     borderRightColor: colors.background,
   },
 });

@@ -75,85 +75,35 @@ h3 { font-size: 14px; font-weight: 700; }
 .spin { animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* AcademiaOS startup wordmark animation */
-.desktop-splash {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-  color: #071a33;
-  user-select: none;
-}
-.desktop-devour-logo {
+/* Sign-in word animation only. The brand image remains permanent. */
+.desktop-login-devour {
   position: relative;
   display: inline-flex;
+  min-width: 9.4ch;
+  min-height: 30px;
   align-items: center;
-  min-height: 58px;
-  padding-left: 58px;
-  font-size: 48px;
+  color: var(--chalk);
+  font-size: 26px;
   font-weight: 900;
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: -.04em;
   white-space: nowrap;
-  isolation: isolate;
 }
-.desktop-devour-word { display: inline-flex; align-items: center; color: #071a33; }
-.desktop-devour-letter {
-  display: inline-block;
-  opacity: 1;
-  animation:
-    desktop-devour-hide 1ms step-end var(--devour-delay) forwards,
-    desktop-devour-restore 1ms step-end 1.42s forwards;
+.desktop-login-word { display: inline-flex; align-items: center; }
+.desktop-login-letter { display: inline-block; transition: opacity 70ms linear; }
+.desktop-login-letter--academia { color: #1f5c46; }
+.desktop-login-letter--os { color: #f4c542; }
+.desktop-login-pacman {
+  position: absolute; top: 50%; z-index: 2; width: 23px; height: 23px;
+  border-radius: 50%; background: #f4c542; transform: translateY(-50%);
+  clip-path: polygon(0 0,100% 0,100% 28%,56% 50%,100% 72%,100% 100%,0 100%);
+  animation: desktop-login-chomp .16s steps(2,end) infinite;
 }
-.desktop-devour-pacman {
-  position: absolute;
-  z-index: 3;
-  left: 0;
-  top: 50%;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: #f6c344;
-  box-shadow: 0 4px 12px rgba(0,0,0,.10);
-  transform: translateY(-50%);
-  clip-path: polygon(0 0, 100% 0, 100% 28%, 56% 50%, 100% 72%, 100% 100%, 0 100%);
-  animation:
-    desktop-devour-run 1.80s cubic-bezier(.42,0,.18,1) both,
-    desktop-devour-chomp .16s steps(2,end) 0s 8;
+@keyframes desktop-login-chomp {
+  0%,100% { clip-path: polygon(0 0,100% 0,100% 28%,56% 50%,100% 72%,100% 100%,0 100%); }
+  50% { clip-path: polygon(0 0,100% 0,100% 43%,58% 50%,100% 57%,100% 100%,0 100%); }
 }
-.desktop-splash-tag {
-  margin-top: 16px;
-  color: #607089;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-}
-@keyframes desktop-devour-run {
-  0%, 12% { left: 0; }
-  70%, 78% { left: calc(100% - 46px); }
-  79%, 100% { left: 0; }
-}
-@keyframes desktop-devour-chomp {
-  0%, 100% { clip-path: polygon(0 0, 100% 0, 100% 28%, 56% 50%, 100% 72%, 100% 100%, 0 100%); }
-  50% { clip-path: polygon(0 0, 100% 0, 100% 43%, 58% 50%, 100% 57%, 100% 100%, 0 100%); }
-}
-@keyframes desktop-devour-hide { to { opacity: 0; } }
-@keyframes desktop-devour-restore { to { opacity: 1; } }
-
-@media (max-width: 620px) {
-  .desktop-devour-logo { font-size: 38px; min-height: 48px; padding-left: 48px; }
-  .desktop-devour-pacman { width: 38px; height: 38px; }
-  @keyframes desktop-devour-run {
-    0%, 12% { left: 0; }
-    70%, 78% { left: calc(100% - 38px); }
-    79%, 100% { left: 0; }
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .desktop-devour-pacman,
-  .desktop-devour-letter { animation: none !important; }
+  .desktop-login-pacman { display: none; }
+  .desktop-login-letter { opacity: 1 !important; }
 }

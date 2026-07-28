@@ -15,9 +15,8 @@ const INVOKE_CHANNELS = [
   'auth:login', 'auth:refresh', 'auth:logout', 'auth:getSession',
   // Sync
   'sync:initial', 'sync:incremental', 'sync:uploadOutbox', 'sync:status',
-  'attendance:listCorrections', 'attendance:reviewCorrection',
   // Local DB
-  'db:getClasses', 'db:getLearners', 'db:getStaff', 'db:getAttendance', 'db:saveAttendance', 'db:requestAttendanceCorrection', 'db:submitAttendanceRegister', 'db:getAttendanceSubmitState',
+  'db:getLearners', 'db:getAttendance', 'db:saveAttendance',
   'db:getPendingOps', 'db:markOpSynced', 'db:getConflicts',
   // App
   'app:getVersion', 'app:getPlatform',
