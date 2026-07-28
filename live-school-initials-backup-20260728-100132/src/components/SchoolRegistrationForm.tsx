@@ -3,7 +3,6 @@
 import { useActionState } from 'react';
 import { Building2, Plus } from 'lucide-react';
 import { createSchoolAction, type SchoolCreateState } from '@/app/actions/schools';
-import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
 
 export function SchoolRegistrationForm() {
   const initialState: SchoolCreateState = { status: 'idle' };
@@ -25,15 +24,8 @@ export function SchoolRegistrationForm() {
         <label className="block text-xs font-bold text-slate-600">School logo (optional)</label>
         <input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp"/>
         <p className="text-xs text-slate-500">If no logo is uploaded, AcademiaOS creates a badge from the school initials.</p>
-        <SchoolInitialsInput
-          nameInputName="name"
-          nameLabel="School name *"
-          namePlaceholder="e.g. Paul Lawrence Academy"
-          codeInputName="code"
-          codeLabel="Unique short code *"
-          codePlaceholder="PLA"
-          codeRequired
-        />
+        <input className="input" name="name" placeholder="School name" required/>
+        <input className="input" name="code" placeholder="Unique code, e.g. PLA" required/>
         <input className="input" name="address" placeholder="Address"/>
         <div className="grid grid-cols-2 gap-3"><input className="input" name="phone" type="tel" placeholder="School telephone"/><input className="input" name="email" type="email" placeholder="School email"/></div>
         <hr/>

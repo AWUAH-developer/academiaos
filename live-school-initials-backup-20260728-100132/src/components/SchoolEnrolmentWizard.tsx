@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { enrolSchoolAction, type EnrolSchoolState } from '@/app/actions/subscriptions';
 import { GhanaDateInput } from '@/components/GhanaDateInput';
-import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
 
 type Pkg  = { id: string; name: string; description: string | null; pricePerTerm: string; pricePerLearner: string | null; maxLearners: number | null; maxStaff: number | null; features: unknown };
 type Addon = { id: string; name: string; description: string | null; pricePerTerm: string };
@@ -108,17 +107,15 @@ export function SchoolEnrolmentWizard({ pkgs, addons }: { pkgs: Pkg[]; addons: A
                   <input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp"/>
                   <p className="mt-1 text-xs text-slate-500">Leave empty to generate a green and yellow initials badge automatically.</p>
                 </div>
-                <SchoolInitialsInput
-                  className="col-span-2"
-                  nameInputName="name"
-                  nameLabel="School name *"
-                  namePlaceholder="e.g. Paul Lawrence Academy"
-                  codeInputName="code"
-                  codeLabel="Short code *"
-                  codePlaceholder="PLA"
-                  codeRequired
-                />
-                <div className="col-span-2 sm:col-span-1">
+                <div className="col-span-2">
+                  <label className="label">School name *</label>
+                  <input className="input" name="name" placeholder="e.g. Blessed Academy" required/>
+                </div>
+                <div>
+                  <label className="label">Short code * <span className="font-normal text-slate-400">(e.g. BLA)</span></label>
+                  <input className="input uppercase" name="code" placeholder="BLA" maxLength={10} required/>
+                </div>
+                <div>
                   <label className="label">Currency</label>
                   <input className="input" name="currency" defaultValue="GHS" placeholder="GHS"/>
                 </div>

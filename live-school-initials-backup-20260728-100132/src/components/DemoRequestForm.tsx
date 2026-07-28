@@ -2,7 +2,6 @@
 import { useActionState } from 'react';
 import { CheckCircle2, Loader2, Send } from 'lucide-react';
 import { submitDemoRequestAction, type DemoRequestState } from '@/app/actions/demo-requests';
-import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
 
 export function DemoRequestForm() {
   const [state, action, pending] = useActionState<DemoRequestState, FormData>(
@@ -29,12 +28,10 @@ export function DemoRequestForm() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <SchoolInitialsInput
-          className="sm:col-span-2"
-          nameInputName="schoolName"
-          nameLabel="School name *"
-          namePlaceholder="e.g. Paul Lawrence Academy"
-        />
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">School name *</label>
+          <input name="schoolName" required placeholder="e.g. Blessed Academy" className="input w-full" />
+        </div>
         <div>
           <label className="mb-1 block text-xs font-bold text-slate-600">Your name *</label>
           <input name="contactName" required placeholder="Contact person" className="input w-full" />
