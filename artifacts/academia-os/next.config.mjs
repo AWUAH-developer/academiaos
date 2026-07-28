@@ -40,6 +40,11 @@ const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   // Allow Replit's proxied dev domains to reach Next.js dev resources (HMR, fonts, etc.)
   allowedDevOrigins: ['*.replit.dev', '*.repl.co', '*.janeway.replit.dev', '127.0.0.1'],
+  // Next.js 16.2.12+ Turbopack requires the monorepo root so it resolves
+  // packages from the correct node_modules when run inside a pnpm workspace.
+  turbopack: {
+    root: new URL('../..', import.meta.url).pathname,
+  },
   experimental: {
     cpus: 1,
     serverActions: {
