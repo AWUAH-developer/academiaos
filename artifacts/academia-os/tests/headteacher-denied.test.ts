@@ -131,7 +131,7 @@ vi.mock('@/db', () => {
     }
     // Terminal awaitable — default empty result
     Object.defineProperty(node, Symbol.iterator, { value: [][Symbol.iterator].bind([]) });
-    (node as Promise<unknown[]> & Record<string, unknown>).then = (resolve: (v: unknown[]) => unknown) => Promise.resolve([]).then(resolve);
+    (node as Record<string, unknown>).then = (onfulfilled?: ((v: unknown[]) => unknown) | null) => Promise.resolve([]).then(onfulfilled);
     return node;
   };
   return { db: chain() };
@@ -219,7 +219,7 @@ describe('GET /api/mobile/v1/homework — HEADTEACHER out-of-scope classId', () 
     });
 
     const { GET } = await import('@/app/api/mobile/v1/homework/route');
-    return GET(request);
+    return GET(request) as Promise<Response>;
   }
 
   it('returns HTTP 403 when classId is outside the Headteacher teaching scope', async () => {
@@ -275,7 +275,7 @@ describe('GET /api/mobile/v1/results — HEADTEACHER with no assigned classes', 
     });
 
     const { GET } = await import('@/app/api/mobile/v1/results/route');
-    const response = await GET(request);
+    const response = await GET(request) as Response;
     const body = await response.json() as { data: { results: unknown[] } };
 
     expect(response.status).toBe(200);
@@ -330,7 +330,7 @@ describe('GET /api/mobile/v1/reports — HEADTEACHER with no assigned classes', 
     });
 
     const { GET } = await import('@/app/api/mobile/v1/reports/route');
-    const response = await GET(request);
+    const response = await GET(request) as Response;
     const body = await response.json() as { data: { reports: unknown[] } };
 
     expect(response.status).toBe(200);
