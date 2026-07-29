@@ -86,9 +86,12 @@ export async function GET(
     );
   }
 
-  // HEADTEACHER has no school-wide monitoring: material outside their own
-  // class+subject assignments is denied with 403 + audit.
-  if (auth.context.user.role === "HEADTEACHER") {
+  // TEACHER and HEADTEACHER have no school-wide monitoring: material outside
+  // their own class+subject assignments is denied with 403 + audit.
+  if (
+    auth.context.user.role === "TEACHER" ||
+    auth.context.user.role === "HEADTEACHER"
+  ) {
     const scope = await teachingScope(auth.context.user.id, schoolId);
 
     if (!inTeachingScope(scope, row.classId, row.subjectId)) {

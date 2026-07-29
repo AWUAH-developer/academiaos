@@ -73,9 +73,12 @@ export async function GET(request: NextRequest) {
     eq(homework.status, "PUBLISHED")
   ];
 
-  // HEADTEACHER has no school-wide monitoring: scope to their own official
-  // class+subject assignments, with 403 + audit for out-of-scope requests.
-  if (auth.context.user.role === "HEADTEACHER") {
+  // TEACHER and HEADTEACHER have no school-wide monitoring: scope to their own
+  // official class+subject assignments, with 403 + audit for out-of-scope requests.
+  if (
+    auth.context.user.role === "TEACHER" ||
+    auth.context.user.role === "HEADTEACHER"
+  ) {
     const scope = await teachingScope(auth.context.user.id, schoolId);
 
     if (classId && !inTeachingScope(scope, classId)) {
