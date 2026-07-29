@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, CSSProperties } from 'react';
 
 // Each character of the wordmark including the terminal dot
 const CHARS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S', '.'];
@@ -19,7 +19,16 @@ function isYellow(index: number) {
   return index >= 8;
 }
 
-export function DevourLogo({ className = '' }: { className?: string }) {
+export function DevourLogo({
+  className = '',
+  variant = 'dark',
+}: {
+  className?: string;
+  /** 'light' = cream Academia letters, for dark surfaces (nav, hero)
+   *  'dark'  = navy Academia letters, for light surfaces (logo-preview)
+   *  Default is 'dark' to preserve existing logo-preview behaviour. */
+  variant?: 'light' | 'dark';
+}) {
   const [mode, setMode] = useState<Mode>('hold');
   const [step, setStep] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -103,6 +112,11 @@ export function DevourLogo({ className = '' }: { className?: string }) {
       className={`devour-logo ${className}`.trim()}
       role="img"
       aria-label="AcademiaOS."
+      style={
+        {
+          '--devour-academia': variant === 'light' ? '#fff8ea' : '#171a3b',
+        } as CSSProperties
+      }
     >
       <span className="devour-word" aria-hidden="true">
         {CHARS.map((char, index) => (

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { LockKeyhole } from 'lucide-react';
-import { Brand } from '@/components/Brand';
+import { DevourLogo } from '@/components/DevourLogo';
 
 // Animated nav — slides down + logo pulses in
 export function AnimatedNav({ user }: { user: { name: string } | null }) {
@@ -33,7 +33,18 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 sm:px-8">
         <Link href="/" className="flex items-center gap-3 group">
-          <Brand variant="light" showTagline={false} />
+          <div className="shrink-0 overflow-hidden rounded-2xl shadow-lg shadow-black/20">
+            <Image
+              src="/brand-logo.jpg"
+              alt="AcademiaOS logo"
+              width={44}
+              height={44}
+              unoptimized
+              priority
+              className="h-11 w-11 object-cover"
+            />
+          </div>
+          <DevourLogo variant="light" className="text-xl font-black tracking-tight" />
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">
