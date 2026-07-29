@@ -24,6 +24,7 @@ import {
   users,
 } from '@/db/schema';
 import type { UserRole, UserStatus } from '@/lib/types';
+import { canUseDesktop } from '@/lib/platform-access';
 import { cleanText } from '@/lib/validation';
 
 // ── Token prefix ─────────────────────────────────────────────────────────────
@@ -250,6 +251,21 @@ export async function authenticateDesktopRequest(
   if (row.accessExpiresAt <= now) {
     return { response: desktopError(401, 'TOKEN_EXPIRED', 'The access token has expired.') } as const;
   }
+  if (!canUseDesktop(row.role as UserRole)) {
+    await db
+      .update(mobileSessions)
+      .set({ revokedAt: now, updatedAt: now })
+      .where(eq(mobileSessions.id, row.sessionId));
+
+    return {
+      response: desktopError(
+        403,
+        'DESKTOP_ACCESS_NOT_ALLOWED',
+        'This account uses AcademiaOS Mobile. Desktop access is limited to Super Admin, School Administrator, Proprietor and Academic Administrator.'
+      )
+    } as const;
+  }
+
   if (row.status !== 'ACTIVE' || (row.schoolId && row.schoolActive === false)) {
     await db.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.id, row.sessionId));
     return { response: desktopError(403, 'ACCOUNT_UNAVAILABLE', 'The account or school is not active.') } as const;
@@ -284,6 +300,21 @@ export async function rotateDesktopSession(refreshToken: string, request: NextRe
     await db.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.id, row.sessionId));
     return { response: desktopError(401, 'REFRESH_TOKEN_REUSED', 'This session has been revoked. Sign in again.') } as const;
   }
+  if (!canUseDesktop(row.role as UserRole)) {
+    await db
+      .update(mobileSessions)
+      .set({ revokedAt: now, updatedAt: now })
+      .where(eq(mobileSessions.id, row.sessionId));
+
+    return {
+      response: desktopError(
+        403,
+        'DESKTOP_ACCESS_NOT_ALLOWED',
+        'This account is not permitted to use the AcademiaOS desktop application.'
+      )
+    } as const;
+  }
+
   if (row.refreshExpiresAt <= now || row.status !== 'ACTIVE' || (row.schoolId && row.schoolActive === false)) {
     await db.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.id, row.sessionId));
     return { response: desktopError(401, 'REFRESH_TOKEN_EXPIRED', 'The session has expired. Sign in again.') } as const;

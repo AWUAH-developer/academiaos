@@ -5,7 +5,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import {
-  packageAddons, packages, schoolSubscriptions, schools,
+  packageAddons, packages, schoolManagementControls, schoolSubscriptions, schools,
   subscriptionAddons, subscriptionPayments, users,
 } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
@@ -58,6 +58,9 @@ export async function enrolSchoolAction(
   const adminPhone = normalizePhone(formData.get('adminPhone'));
   const adminEmail = normalizeEmail(formData.get('adminEmail'));
   const adminRole  = (formData.get('adminRole') as string) || 'SCHOOL_ADMIN';
+
+  const authoriseFirstAdminForStaffAttendance =
+    formData.get('authoriseFirstAdminForStaffAttendance') === 'on';
 
   // Package & subscription
   const packageId    = cleanText(formData.get('packageId'), 36);
@@ -132,13 +135,24 @@ export async function enrolSchoolAction(
       }).returning({ id: schools.id });
 
       // 2. Create admin user
-      await tx.insert(users).values({
+      const [adminUser] = await tx.insert(users).values({
         schoolId: school.id, name: adminName, username,
         email: adminEmail, phone: adminPhone,
         photoUrl: adminPhotoUrl, passwordHash,
         role: adminRole, status: 'ACTIVE',
         mustChangePassword: true,
         temporaryPasswordExpiresAt: tempExpiry,
+      }).returning({ id: users.id });
+
+      // Security-role users are always authorised. This optional setting
+      // designates the first administrator as the additional attendance officer.
+      await tx.insert(schoolManagementControls).values({
+        schoolId: school.id,
+        staffAttendanceOfficerId:
+          authoriseFirstAdminForStaffAttendance
+            ? adminUser.id
+            : null,
+        updatedById: actor.id,
       });
 
       // 3. Create subscription

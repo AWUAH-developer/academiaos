@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { academicYears, classes, feeCategories, feeStructures, schools, subjects, curriculumTopics, teacherAssignments, terms, users } from '@/db/schema';
+import { academicYears, classes, feeCategories, feeStructures, schoolManagementControls, schools, subjects, curriculumTopics, teacherAssignments, terms, users } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { imageToDataUrl, ImageUploadError } from '@/lib/images';
@@ -62,6 +62,100 @@ export async function updateSchoolAction(formData: FormData) {
   revalidatePath('/setup');
   revalidatePath('/dashboard');
   redirect('/setup?success=School+settings+updated');
+}
+
+export async function assignStaffAttendanceOfficerAction(
+  formData: FormData
+) {
+  const actor = await requireUser();
+
+  if (actor.role !== 'SUPER_ADMIN') {
+    redirect('/dashboard');
+  }
+
+  const schoolId = await getActiveSchoolId(actor);
+  const officerId =
+    String(formData.get('officerId') || '') || null;
+
+  const current = (
+    await db
+      .select({
+        officerId:
+          schoolManagementControls.staffAttendanceOfficerId
+      })
+      .from(schoolManagementControls)
+      .where(eq(
+        schoolManagementControls.schoolId,
+        schoolId
+      ))
+      .limit(1)
+  )[0];
+
+  if (officerId) {
+    const officer = (
+      await db
+        .select({
+          id: users.id,
+          name: users.name,
+          role: users.role
+        })
+        .from(users)
+        .where(and(
+          eq(users.id, officerId),
+          eq(users.schoolId, schoolId),
+          eq(users.status, 'ACTIVE')
+        ))
+        .limit(1)
+    )[0];
+
+    if (
+      !officer ||
+      ['PARENT', 'LEARNER'].includes(officer.role)
+    ) {
+      redirect(
+        '/setup?error=Select+a+valid+active+staff+member'
+      );
+    }
+  }
+
+  await db
+    .insert(schoolManagementControls)
+    .values({
+      schoolId,
+      staffAttendanceOfficerId: officerId,
+      updatedById: actor.id
+    })
+    .onConflictDoUpdate({
+      target: schoolManagementControls.schoolId,
+      set: {
+        staffAttendanceOfficerId: officerId,
+        updatedById: actor.id,
+        updatedAt: new Date()
+      }
+    });
+
+  await audit({
+    schoolId,
+    userId: actor.id,
+    action: 'STAFF_ATTENDANCE_OFFICER_UPDATED',
+    entityType: 'SchoolManagementControl',
+    entityId: schoolId,
+    oldValue: {
+      officerId: current?.officerId || null
+    },
+    newValue: {
+      officerId
+    }
+  });
+
+  revalidatePath('/setup');
+  revalidatePath('/staff-attendance');
+
+  redirect(
+    officerId
+      ? '/setup?success=Authorised+staff+attendance+officer+saved'
+      : '/setup?success=Additional+attendance+officer+cleared'
+  );
 }
 
 export async function createAcademicYearAction(formData: FormData) {

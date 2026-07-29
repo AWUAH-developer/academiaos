@@ -355,6 +355,43 @@ export const transportScans = pgTable('transport_scans', {
   notificationStatus: text('notification_status').notNull().default('QUEUED')
 }, (t) => [index('transport_scan_time_idx').on(t.schoolId, t.scannedAt, t.type)]);
 
+export const schoolEvents = pgTable('school_events', {
+  id: id(),
+  schoolId: text('school_id')
+    .notNull()
+    .references(() => schools.id, { onDelete: 'cascade' }),
+  createdById: text('created_by_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+  publishedById: text('published_by_id')
+    .references(() => users.id, { onDelete: 'set null' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  eventType: text('event_type').notNull().default('SCHOOL_EVENT'),
+  audience: text('audience').notNull().default('ALL'),
+  venue: text('venue'),
+  startsAt: timestamp('starts_at', {
+    withTimezone: true
+  }).notNull(),
+  endsAt: timestamp('ends_at', {
+    withTimezone: true
+  }),
+  status: text('status').notNull().default('DRAFT'),
+  publishedAt: timestamp('published_at', {
+    withTimezone: true
+  }),
+  cancelledAt: timestamp('cancelled_at', {
+    withTimezone: true
+  }),
+  createdAt: created(),
+  updatedAt: updated()
+}, (t) => [
+  index('school_event_school_start_idx')
+    .on(t.schoolId, t.startsAt),
+  index('school_event_audience_status_idx')
+    .on(t.schoolId, t.audience, t.status)
+]);
+
 export const messages = pgTable('messages', {
   id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), senderId: text('sender_id').notNull().references(() => users.id),
   channel: text('channel').notNull(), audience: text('audience').notNull(), recipient: text('recipient'), subject: text('subject'), body: text('body').notNull(),
@@ -380,6 +417,9 @@ export const schoolManagementControls = pgTable('school_management_controls', {
 
   allowProprietorLearners: boolean('allow_proprietor_learners').notNull().default(false),
   allowProprietorStaff: boolean('allow_proprietor_staff').notNull().default(false),
+
+  staffAttendanceOfficerId: text('staff_attendance_officer_id')
+    .references(() => users.id, { onDelete: 'set null' }),
 
   updatedById: text('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
   unlockedAt: timestamp('unlocked_at', { withTimezone: true }),

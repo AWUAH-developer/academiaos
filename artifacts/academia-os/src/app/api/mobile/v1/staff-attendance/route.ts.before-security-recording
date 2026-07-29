@@ -1,0 +1,779 @@
+import {
+  and,
+  desc,
+  eq,
+  inArray
+} from 'drizzle-orm';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { db } from '@/db';
+import {
+  notifications,
+  staffAttendanceRecords,
+  staffMovementRequests,
+  users
+} from '@/db/schema';
+import { audit } from '@/lib/auth';
+import {
+  authenticateMobileRequest,
+  mobileError,
+  mobileJson,
+  resolveMobileSchoolId
+} from '@/lib/mobile-api';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const STAFF_ROLES = new Set([
+  'SCHOOL_ADMIN',
+  'PROPRIETOR',
+  'HEADTEACHER',
+  'ACADEMIC_ADMIN',
+  'TEACHER',
+  'ACCOUNTS',
+  'TRANSPORT',
+  'SECURITY',
+  'RECEPTIONIST',
+  'LIBRARIAN',
+  'CANTEEN'
+]);
+
+const SUPERVISOR_ROLES = new Set([
+  'SUPER_ADMIN',
+  'SCHOOL_ADMIN',
+  'PROPRIETOR',
+  'HEADTEACHER'
+]);
+
+const postSchema = z.discriminatedUnion(
+  'action',
+  [
+    z.object({
+      action: z.literal('SCAN'),
+      scanAction: z.enum([
+        'ARRIVAL',
+        'DEPARTURE'
+      ])
+    }),
+
+    z.object({
+      action: z.literal(
+        'REQUEST_MOVEMENT'
+      ),
+      reason: z
+        .string()
+        .trim()
+        .min(5)
+        .max(1000),
+      requestedDepartureAt:
+        z.string().datetime(),
+      expectedReturnAt:
+        z.string().datetime().nullable()
+    }),
+
+    z.object({
+      action: z.literal(
+        'DECIDE_MOVEMENT'
+      ),
+      requestId: z.string().uuid(),
+      decision: z.enum([
+        'APPROVE',
+        'REJECT'
+      ]),
+      decisionReason:
+        z.string().trim().max(1000)
+    }),
+
+    z.object({
+      action: z.literal(
+        'RECORD_RETURN'
+      ),
+      requestId: z.string().uuid()
+    })
+  ]
+);
+
+function canUseStaffAttendance(
+  role: string
+) {
+  return (
+    role === 'SUPER_ADMIN' ||
+    STAFF_ROLES.has(role)
+  );
+}
+
+function todayUtc() {
+  const date = new Date();
+
+  date.setUTCHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  return date;
+}
+
+function selectedDate(
+  request: NextRequest
+) {
+  const value =
+    request.nextUrl.searchParams.get(
+      'date'
+    );
+
+  if (
+    value &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    const parsed = new Date(
+      `${value}T00:00:00.000Z`
+    );
+
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  return todayUtc();
+}
+
+async function notifySupervisors(
+  schoolId: string,
+  requesterId: string,
+  requesterName: string,
+  reason: string
+) {
+  const supervisors = await db
+    .select({
+      id: users.id
+    })
+    .from(users)
+    .where(and(
+      eq(users.schoolId, schoolId),
+      eq(users.status, 'ACTIVE'),
+      inArray(
+        users.role,
+        [
+          'SCHOOL_ADMIN',
+          'PROPRIETOR',
+          'HEADTEACHER'
+        ]
+      )
+    ));
+
+  const recipients = supervisors
+    .map((row) => row.id)
+    .filter(
+      (id) => id !== requesterId
+    );
+
+  if (!recipients.length) {
+    return;
+  }
+
+  await db.insert(notifications).values(
+    recipients.map((userId) => ({
+      schoolId,
+      userId,
+      type: 'STAFF_MOVEMENT',
+      title:
+        `${requesterName} requested permission to leave`,
+      body: reason,
+      link: '/staff-attendance'
+    }))
+  );
+}
+
+export async function GET(
+  request: NextRequest
+) {
+  const auth =
+    await authenticateMobileRequest(
+      request
+    );
+
+  if ('response' in auth) {
+    return auth.response;
+  }
+
+  const role =
+    auth.context.user.role;
+
+  if (!canUseStaffAttendance(role)) {
+    return mobileError(
+      403,
+      'PERMISSION_DENIED',
+      'This account cannot use staff attendance.'
+    );
+  }
+
+  const schoolId =
+    await resolveMobileSchoolId(
+      auth.context,
+      request
+    );
+
+  if (!schoolId) {
+    return mobileError(
+      400,
+      'SCHOOL_REQUIRED',
+      'This account must select an active school.'
+    );
+  }
+
+  const date = selectedDate(request);
+
+  const isSupervisor =
+    SUPERVISOR_ROLES.has(role);
+
+  const attendanceConditions = [
+    eq(
+      staffAttendanceRecords.schoolId,
+      schoolId
+    ),
+    eq(
+      staffAttendanceRecords.date,
+      date
+    )
+  ];
+
+  const movementConditions = [
+    eq(
+      staffMovementRequests.schoolId,
+      schoolId
+    )
+  ];
+
+  if (!isSupervisor) {
+    attendanceConditions.push(
+      eq(
+        staffAttendanceRecords.staffId,
+        auth.context.user.id
+      )
+    );
+
+    movementConditions.push(
+      eq(
+        staffMovementRequests.staffId,
+        auth.context.user.id
+      )
+    );
+  }
+
+  const [
+    attendance,
+    movements
+  ] = await Promise.all([
+    db
+      .select({
+        id: staffAttendanceRecords.id,
+        staffId:
+          staffAttendanceRecords.staffId,
+        staffName: users.name,
+        staffRole: users.role,
+        date: staffAttendanceRecords.date,
+        status:
+          staffAttendanceRecords.status,
+        arrivalTime:
+          staffAttendanceRecords.arrivalTime,
+        departureTime:
+          staffAttendanceRecords.departureTime,
+        lateArrival:
+          staffAttendanceRecords.lateArrival,
+        earlyDeparture:
+          staffAttendanceRecords.earlyDeparture,
+        reason:
+          staffAttendanceRecords.reason
+      })
+      .from(staffAttendanceRecords)
+      .innerJoin(
+        users,
+        eq(
+          staffAttendanceRecords.staffId,
+          users.id
+        )
+      )
+      .where(and(
+        ...attendanceConditions
+      ))
+      .orderBy(users.name),
+
+    db
+      .select({
+        id: staffMovementRequests.id,
+        staffId:
+          staffMovementRequests.staffId,
+        staffName: users.name,
+        staffRole: users.role,
+        reason:
+          staffMovementRequests.reason,
+        requestedDepartureAt:
+          staffMovementRequests
+            .requestedDepartureAt,
+        expectedReturnAt:
+          staffMovementRequests
+            .expectedReturnAt,
+        actualDepartureAt:
+          staffMovementRequests
+            .actualDepartureAt,
+        actualReturnAt:
+          staffMovementRequests
+            .actualReturnAt,
+        status:
+          staffMovementRequests.status,
+        approvedById:
+          staffMovementRequests
+            .approvedById,
+        decisionReason:
+          staffMovementRequests
+            .decisionReason,
+        decidedAt:
+          staffMovementRequests.decidedAt,
+        createdAt:
+          staffMovementRequests.createdAt
+      })
+      .from(staffMovementRequests)
+      .innerJoin(
+        users,
+        eq(
+          staffMovementRequests.staffId,
+          users.id
+        )
+      )
+      .where(and(
+        ...movementConditions
+      ))
+      .orderBy(desc(
+        staffMovementRequests.createdAt
+      ))
+      .limit(100)
+  ]);
+
+  return mobileJson({
+    data: {
+      isSupervisor,
+      selectedDate:
+        date.toISOString().slice(0, 10),
+      attendance,
+      movements
+    }
+  });
+}
+
+export async function POST(
+  request: NextRequest
+) {
+  const auth =
+    await authenticateMobileRequest(
+      request
+    );
+
+  if ('response' in auth) {
+    return auth.response;
+  }
+
+  const role =
+    auth.context.user.role;
+
+  if (!canUseStaffAttendance(role)) {
+    return mobileError(
+      403,
+      'PERMISSION_DENIED',
+      'This account cannot use staff attendance.'
+    );
+  }
+
+  const schoolId =
+    await resolveMobileSchoolId(
+      auth.context,
+      request
+    );
+
+  if (!schoolId) {
+    return mobileError(
+      400,
+      'SCHOOL_REQUIRED',
+      'This account must select an active school.'
+    );
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return mobileError(
+      400,
+      'INVALID_JSON',
+      'Send a valid JSON request body.'
+    );
+  }
+
+  const parsed =
+    postSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return mobileError(
+      400,
+      'INVALID_STAFF_ATTENDANCE_ACTION',
+      'Enter valid staff attendance information.'
+    );
+  }
+
+  if (parsed.data.action === 'SCAN') {
+    const date = todayUtc();
+    const now = new Date();
+
+    await db
+      .insert(staffAttendanceRecords)
+      .values({
+        schoolId,
+        staffId: auth.context.user.id,
+        date,
+        status: 'PRESENT',
+        arrivalTime:
+          parsed.data.scanAction ===
+          'ARRIVAL'
+            ? now
+            : null,
+        departureTime:
+          parsed.data.scanAction ===
+          'DEPARTURE'
+            ? now
+            : null,
+        recordedById:
+          auth.context.user.id
+      })
+      .onConflictDoUpdate({
+        target: [
+          staffAttendanceRecords.staffId,
+          staffAttendanceRecords.date
+        ],
+        set:
+          parsed.data.scanAction ===
+          'ARRIVAL'
+            ? {
+                arrivalTime: now,
+                status: 'PRESENT',
+                recordedById:
+                  auth.context.user.id,
+                updatedAt: now
+              }
+            : {
+                departureTime: now,
+                recordedById:
+                  auth.context.user.id,
+                updatedAt: now
+              }
+      });
+
+    await audit({
+      schoolId,
+      userId: auth.context.user.id,
+      action:
+        `STAFF_${parsed.data.scanAction}`,
+      entityType: 'StaffAttendance',
+      entityId: auth.context.user.id,
+      newValue: {
+        source: 'MOBILE',
+        time: now
+      }
+    });
+
+    return mobileJson(
+      {
+        data: {
+          recorded: true,
+          scanAction:
+            parsed.data.scanAction,
+          recordedAt: now
+        }
+      },
+      201
+    );
+  }
+
+  if (
+    parsed.data.action ===
+    'REQUEST_MOVEMENT'
+  ) {
+    if (!STAFF_ROLES.has(role)) {
+      return mobileError(
+        403,
+        'STAFF_REQUIRED',
+        'Only school staff can request movement permission.'
+      );
+    }
+
+    const departure = new Date(
+      parsed.data.requestedDepartureAt
+    );
+
+    const expectedReturn =
+      parsed.data.expectedReturnAt
+        ? new Date(
+            parsed.data.expectedReturnAt
+          )
+        : null;
+
+    if (
+      Number.isNaN(departure.getTime()) ||
+      (
+        expectedReturn &&
+        (
+          Number.isNaN(
+            expectedReturn.getTime()
+          ) ||
+          expectedReturn <= departure
+        )
+      )
+    ) {
+      return mobileError(
+        400,
+        'INVALID_MOVEMENT_TIME',
+        'Enter valid departure and return times.'
+      );
+    }
+
+    const [movement] = await db
+      .insert(staffMovementRequests)
+      .values({
+        schoolId,
+        staffId: auth.context.user.id,
+        reason: parsed.data.reason,
+        requestedDepartureAt: departure,
+        expectedReturnAt: expectedReturn
+      })
+      .returning({
+        id: staffMovementRequests.id
+      });
+
+    await notifySupervisors(
+      schoolId,
+      auth.context.user.id,
+      auth.context.user.name,
+      parsed.data.reason
+    );
+
+    await audit({
+      schoolId,
+      userId: auth.context.user.id,
+      action:
+        'STAFF_MOVEMENT_REQUESTED',
+      entityType: 'StaffMovement',
+      entityId: movement.id,
+      newValue: {
+        source: 'MOBILE',
+        reason: parsed.data.reason,
+        departure,
+        expectedReturn
+      }
+    });
+
+    return mobileJson(
+      {
+        data: {
+          requested: true,
+          requestId: movement.id
+        }
+      },
+      201
+    );
+  }
+
+  if (
+    parsed.data.action ===
+    'DECIDE_MOVEMENT'
+  ) {
+    if (!SUPERVISOR_ROLES.has(role)) {
+      return mobileError(
+        403,
+        'SUPERVISOR_REQUIRED',
+        'Only an authorised supervisor can decide movement requests.'
+      );
+    }
+
+    if (
+      parsed.data.decision ===
+        'REJECT' &&
+      !parsed.data.decisionReason
+    ) {
+      return mobileError(
+        400,
+        'REJECTION_REASON_REQUIRED',
+        'A rejection reason is required.'
+      );
+    }
+
+    const movement = (
+      await db
+        .select()
+        .from(staffMovementRequests)
+        .where(and(
+          eq(
+            staffMovementRequests.id,
+            parsed.data.requestId
+          ),
+          eq(
+            staffMovementRequests.schoolId,
+            schoolId
+          )
+        ))
+        .limit(1)
+    )[0];
+
+    if (
+      !movement ||
+      movement.status !== 'PENDING'
+    ) {
+      return mobileError(
+        409,
+        'MOVEMENT_NOT_PENDING',
+        'This movement request is no longer pending.'
+      );
+    }
+
+    const now = new Date();
+
+    const status =
+      parsed.data.decision ===
+      'APPROVE'
+        ? 'APPROVED'
+        : 'REJECTED';
+
+    await db
+      .update(staffMovementRequests)
+      .set({
+        status,
+        approvedById:
+          auth.context.user.id,
+        decisionReason:
+          parsed.data.decisionReason ||
+          null,
+        decidedAt: now,
+        actualDepartureAt:
+          status === 'APPROVED'
+            ? now
+            : null,
+        updatedAt: now
+      })
+      .where(eq(
+        staffMovementRequests.id,
+        movement.id
+      ));
+
+    await db.insert(notifications).values({
+      schoolId,
+      userId: movement.staffId,
+      type: 'STAFF_MOVEMENT',
+      title:
+        status === 'APPROVED'
+          ? 'Movement request approved'
+          : 'Movement request rejected',
+      body:
+        parsed.data.decisionReason ||
+        (
+          status === 'APPROVED'
+            ? 'Your permission request was approved.'
+            : 'Your permission request was rejected.'
+        ),
+      link: '/staff-attendance'
+    });
+
+    await audit({
+      schoolId,
+      userId: auth.context.user.id,
+      action:
+        `STAFF_MOVEMENT_${parsed.data.decision}D`,
+      entityType: 'StaffMovement',
+      entityId: movement.id,
+      newValue: {
+        source: 'MOBILE',
+        decisionReason:
+          parsed.data.decisionReason
+      }
+    });
+
+    return mobileJson({
+      data: {
+        decided: true,
+        status
+      }
+    });
+  }
+
+  const movement = (
+    await db
+      .select()
+      .from(staffMovementRequests)
+      .where(and(
+        eq(
+          staffMovementRequests.id,
+          parsed.data.requestId
+        ),
+        eq(
+          staffMovementRequests.schoolId,
+          schoolId
+        )
+      ))
+      .limit(1)
+  )[0];
+
+  if (
+    !movement ||
+    movement.status !== 'APPROVED'
+  ) {
+    return mobileError(
+      409,
+      'MOVEMENT_NOT_APPROVED',
+      'This movement request cannot be closed.'
+    );
+  }
+
+  if (
+    movement.staffId !==
+      auth.context.user.id &&
+    !SUPERVISOR_ROLES.has(role)
+  ) {
+    return mobileError(
+      403,
+      'PERMISSION_DENIED',
+      'You cannot close this movement request.'
+    );
+  }
+
+  const returnedAt = new Date();
+
+  await db
+    .update(staffMovementRequests)
+    .set({
+      status: 'RETURNED',
+      actualReturnAt: returnedAt,
+      updatedAt: returnedAt
+    })
+    .where(eq(
+      staffMovementRequests.id,
+      movement.id
+    ));
+
+  await audit({
+    schoolId,
+    userId: auth.context.user.id,
+    action: 'STAFF_RETURN_RECORDED',
+    entityType: 'StaffMovement',
+    entityId: movement.id,
+    newValue: {
+      source: 'MOBILE',
+      returnedAt
+    }
+  });
+
+  return mobileJson({
+    data: {
+      returned: true,
+      returnedAt
+    }
+  });
+}

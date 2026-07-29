@@ -16,7 +16,8 @@ export const mobileLoginSchema = z.object({
   deviceIdentifier: z.string().trim().min(8).max(128).regex(/^[A-Za-z0-9._:-]+$/),
   deviceName: z.string().trim().max(120).optional(),
   platform: z.enum(['android', 'ios']),
-  appVersion: z.string().trim().max(40).optional()
+  appVersion: z.string().trim().max(40).optional(),
+  accountType: z.enum(['PARENT', 'STAFF']).optional()
 });
 
 export const mobileRefreshSchema = z.object({ refreshToken: z.string().min(60).max(300) });

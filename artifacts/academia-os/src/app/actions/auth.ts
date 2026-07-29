@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { db } from '@/db';
 import { loginAttempts, mobileSessions, schools, sessions, users } from '@/db/schema';
 import { audit, createSession, destroySession, requireUser } from '@/lib/auth';
+import { canUseWeb } from '@/lib/platform-access';
 import { cleanText } from '@/lib/validation';
 
 const loginSchema = z.object({
@@ -73,10 +74,13 @@ export async function loginAction(formData: FormData) {
     user && passwordValid &&
     user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt <= now
   );
-  const success = Boolean(
+  const credentialsAccepted = Boolean(
     user && passwordValid && !locked && !temporaryPasswordExpired &&
     user.status === 'ACTIVE' && schoolActive
   );
+
+  const platformAllowed = Boolean(user && canUseWeb(user.role));
+  const success = credentialsAccepted && platformAllowed;
 
   await db.insert(loginAttempts).values({
     schoolId: user?.schoolId,
@@ -88,6 +92,23 @@ export async function loginAction(formData: FormData) {
   });
 
   if (!success) {
+    if (user && credentialsAccepted && !platformAllowed) {
+      await audit({
+        schoolId: user.schoolId,
+        userId: user.id,
+        action: 'WEB_LOGIN_BLOCKED_PLATFORM_POLICY',
+        entityType: 'User',
+        entityId: user.id,
+        newValue: { role: user.role }
+      });
+
+      if (user.role === 'LEARNER') {
+        redirect('/login?error=Learners+do+not+use+AcademiaOS+login+accounts.+Parents+or+guardians+access+their+information');
+      }
+
+      redirect('/login?error=This+account+uses+AcademiaOS+Mobile.+Web+access+is+limited+to+Super+Admin,+School+Administrator,+Proprietor+and+Academic+Administrator');
+    }
+
     if (user) {
       const failed = user.failedLoginCount + 1;
       await db.update(users).set({
@@ -130,7 +151,7 @@ export async function changePasswordAction(formData: FormData) {
   const confirmPassword = String(formData.get('confirmPassword') || '');
 
   if (newPassword.length < 8 || newPassword.length > 128 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
-    redirect('/account/change-password?error=Use+12+to+128+characters+with+upper+case,+lower+case+and+a+number');
+    redirect('/account/change-password?error=Use+8+to+128+characters+with+upper+case,+lower+case+and+a+number');
   }
   if (newPassword !== confirmPassword) redirect('/account/change-password?error=New+password+confirmation+does+not+match');
 

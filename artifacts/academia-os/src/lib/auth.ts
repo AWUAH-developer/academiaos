@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import { auditLogs, schools, sessions, users } from '@/db/schema';
+import { canUseWeb } from '@/lib/platform-access';
 import type { UserRole, UserStatus } from '@/lib/types';
 
 const DEFAULT_COOKIE_NAME = process.env.NODE_ENV === 'production' ? '__Host-academiaos_session' : 'academiaos_session';
@@ -126,7 +127,13 @@ export async function currentUser(): Promise<AuthUser | null> {
   const temporaryAccessExpired = Boolean(
     row?.temporaryPasswordExpiresAt && row.temporaryPasswordExpiresAt <= new Date()
   );
-  if (!row || temporaryAccessExpired || row.status !== 'ACTIVE' || (row.schoolId && row.schoolIsActive === false)) {
+  if (
+    !row ||
+    temporaryAccessExpired ||
+    row.status !== 'ACTIVE' ||
+    (row.schoolId && row.schoolIsActive === false) ||
+    !canUseWeb(row.role as UserRole)
+  ) {
     if (row) await db.delete(sessions).where(eq(sessions.id, row.sessionId));
     // Cookie writes are only allowed in Server Actions/Route Handlers, not Server Components.
     // The session row is already deleted; the cookie will expire naturally if deletion fails here.

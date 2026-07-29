@@ -14,6 +14,7 @@ import {
   users
 } from '@/db/schema';
 import type { UserRole, UserStatus } from '@/lib/types';
+import { canUseMobile } from '@/lib/platform-access';
 import { cleanText } from '@/lib/validation';
 import { MOBILE_ACCESS_PREFIX, MOBILE_REFRESH_PREFIX, parseMobileToken } from '@/lib/mobile-auth-shared';
 export { mobileLoginSchema, mobileRefreshSchema, parseMobileToken } from '@/lib/mobile-auth-shared';
@@ -255,6 +256,21 @@ export async function authenticateMobileRequest(request: NextRequest, options: {
     return { response: mobileError(401, 'INVALID_TOKEN', 'The access token is invalid.') } as const;
   }
   if (row.accessExpiresAt <= now) return { response: mobileError(401, 'TOKEN_EXPIRED', 'The access token has expired.') } as const;
+  if (!canUseMobile(row.role as UserRole)) {
+    await db
+      .update(mobileSessions)
+      .set({ revokedAt: now, updatedAt: now })
+      .where(eq(mobileSessions.id, row.sessionId));
+
+    return {
+      response: mobileError(
+        403,
+        'MOBILE_ACCESS_NOT_ALLOWED',
+        'Learners do not use AcademiaOS login accounts. A linked parent or guardian accesses learner information.'
+      )
+    } as const;
+  }
+
   if (row.status !== 'ACTIVE' || (row.schoolId && row.schoolActive === false)) {
     await db.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.id, row.sessionId));
     return { response: mobileError(403, 'ACCOUNT_UNAVAILABLE', 'The account or school is not active.') } as const;
@@ -281,6 +297,21 @@ export async function rotateMobileSession(refreshToken: string, request: NextReq
     await db.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.id, row.sessionId));
     return { response: mobileError(401, 'REFRESH_TOKEN_REUSED', 'This session has been revoked. Sign in again.') } as const;
   }
+  if (!canUseMobile(row.role as UserRole)) {
+    await db
+      .update(mobileSessions)
+      .set({ revokedAt: now, updatedAt: now })
+      .where(eq(mobileSessions.id, row.sessionId));
+
+    return {
+      response: mobileError(
+        403,
+        'MOBILE_ACCESS_NOT_ALLOWED',
+        'This account is not permitted to use AcademiaOS Mobile.'
+      )
+    } as const;
+  }
+
   if (row.refreshExpiresAt <= now || row.status !== 'ACTIVE' || (row.schoolId && row.schoolActive === false)) {
     await db.update(mobileSessions).set({ revokedAt: now, updatedAt: now }).where(eq(mobileSessions.id, row.sessionId));
     return { response: mobileError(401, 'REFRESH_TOKEN_EXPIRED', 'The session has expired. Sign in again.') } as const;

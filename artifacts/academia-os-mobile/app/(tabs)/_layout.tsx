@@ -1,9 +1,146 @@
 import React from 'react';
-import { Redirect, Tabs } from 'expo-router';
-import { Text } from 'react-native';
-import { useAuth } from '@/auth/AuthContext';
-import { colors } from '@/theme';
-const Icon=({symbol,color}:{symbol:string;color:string})=><Text style={{fontSize:20,color}}>{symbol}</Text>;
-export default function TabsLayout(){const{user,loading}=useAuth();if(loading)return null;if(!user)return <Redirect href="/login"/>;if(user.mustChangePassword)return <Redirect href="/change-password"/>;return <Tabs screenOptions={{headerStyle:{backgroundColor:colors.navy},headerTintColor:'#fff',headerTitleStyle:{fontWeight:'800'},tabBarActiveTintColor:colors.green,tabBarInactiveTintColor:colors.muted,tabBarStyle:{height:68,paddingTop:6,paddingBottom:8,borderTopColor:colors.border},tabBarLabelStyle:{fontSize:11,fontWeight:'700'}}}>
-<Tabs.Screen name="home" options={{title:'Home',tabBarIcon:({color})=><Icon symbol="⌂" color={color}/>}}/><Tabs.Screen name="learners" options={{title:'Learners',tabBarIcon:({color})=><Icon symbol="♙" color={color}/>}}/><Tabs.Screen name="notifications" options={{title:'Alerts',tabBarIcon:({color})=><Icon symbol="●" color={color}/>}}/><Tabs.Screen name="profile" options={{title:'Profile',tabBarIcon:({color})=><Icon symbol="◎" color={color}/>}}/>
-</Tabs>}
+import {
+  Redirect,
+  Tabs
+} from 'expo-router';
+import {
+  Text,
+  type ColorValue
+} from 'react-native';
+import {
+  useAuth
+} from '@/auth/AuthContext';
+import {
+  canViewLearners
+} from '@/lib/permissions';
+import {
+  colors
+} from '@/theme';
+
+function Icon({
+  symbol,
+  color
+}: {
+  symbol: string;
+  color: ColorValue;
+}) {
+  return (
+    <Text
+      style={{
+        fontSize: 20,
+        color
+      }}
+    >
+      {symbol}
+    </Text>
+  );
+}
+
+export default function TabsLayout() {
+  const {
+    user,
+    loading
+  } = useAuth();
+
+  if (loading) return null;
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
+
+  if (user.mustChangePassword) {
+    return (
+      <Redirect href="/change-password" />
+    );
+  }
+
+  const showLearners =
+    canViewLearners(user.role);
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: colors.navy
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '800'
+        },
+        tabBarActiveTintColor:
+          colors.green,
+        tabBarInactiveTintColor:
+          colors.muted,
+        tabBarStyle: {
+          height: 68,
+          paddingTop: 6,
+          paddingBottom: 8,
+          borderTopColor:
+            colors.border
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700'
+        }
+      }}
+    >
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color }) => (
+            <Icon
+              symbol="⌂"
+              color={color}
+            />
+          )
+        }}
+      />
+
+      <Tabs.Screen
+        name="learners"
+        options={{
+          href: showLearners
+            ? undefined
+            : null,
+          title:
+            user.role === 'PARENT'
+              ? 'My children'
+              : 'Learners',
+          tabBarIcon: ({ color }) => (
+            <Icon
+              symbol="♙"
+              color={color}
+            />
+          )
+        }}
+      />
+
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Alerts',
+          tabBarIcon: ({ color }) => (
+            <Icon
+              symbol="●"
+              color={color}
+            />
+          )
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <Icon
+              symbol="◎"
+              color={color}
+            />
+          )
+        }}
+      />
+    </Tabs>
+  );
+}

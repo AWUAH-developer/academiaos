@@ -1,0 +1,41 @@
+Fix the AcademiaOS publishing configuration completely without asking me to move between screens.
+
+Current problem:
+- Replit preview deployment fails database migration validation.
+- The health check is using "/" and returns HTTP 500.
+- Production does not yet contain the school_events table or the staff_attendance_officer_id column.
+- Do not run migration SQL manually in the Production Database console.
+- Do not modify or delete existing production data.
+
+Required actions:
+1. Inspect the current Replit publishing and deployment configuration.
+2. Set the application root to artifacts/academia-os.
+3. Set the build command to:
+   cd artifacts/academia-os && pnpm build
+4. Set the run command to:
+   cd artifacts/academia-os && pnpm start
+5. Set the deployment health-check path to:
+   /api/health
+6. Do not include pnpm db:migrate in the run command because Replit publishing is already handling generated production migrations.
+7. Confirm these deployment configurations exist:
+   SESSION_COOKIE_NAME=__Host-academiaos_session
+   ACADEMIAOS_DEMO_MODE=false
+   NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS=false
+   NEXT_PUBLIC_APP_NAME=AcademiaOS
+   NEXT_TELEMETRY_DISABLED=1
+8. Preserve the existing SESSION_SECRET, RESEND_API_KEY, DATABASE_URL, APP_URL and EMAIL_FROM values.
+9. Check the generated Drizzle migrations for school_events and staff_attendance_officer_id and repair any migration ordering, duplicate constraint, or migration journal problem that causes Replit validation to fail.
+10. Run:
+    pnpm typecheck
+    pnpm test
+    pnpm security:scan
+    pnpm build
+11. Start a preview deployment and verify:
+    - /api/health returns HTTP 200
+    - database reports connected
+    - /login opens successfully
+    - the generated migrations validate and apply successfully
+12. Do not approve the final production publish until the preview passes.
+13. When finished, report exactly what was changed and provide the preview URL. If it still fails, provide the complete first database or application error, not only the healthcheck summary.
+
+Complete the work yourself through the Replit tools and configuration. Do not send me back to perform manual database or publishing steps.

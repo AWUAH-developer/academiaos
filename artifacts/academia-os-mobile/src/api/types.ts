@@ -1,3 +1,5 @@
+export type MobileAccountType = 'PARENT' | 'STAFF';
+
 export type UserRole =
   | 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'PROPRIETOR' | 'HEADTEACHER'
   | 'ACADEMIC_ADMIN' | 'TEACHER' | 'ACCOUNTS' | 'TRANSPORT'
@@ -84,6 +86,147 @@ export interface TerminalReport {
   academicYearId: string; academicYear: string; termId: string; term: string;
   snapshot: unknown; verificationCode: string | null; status: string; publishedAt: string | null;
 }
+export interface HomeworkTopic {
+  id: string;
+  name: string;
+}
+
+export interface HomeworkRecord {
+  id: string;
+  academicYearId: string;
+  academicYear: string;
+  termId: string;
+  term: string;
+  classId: string;
+  className: string;
+  stream: string | null;
+  subjectId: string;
+  subject: string;
+  teacherId: string;
+  teacherName: string;
+  title: string;
+  instructions: string | null;
+  assignedOn: string;
+  dueAt: string | null;
+  maximumScore: string | number | null;
+  sourceType: string | null;
+  bookTitle: string | null;
+  pageReference: string | null;
+  attachmentName: string | null;
+  attachmentMimeType: string | null;
+  status: string;
+  topics: HomeworkTopic[];
+  hasAttachment: boolean;
+  materialPath: string | null;
+}
+
+export interface StaffAttendanceRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffRole: string;
+  date: string;
+  status: string;
+  arrivalTime: string | null;
+  departureTime: string | null;
+  lateArrival: boolean;
+  earlyDeparture: boolean;
+  reason: string | null;
+}
+
+export interface StaffMovementRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffRole: string;
+  reason: string;
+  requestedDepartureAt: string;
+  expectedReturnAt: string | null;
+  actualDepartureAt: string | null;
+  actualReturnAt: string | null;
+  status: string;
+  approvedById: string | null;
+  decisionReason: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+export interface StaffDirectoryRecord {
+  id: string;
+  name: string;
+  role: string;
+  photoUrl: string | null;
+}
+
+export interface StaffAttendanceOverview {
+  canRecord: boolean;
+  isSupervisor: boolean;
+  selectedDate: string;
+  staff: StaffDirectoryRecord[];
+  attendance: StaffAttendanceRecord[];
+  movements: StaffMovementRecord[];
+}
+
+export interface TransportVehicle {
+  id: string;
+  name: string;
+  registrationNo: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  attendantName: string | null;
+}
+
+export interface TransportAssignmentRecord {
+  id: string;
+  learnerId: string;
+  admissionNo: string;
+  learnerFirstName: string;
+  learnerLastName: string;
+  routeId: string;
+  routeName: string;
+  morningStartTime: string | null;
+  afternoonStartTime: string | null;
+  stopId: string | null;
+  stopName: string | null;
+  pickupTime: string | null;
+  dropOffTime: string | null;
+  vehicle: TransportVehicle | null;
+}
+
+export interface TransportScanRecord {
+  id: string;
+  learnerId: string;
+  admissionNo: string;
+  learnerFirstName: string;
+  learnerLastName: string;
+  type: string;
+  scannedAt: string;
+  notificationStatus: string;
+  routeId: string | null;
+  routeName: string | null;
+  stopId: string | null;
+  stopName: string | null;
+  vehicle: TransportVehicle | null;
+}
+
+export interface TransportOverview {
+  assignments: TransportAssignmentRecord[];
+  scans: TransportScanRecord[];
+}
+
+export interface SchoolEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  eventType: string;
+  audience: string;
+  venue: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+  publishedAt: string | null;
+}
+
 export interface Announcement { id: string; subject: string; body: string; audience: string; createdAt: string; sentAt: string | null; }
 export interface AppNotification { id: string; schoolId: string | null; userId: string; type: string; title: string; body: string; link: string | null; readAt: string | null; createdAt: string; }
 export interface MobileDevice { id: string; deviceIdentifier: string; deviceName: string | null; platform: string; appVersion: string | null; notificationsEnabled: boolean; lastSeenAt: string; createdAt?: string; }

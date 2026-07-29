@@ -1,11 +1,11 @@
 import type { UserRole } from '@/lib/types';
 
 export const navigationByRole: Record<UserRole, string[]> = {
-  SUPER_ADMIN: ['dashboard','schools','demo-requests','packages','users','setup','learners','attendance','staff-attendance','fees','academics','homework','homework-topics','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
-  SCHOOL_ADMIN: ['dashboard','users','learners','attendance','staff-attendance','fees','academics','homework','homework-topics','approvals','reports','transport','messages','helpdesk','audit','id-cards'],
-  PROPRIETOR: ['dashboard','users','staff-attendance','learners','academics','homework','approvals','reports','messages','helpdesk','audit'],
+  SUPER_ADMIN: ['dashboard','schools','demo-requests','packages','users','setup','learners','attendance','staff-attendance','fees','academics','homework','homework-topics','approvals','reports','transport','events','messages','helpdesk','audit','id-cards'],
+  SCHOOL_ADMIN: ['dashboard','users','learners','attendance','staff-attendance','fees','academics','homework','homework-topics','approvals','reports','transport','events','messages','helpdesk','audit','id-cards'],
+  PROPRIETOR: ['dashboard','users','staff-attendance','learners','academics','homework','approvals','reports','events','messages','helpdesk','audit'],
   HEADTEACHER: ['dashboard','learners','attendance','staff-attendance','academics','homework','homework-topics','approvals','reports','messages','helpdesk','id-cards'],
-  ACADEMIC_ADMIN: ['dashboard','learners','attendance','staff-attendance','academics','homework','homework-topics','approvals','reports','messages','helpdesk','id-cards'],
+  ACADEMIC_ADMIN: ['dashboard','learners','attendance','staff-attendance','academics','homework','homework-topics','approvals','reports','events','messages','helpdesk','id-cards'],
   TEACHER: ['dashboard','learners','attendance','academics','homework','reports','messages','helpdesk'],
   ACCOUNTS: ['dashboard','staff-attendance','learners','fees','reports','messages','helpdesk'],
   TRANSPORT: ['dashboard','learners','attendance','staff-attendance','transport','messages','helpdesk'],

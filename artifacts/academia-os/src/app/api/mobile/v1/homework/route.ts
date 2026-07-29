@@ -33,8 +33,7 @@ const HOMEWORK_ROLES = new Set<UserRole>([
   "HEADTEACHER",
   "ACADEMIC_ADMIN",
   "TEACHER",
-  "PARENT",
-  "LEARNER"
+  "PARENT"
 ]);
 
 export async function GET(request: NextRequest) {

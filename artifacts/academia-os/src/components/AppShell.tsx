@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  BadgeCheck, BookOpenCheck, BusFront, CircleDollarSign, ClipboardCheck, CreditCard, FileBarChart, Gauge,
+  BadgeCheck, BookOpenCheck, BusFront, CalendarDays, CircleDollarSign, ClipboardCheck, CreditCard, FileBarChart, Gauge,
   GraduationCap, Headphones, Inbox, KeyRound, ListChecks, LogOut, Mail, Package, School, ScrollText, Settings2,
   Users, UsersRound, UserCheck
 } from 'lucide-react';
@@ -20,6 +20,7 @@ const navItems = {
   fees: { href: '/fees', label: 'Fees & receipts', icon: CircleDollarSign }, academics: { href: '/academics', label: 'Results', icon: BookOpenCheck },
   homework: { href: '/homework', label: 'Homework', icon: GraduationCap }, 'homework-topics': { href: '/homework-topics', label: 'Homework topics', icon: ListChecks }, approvals: { href: '/approvals', label: 'Approvals', icon: BadgeCheck },
   reports: { href: '/reports', label: 'Reports', icon: FileBarChart }, transport: { href: '/transport', label: 'Transport', icon: BusFront },
+  events: { href: '/events', label: 'Events & PTA', icon: CalendarDays },
   messages: { href: '/messages', label: 'Messages', icon: Mail }, helpdesk: { href: '/helpdesk', label: 'Help desk', icon: Headphones },
   audit: { href: '/audit', label: 'Audit log', icon: ScrollText },
   'id-cards': { href: '/id-cards', label: 'ID cards', icon: CreditCard },

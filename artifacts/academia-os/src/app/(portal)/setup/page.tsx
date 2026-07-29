@@ -1,24 +1,64 @@
 import { redirect } from 'next/navigation';
 import { and, asc, eq } from 'drizzle-orm';
-import { BookOpen, CalendarRange, CircleDollarSign, School, Users } from 'lucide-react';
-import { assignClassTeacherAction, assignTeacherAction, createAcademicYearAction, createClassAction, createFeeCategoryAction, createFeeStructureAction, createSubjectAction, createCurriculumTopicAction, createTermAction, updateSchoolAction } from '@/app/actions/setup';
+import { BookOpen, CalendarRange, CircleDollarSign, School, ShieldCheck, Users } from 'lucide-react';
+import { assignClassTeacherAction, assignStaffAttendanceOfficerAction, assignTeacherAction, createAcademicYearAction, createClassAction, createFeeCategoryAction, createFeeStructureAction, createSubjectAction, createCurriculumTopicAction, createTermAction, updateSchoolAction } from '@/app/actions/setup';
 import { FlashMessage } from '@/components/FlashMessage'; import { PageHeader } from '@/components/PageHeader'; import { SchoolBadge } from '@/components/SchoolBadge'; import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
-import { db } from '@/db'; import { academicYears, classes, feeCategories, feeStructures, schools, subjects, curriculumTopics, teacherAssignments, terms, users } from '@/db/schema';
+import { db } from '@/db'; import { academicYears, classes, feeCategories, feeStructures, schoolManagementControls, schools, subjects, curriculumTopics, teacherAssignments, terms, users } from '@/db/schema';
 import { requireUser } from '@/lib/auth'; import { getActiveSchoolId } from '@/lib/tenant';
 
 export default async function SetupPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
  const user = await requireUser(); if (user.role !== 'SUPER_ADMIN') redirect('/dashboard'); const schoolId = await getActiveSchoolId(user); const params = await searchParams;
- const [school, years, termRows, classRows, subjectRows, topicRows, teacherRows, categories, structures, assignments] = await Promise.all([
-  db.select().from(schools).where(eq(schools.id, schoolId)).limit(1).then(r=>r[0]), db.select().from(academicYears).where(eq(academicYears.schoolId, schoolId)).orderBy(asc(academicYears.name)),
+ const [school, controls, years, termRows, classRows, subjectRows, topicRows, teacherRows, categories, structures, assignments] = await Promise.all([
+  db.select().from(schools).where(eq(schools.id, schoolId)).limit(1).then(r=>r[0]),
+  db.select().from(schoolManagementControls).where(eq(schoolManagementControls.schoolId, schoolId)).limit(1).then(r=>r[0]),
+  db.select().from(academicYears).where(eq(academicYears.schoolId, schoolId)).orderBy(asc(academicYears.name)),
   db.select().from(terms).where(eq(terms.schoolId, schoolId)).orderBy(asc(terms.startsOn)), db.select().from(classes).where(eq(classes.schoolId, schoolId)).orderBy(asc(classes.name),asc(classes.stream)),
   db.select().from(subjects).where(eq(subjects.schoolId, schoolId)).orderBy(asc(subjects.name)), db.select().from(curriculumTopics).where(eq(curriculumTopics.schoolId, schoolId)).orderBy(asc(curriculumTopics.name)), db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.status,'ACTIVE'))).orderBy(asc(users.name)),
   db.select().from(feeCategories).where(eq(feeCategories.schoolId, schoolId)).orderBy(asc(feeCategories.name)), db.select().from(feeStructures).where(eq(feeStructures.schoolId, schoolId)),
   db.select({ assignment: teacherAssignments, teacherName: users.name, className: classes.name, stream: classes.stream, subjectName: subjects.name }).from(teacherAssignments).innerJoin(users,eq(teacherAssignments.teacherId,users.id)).innerJoin(classes,eq(teacherAssignments.classId,classes.id)).innerJoin(subjects,eq(teacherAssignments.subjectId,subjects.id)).where(eq(teacherAssignments.schoolId,schoolId))
  ]);
  const teachers = teacherRows.filter(t=>['TEACHER','HEADTEACHER','ACADEMIC_ADMIN'].includes(t.role));
+ const staffAttendanceCandidates = teacherRows.filter(t=>!['PARENT','LEARNER'].includes(t.role));
  const teacherById = new Map(teacherRows.map(t => [t.id, t.name]));
  return <><PageHeader eyebrow="Configuration" title="School setup" description="Academic calendar, classes, subjects, teacher assignments and fee rules."/><FlashMessage success={params.success} error={params.error}/><div className="grid gap-6 xl:grid-cols-2">
  <section className="paper-card p-5"><h2 className="flex items-center gap-2 font-black"><School size={19}/> School identity</h2><div className="mt-4 flex items-center gap-4 rounded-xl bg-slate-50 p-3"><SchoolBadge name={school?.name || 'School'} logoUrl={school?.logoUrl} size={76} className="rounded-xl"/><div><p className="font-black">Current school badge</p><p className="text-xs text-slate-500">Without an uploaded logo, AcademiaOS automatically uses up to three initials from the school name.</p></div></div><form action={updateSchoolAction} className="mt-4 grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2"><label className="label">Custom logo (optional)</label><input className="input" name="logo" type="file" accept="image/jpeg,image/png,image/webp"/><p className="mt-1 text-xs text-slate-500">Leave empty to keep the current badge.</p></div>{school?.logoUrl ? <label className="flex items-center gap-2 text-sm font-bold sm:col-span-2"><input type="checkbox" name="removeLogo"/> Remove custom logo and use school initials</label> : null}<SchoolInitialsInput className="sm:col-span-2" nameInputName="name" defaultName={school?.name || ''} nameLabel="School name *" namePlaceholder="e.g. Paul Lawrence Academy"/><input className="input" name="phone" defaultValue={school?.phone || ''} placeholder="Phone"/><input className="input" name="email" type="email" defaultValue={school?.email || ''} placeholder="Email"/><input className="input sm:col-span-2" name="address" defaultValue={school?.address || ''} placeholder="Address"/><input className="input" name="currency" defaultValue={school?.currency || 'GHS'} placeholder="Currency"/><input className="input" name="smsSenderName" defaultValue={school?.smsSenderName || ''} placeholder="SMS sender name"/><label className="flex items-center gap-2 text-sm font-bold sm:col-span-2"><input type="checkbox" name="proprietorApprovalRequired" defaultChecked={school?.proprietorApprovalRequired}/> Proprietor approval required</label><button className="btn-primary sm:col-span-2">Save school settings</button></form></section>
+ <section className="paper-card p-5">
+   <h2 className="flex items-center gap-2 font-black">
+     <ShieldCheck size={19}/>
+     Authorised staff attendance recording
+   </h2>
+
+   <p className="mt-2 text-sm text-slate-600">
+     Security-role users are automatically allowed to record staff arrival,
+     departure and approved gate movement. Select one additional active staff
+     member who may perform the same duty.
+   </p>
+
+   <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">
+     Nobody may record their own arrival, departure, leaving or return.
+   </p>
+
+   <form action={assignStaffAttendanceOfficerAction} className="mt-4 space-y-3">
+     <select
+       className="input"
+       name="officerId"
+       defaultValue={controls?.staffAttendanceOfficerId || ''}
+     >
+       <option value="">No additional authorised officer</option>
+
+       {staffAttendanceCandidates.map(staff=>
+         <option key={staff.id} value={staff.id}>
+           {staff.name} | {staff.role.replaceAll('_',' ')}
+         </option>
+       )}
+     </select>
+
+     <button className="btn-primary w-full">
+       Save authorised attendance officer
+     </button>
+   </form>
+ </section>
+
  <section className="paper-card p-5"><h2 className="flex items-center gap-2 font-black"><CalendarRange size={19}/> Academic calendar</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><form action={createAcademicYearAction} className="space-y-3"><p className="text-sm font-black">New academic year</p><input className="input" name="name" placeholder="2026/2027" required/><input className="input" name="startsOn" inputMode="numeric" placeholder="Start date DD/MM/YYYY" pattern="[0-3][0-9]/[0-1][0-9]/[0-9]{4}" required/><input className="input" name="endsOn" inputMode="numeric" placeholder="End date DD/MM/YYYY" pattern="[0-3][0-9]/[0-1][0-9]/[0-9]{4}" required/><label className="flex gap-2 text-sm"><input type="checkbox" name="isCurrent"/> Current year</label><button className="btn-secondary w-full">Add year</button></form><form action={createTermAction} className="space-y-3"><p className="text-sm font-black">New term</p><select className="input" name="academicYearId" required>{years.map(y=><option key={y.id} value={y.id}>{y.name}</option>)}</select><input className="input" name="name" placeholder="Term 1" required/><div className="grid grid-cols-2 gap-2"><input className="input" name="startsOn" inputMode="numeric" placeholder="Start date DD/MM/YYYY" pattern="[0-3][0-9]/[0-1][0-9]/[0-9]{4}" required/><input className="input" name="endsOn" inputMode="numeric" placeholder="End date DD/MM/YYYY" pattern="[0-3][0-9]/[0-1][0-9]/[0-9]{4}" required/></div><input className="input" name="reopeningDate" inputMode="numeric" placeholder="Reopening DD/MM/YYYY" pattern="[0-3][0-9]/[0-1][0-9]/[0-9]{4}"/><label className="flex gap-2 text-sm"><input type="checkbox" name="isCurrent"/> Current term</label><button className="btn-secondary w-full">Add term</button></form></div><div className="mt-4 text-xs text-slate-500">Use Ghana date format DD/MM/YYYY. {years.length} academic year(s), {termRows.length} term(s)</div></section>
  <section className="paper-card p-5"><h2 className="flex items-center gap-2 font-black"><BookOpen size={19}/> Classes and subjects</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><form action={createClassAction} className="space-y-3"><input className="input" name="name" placeholder="Class, e.g. Primary 5" required/><div className="grid grid-cols-2 gap-2"><input className="input" name="stream" placeholder="Stream"/><input className="input" name="level" placeholder="Level"/></div><button className="btn-secondary w-full">Add class</button></form><form action={createSubjectAction} className="space-y-3"><input className="input" name="name" placeholder="Subject name" required/><input className="input" name="code" placeholder="Code, e.g. MATH" required/><button className="btn-secondary w-full">Add subject</button></form></div><div className="mt-4 flex flex-wrap gap-2">{classRows.map(c=><span key={c.id} className="status-pill bg-slate-100 text-slate-700">{c.name} {c.stream}</span>)}</div></section>
  <section className="paper-card p-5">

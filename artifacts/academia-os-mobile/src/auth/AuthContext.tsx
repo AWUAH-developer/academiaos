@@ -1,11 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { AcademiaUser } from '@/api/types';
+import type {
+  AcademiaUser,
+  MobileAccountType
+} from '@/api/types';
 import { changePassword as apiChangePassword, clearMobileSession, getProfile, hasMobileSession, login as apiLogin, logout as apiLogout, onSessionExpired } from '@/api/client';
 import { registerForPushNotifications } from '@/lib/notifications';
 
 type AuthValue = {
   user: AcademiaUser | null; loading: boolean; error: string | null;
-  signIn(username: string, password: string): Promise<AcademiaUser>;
+  signIn(
+    username: string,
+    password: string,
+    accountType: MobileAccountType
+  ): Promise<AcademiaUser>;
   signOut(): Promise<void>;
   changePassword(currentPassword: string, newPassword: string, confirmPassword: string): Promise<void>;
   refreshProfile(): Promise<void>;
@@ -32,8 +39,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { restore(); }, [restore]);
   useEffect(() => onSessionExpired(() => { setUser(null); setError('Your session expired. Sign in again.'); }), []);
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    setError(null); const data = await apiLogin(username.trim(), password); setUser(data.user);
+  const signIn = useCallback(async (
+    username: string,
+    password: string,
+    accountType: MobileAccountType
+  ) => {
+    setError(null);
+    const data = await apiLogin(
+      username.trim(),
+      password,
+      accountType
+    );
+    setUser(data.user);
     if (!data.user.mustChangePassword) registerForPushNotifications().catch(() => undefined);
     return data.user;
   }, []);

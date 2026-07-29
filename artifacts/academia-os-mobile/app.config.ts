@@ -1,15 +1,14 @@
-import type { ExpoConfig, ConfigContext } from 'expo/config';
+import type { ConfigContext } from 'expo/config';
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+export default ({ config }: ConfigContext) => ({
   ...config,
   name: 'AcademiaOS',
   slug: 'academiaos-mobile',
-  version: '1.0.0',
+  version: '1.0.6',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'academiaos',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
   splash: {
     image: './assets/splash-icon.png',
     resizeMode: 'contain',
@@ -31,7 +30,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#071A33'
     },
     permissions: ['CAMERA', 'POST_NOTIFICATIONS'],
-    edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false
   },
   web: {

@@ -1,0 +1,851 @@
+import React, {
+  useCallback,
+  useMemo,
+  useState
+} from 'react';
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
+import {
+  AppScreen
+} from '@/components/AppScreen';
+import {
+  Badge,
+  Card,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  ScreenTitle
+} from '@/components/ui';
+import {
+  useAuth
+} from '@/auth/AuthContext';
+import {
+  decideStaffMovement,
+  getStaffAttendance,
+  recordStaffReturn,
+  recordStaffScan,
+  requestStaffMovement
+} from '@/api/client';
+import {
+  useLoad
+} from '@/hooks/useLoad';
+import {
+  canSuperviseStaffAttendance
+} from '@/lib/permissions';
+import {
+  colors,
+  spacing
+} from '@/theme';
+
+function inputDateTime(
+  date: Date
+) {
+  const pad = (value: number) =>
+    String(value).padStart(2, '0');
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join('-') +
+    ' ' +
+    [
+      pad(date.getHours()),
+      pad(date.getMinutes())
+    ].join(':');
+}
+
+function parseInputDateTime(
+  value: string
+) {
+  const normalised = value
+    .trim()
+    .replace(' ', 'T');
+
+  const date = new Date(normalised);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      'Use the date and time format YYYY-MM-DD HH:mm.'
+    );
+  }
+
+  return date.toISOString();
+}
+
+function dateTime(
+  value: string | null
+) {
+  if (!value) return 'Not recorded';
+
+  return new Date(value).toLocaleString(
+    'en-GH',
+    {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }
+  );
+}
+
+function timeOnly(
+  value: string | null
+) {
+  if (!value) return 'Not recorded';
+
+  return new Date(value).toLocaleTimeString(
+    'en-GH',
+    {
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+  );
+}
+
+function movementTone(
+  status: string
+): 'success' | 'warning' | 'danger' {
+  if (
+    status === 'APPROVED' ||
+    status === 'RETURNED'
+  ) {
+    return 'success';
+  }
+
+  if (status === 'REJECTED') {
+    return 'danger';
+  }
+
+  return 'warning';
+}
+
+export default function StaffAttendanceScreen() {
+  const {
+    user
+  } = useAuth();
+
+  const initialDeparture =
+    useMemo(
+      () =>
+        inputDateTime(
+          new Date(
+            Date.now() + 10 * 60_000
+          )
+        ),
+      []
+    );
+
+  const initialReturn =
+    useMemo(
+      () =>
+        inputDateTime(
+          new Date(
+            Date.now() + 70 * 60_000
+          )
+        ),
+      []
+    );
+
+  const [
+    reason,
+    setReason
+  ] = useState('');
+
+  const [
+    departure,
+    setDeparture
+  ] = useState(initialDeparture);
+
+  const [
+    expectedReturn,
+    setExpectedReturn
+  ] = useState(initialReturn);
+
+  const [
+    decisionReasons,
+    setDecisionReasons
+  ] = useState<
+    Record<string, string>
+  >({});
+
+  const [
+    busy,
+    setBusy
+  ] = useState<string | null>(null);
+
+  const loader = useCallback(
+    () => getStaffAttendance(),
+    []
+  );
+
+  const {
+    data,
+    loading,
+    error,
+    refreshing,
+    reload
+  } = useLoad(loader, []);
+
+  const isSupervisor =
+    data?.isSupervisor ||
+    canSuperviseStaffAttendance(
+      user?.role
+    );
+
+  async function runAction(
+    key: string,
+    action: () => Promise<unknown>
+  ) {
+    setBusy(key);
+
+    try {
+      await action();
+      await Promise.resolve(reload());
+    } catch (error) {
+      Alert.alert(
+        'Action failed',
+        error instanceof Error
+          ? error.message
+          : 'The action could not be completed.'
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitMovement() {
+    if (reason.trim().length < 5) {
+      Alert.alert(
+        'Reason required',
+        'Enter a clear reason for leaving school.'
+      );
+
+      return;
+    }
+
+    let requestedDepartureAt:
+      string;
+
+    let expectedReturnAt:
+      string | null;
+
+    try {
+      requestedDepartureAt =
+        parseInputDateTime(departure);
+
+      expectedReturnAt =
+        expectedReturn.trim()
+          ? parseInputDateTime(
+              expectedReturn
+            )
+          : null;
+    } catch (error) {
+      Alert.alert(
+        'Invalid date or time',
+        error instanceof Error
+          ? error.message
+          : 'Enter valid dates and times.'
+      );
+
+      return;
+    }
+
+    await runAction(
+      'movement-request',
+      async () => {
+        await requestStaffMovement({
+          reason: reason.trim(),
+          requestedDepartureAt,
+          expectedReturnAt
+        });
+
+        setReason('');
+      }
+    );
+  }
+
+  async function decide(
+    requestId: string,
+    decision:
+      | 'APPROVE'
+      | 'REJECT'
+  ) {
+    const decisionReason =
+      (
+        decisionReasons[requestId] ||
+        ''
+      ).trim();
+
+    if (
+      decision === 'REJECT' &&
+      !decisionReason
+    ) {
+      Alert.alert(
+        'Rejection reason required',
+        'Enter a reason before rejecting the request.'
+      );
+
+      return;
+    }
+
+    await runAction(
+      `${decision}-${requestId}`,
+      () =>
+        decideStaffMovement({
+          requestId,
+          decision,
+          decisionReason
+        })
+    );
+  }
+
+  if (loading && !data) {
+    return (
+      <AppScreen scroll={false}>
+        <LoadingState label="Loading staff attendance…" />
+      </AppScreen>
+    );
+  }
+
+  return (
+    <AppScreen
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={reload}
+        />
+      }
+    >
+      <ScreenTitle
+        title="Staff attendance"
+        subtitle={
+          isSupervisor
+            ? 'Record your workday and review staff movement requests.'
+            : 'Record your arrival, departure and permission requests.'
+        }
+      />
+
+      {error ? (
+        <ErrorState
+          message={error}
+          onRetry={reload}
+        />
+      ) : null}
+
+      <Card style={styles.workday}>
+        <Text style={styles.workdayTitle}>
+          My workday
+        </Text>
+
+        <Text style={styles.workdayCopy}>
+          Each arrival and departure is
+          time-stamped.
+        </Text>
+
+        <View style={styles.buttonRow}>
+          <ActionButton
+            title={
+              busy === 'arrival'
+                ? 'Recording…'
+                : 'Record arrival'
+            }
+            disabled={Boolean(busy)}
+            primary
+            onPress={() =>
+              runAction(
+                'arrival',
+                () =>
+                  recordStaffScan(
+                    'ARRIVAL'
+                  )
+              )
+            }
+          />
+
+          <ActionButton
+            title={
+              busy === 'departure'
+                ? 'Recording…'
+                : 'Record departure'
+            }
+            disabled={Boolean(busy)}
+            onPress={() =>
+              runAction(
+                'departure',
+                () =>
+                  recordStaffScan(
+                    'DEPARTURE'
+                  )
+              )
+            }
+          />
+        </View>
+      </Card>
+
+      {user?.role !== 'SUPER_ADMIN' ? (
+        <>
+          <ScreenTitle
+            title="Request permission to leave"
+          />
+
+          <Card>
+            <TextInput
+              value={departure}
+              onChangeText={setDeparture}
+              placeholder="YYYY-MM-DD HH:mm"
+              placeholderTextColor="#8290A5"
+              style={styles.input}
+            />
+
+            <TextInput
+              value={expectedReturn}
+              onChangeText={
+                setExpectedReturn
+              }
+              placeholder="Expected return: YYYY-MM-DD HH:mm"
+              placeholderTextColor="#8290A5"
+              style={styles.input}
+            />
+
+            <TextInput
+              value={reason}
+              onChangeText={setReason}
+              placeholder="Reason for leaving school"
+              placeholderTextColor="#8290A5"
+              multiline
+              style={[
+                styles.input,
+                styles.textarea
+              ]}
+            />
+
+            <ActionButton
+              title={
+                busy ===
+                'movement-request'
+                  ? 'Submitting…'
+                  : 'Submit request'
+              }
+              disabled={Boolean(busy)}
+              primary
+              onPress={submitMovement}
+            />
+          </Card>
+        </>
+      ) : null}
+
+      <ScreenTitle
+        title={
+          isSupervisor
+            ? 'Today’s staff register'
+            : 'Today’s attendance'
+        }
+      />
+
+      {!data?.attendance.length ? (
+        <EmptyState
+          title="No staff attendance recorded"
+          message="Arrival and departure records for today will appear here."
+        />
+      ) : (
+        data.attendance.map((item) => (
+          <Card key={item.id}>
+            <View style={styles.topRow}>
+              <View style={styles.grow}>
+                <Text style={styles.name}>
+                  {item.staffName}
+                </Text>
+
+                <Text style={styles.role}>
+                  {item.staffRole
+                    .toLowerCase()
+                    .replaceAll('_', ' ')}
+                </Text>
+              </View>
+
+              <Badge
+                text={item.status.toLowerCase()}
+                tone="success"
+              />
+            </View>
+
+            <Info
+              label="Arrival"
+              value={timeOnly(
+                item.arrivalTime
+              )}
+            />
+
+            <Info
+              label="Departure"
+              value={timeOnly(
+                item.departureTime
+              )}
+            />
+
+            {item.lateArrival ? (
+              <Text style={styles.flag}>
+                Late arrival
+              </Text>
+            ) : null}
+
+            {item.earlyDeparture ? (
+              <Text style={styles.flag}>
+                Early departure
+              </Text>
+            ) : null}
+          </Card>
+        ))
+      )}
+
+      <ScreenTitle
+        title={
+          isSupervisor
+            ? 'Staff movement requests'
+            : 'My movement requests'
+        }
+      />
+
+      {!data?.movements.length ? (
+        <EmptyState
+          title="No movement requests"
+          message="Permission requests will appear here."
+        />
+      ) : (
+        data.movements.map((item) => {
+          const isOwn =
+            item.staffId === user?.id;
+
+          const canRecordReturn =
+            item.status === 'APPROVED' &&
+            (
+              isOwn ||
+              isSupervisor
+            );
+
+          return (
+            <Card key={item.id}>
+              <View style={styles.topRow}>
+                <View style={styles.grow}>
+                  <Text style={styles.name}>
+                    {item.staffName}
+                  </Text>
+
+                  <Text style={styles.role}>
+                    {item.staffRole
+                      .toLowerCase()
+                      .replaceAll('_', ' ')}
+                  </Text>
+                </View>
+
+                <Badge
+                  text={item.status.toLowerCase()}
+                  tone={movementTone(
+                    item.status
+                  )}
+                />
+              </View>
+
+              <Text style={styles.reason}>
+                {item.reason}
+              </Text>
+
+              <Info
+                label="Requested departure"
+                value={dateTime(
+                  item.requestedDepartureAt
+                )}
+              />
+
+              <Info
+                label="Expected return"
+                value={dateTime(
+                  item.expectedReturnAt
+                )}
+              />
+
+              {item.decisionReason ? (
+                <Info
+                  label="Decision reason"
+                  value={
+                    item.decisionReason
+                  }
+                />
+              ) : null}
+
+              {isSupervisor &&
+              item.status === 'PENDING' ? (
+                <View style={styles.review}>
+                  <TextInput
+                    value={
+                      decisionReasons[
+                        item.id
+                      ] || ''
+                    }
+                    onChangeText={(value) =>
+                      setDecisionReasons(
+                        (current) => ({
+                          ...current,
+                          [item.id]:
+                            value
+                        })
+                      )
+                    }
+                    placeholder="Decision note or rejection reason"
+                    placeholderTextColor="#8290A5"
+                    style={styles.input}
+                  />
+
+                  <View
+                    style={styles.buttonRow}
+                  >
+                    <ActionButton
+                      title="Approve"
+                      primary
+                      disabled={Boolean(
+                        busy
+                      )}
+                      onPress={() =>
+                        decide(
+                          item.id,
+                          'APPROVE'
+                        )
+                      }
+                    />
+
+                    <ActionButton
+                      title="Reject"
+                      danger
+                      disabled={Boolean(
+                        busy
+                      )}
+                      onPress={() =>
+                        decide(
+                          item.id,
+                          'REJECT'
+                        )
+                      }
+                    />
+                  </View>
+                </View>
+              ) : null}
+
+              {canRecordReturn ? (
+                <View style={styles.returnBox}>
+                  <ActionButton
+                    title={
+                      busy ===
+                      `return-${item.id}`
+                        ? 'Recording…'
+                        : 'Record return'
+                    }
+                    primary
+                    disabled={Boolean(busy)}
+                    onPress={() =>
+                      runAction(
+                        `return-${item.id}`,
+                        () =>
+                          recordStaffReturn(
+                            item.id
+                          )
+                      )
+                    }
+                  />
+                </View>
+              ) : null}
+            </Card>
+          );
+        })
+      )}
+    </AppScreen>
+  );
+}
+
+function Info({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.info}>
+      <Text style={styles.infoLabel}>
+        {label}
+      </Text>
+
+      <Text style={styles.infoValue}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function ActionButton({
+  title,
+  onPress,
+  primary,
+  danger,
+  disabled
+}: {
+  title: string;
+  onPress: () => void;
+  primary?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.button,
+        primary && styles.primaryButton,
+        danger && styles.dangerButton,
+        disabled && styles.disabledButton,
+        pressed && !disabled
+          ? { opacity: 0.7 }
+          : null
+      ]}
+    >
+      <Text
+        style={[
+          styles.buttonText,
+          primary &&
+            styles.primaryButtonText,
+          danger &&
+            styles.dangerButtonText
+        ]}
+      >
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  workday: {
+    backgroundColor: colors.navy,
+    borderColor: colors.navy
+  },
+  workdayTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  workdayCopy: {
+    color: '#DCE7F7',
+    marginTop: 5
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md
+  },
+  button: {
+    flex: 1,
+    minHeight: 47,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12
+  },
+  primaryButton: {
+    backgroundColor: colors.green,
+    borderColor: colors.green
+  },
+  dangerButton: {
+    backgroundColor: '#FFF1F2',
+    borderColor: '#FDA4AF'
+  },
+  disabledButton: {
+    opacity: 0.55
+  },
+  buttonText: {
+    color: colors.navy,
+    fontWeight: '900',
+    textAlign: 'center'
+  },
+  primaryButtonText: {
+    color: '#fff'
+  },
+  dangerButtonText: {
+    color: '#BE123C'
+  },
+  input: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.text,
+    marginBottom: spacing.sm
+  },
+  textarea: {
+    minHeight: 100,
+    textAlignVertical: 'top'
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md
+  },
+  grow: {
+    flex: 1
+  },
+  name: {
+    color: colors.navy,
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  role: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 3,
+    textTransform: 'capitalize'
+  },
+  reason: {
+    color: colors.text,
+    lineHeight: 21,
+    marginTop: spacing.md
+  },
+  info: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm
+  },
+  infoLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase'
+  },
+  infoValue: {
+    color: colors.text,
+    fontWeight: '700',
+    marginTop: 4
+  },
+  flag: {
+    color: '#B45309',
+    fontWeight: '800',
+    marginTop: spacing.sm
+  },
+  review: {
+    marginTop: spacing.md
+  },
+  returnBox: {
+    marginTop: spacing.md
+  }
+});

@@ -11,6 +11,7 @@ import {
   mobileJson,
   mobileLoginSchema
 } from '@/lib/mobile-api';
+import { canUseMobile } from '@/lib/platform-access';
 import { cleanText } from '@/lib/validation';
 
 export const runtime = 'nodejs';
@@ -62,9 +63,29 @@ export async function POST(request: NextRequest) {
   const temporaryPasswordExpired = Boolean(
     user && passwordValid && user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt <= now
   );
-  const success = Boolean(
-    user && passwordValid && !locked && !temporaryPasswordExpired && user.status === 'ACTIVE' && (!user.schoolId || school?.isActive)
+  const credentialsAccepted = Boolean(
+    user && passwordValid && !locked && !temporaryPasswordExpired &&
+    user.status === 'ACTIVE' && (!user.schoolId || school?.isActive)
   );
+
+  const platformAllowed = Boolean(user && canUseMobile(user.role));
+  const selectedAccountType = parsed.data.accountType;
+
+  const accountTypeMatches = Boolean(
+    !selectedAccountType ||
+    (selectedAccountType === 'PARENT'
+      ? user?.role === 'PARENT'
+      : Boolean(
+          user &&
+          user.role !== 'PARENT' &&
+          user.role !== 'LEARNER'
+        ))
+  );
+
+  const success =
+    credentialsAccepted &&
+    platformAllowed &&
+    accountTypeMatches;
 
   await db.insert(loginAttempts).values({
     schoolId: user?.schoolId,
@@ -76,6 +97,50 @@ export async function POST(request: NextRequest) {
   });
 
   if (!success) {
+    if (user && credentialsAccepted && !platformAllowed) {
+      await audit({
+        schoolId: user.schoolId,
+        userId: user.id,
+        action: 'MOBILE_LOGIN_BLOCKED_PLATFORM_POLICY',
+        entityType: 'User',
+        entityId: user.id,
+        newValue: { role: user.role }
+      });
+
+      return mobileError(
+        403,
+        'MOBILE_ACCESS_NOT_ALLOWED',
+        'Learners do not use AcademiaOS login accounts. A linked parent or guardian accesses learner information.'
+      );
+    }
+
+    if (
+      user &&
+      credentialsAccepted &&
+      platformAllowed &&
+      !accountTypeMatches
+    ) {
+      await audit({
+        schoolId: user.schoolId,
+        userId: user.id,
+        action: 'MOBILE_LOGIN_ACCOUNT_TYPE_MISMATCH',
+        entityType: 'User',
+        entityId: user.id,
+        newValue: {
+          selectedAccountType,
+          actualRole: user.role
+        }
+      });
+
+      return mobileError(
+        403,
+        'MOBILE_ACCOUNT_TYPE_MISMATCH',
+        selectedAccountType === 'PARENT'
+          ? 'This is a school staff account. Select School Staff and sign in again.'
+          : 'This is a parent or guardian account. Select Parent / Guardian and sign in again.'
+      );
+    }
+
     if (user) {
       const failed = user.failedLoginCount + 1;
       await db.update(users).set({

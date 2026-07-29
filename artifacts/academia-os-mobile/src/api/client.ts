@@ -1,6 +1,6 @@
 import type {
   AcademiaUser, Announcement, ApiEnvelope, AppNotification, AttendanceRecord, AttendanceStatus,
-  FeeCharge, FeeSummary, Learner, MobileDevice, Payment, ResultRecord, SessionTokens, TerminalReport
+  FeeCharge, FeeSummary, HomeworkRecord, Learner, MobileAccountType, MobileDevice, Payment, ResultRecord, SchoolEvent, SessionTokens, StaffAttendanceOverview, TerminalReport, TransportOverview
 } from './types';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '@/lib/storage';
 import { deviceIdentity } from '@/lib/device';
@@ -28,7 +28,9 @@ async function parse<T>(response: Response): Promise<T> {
 
 export function onSessionExpired(listener: () => void) {
   expiredListeners.add(listener);
-  return () => expiredListeners.delete(listener);
+  return () => {
+    expiredListeners.delete(listener);
+  };
 }
 function emitExpired() { expiredListeners.forEach((listener) => listener()); }
 
@@ -65,11 +67,20 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retry 
   return parse<T>(response);
 }
 
-export async function login(username: string, password: string) {
+export async function login(
+  username: string,
+  password: string,
+  accountType: MobileAccountType
+) {
   const identity = await deviceIdentity();
   const response = await fetch(`${apiUrl()}/auth/login`, {
     method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, ...identity })
+    body: JSON.stringify({
+      username,
+      password,
+      accountType,
+      ...identity
+    })
   });
   const body = await parse<ApiEnvelope<{ user: AcademiaUser; tokens: SessionTokens }>>(response);
   await saveTokens(body.data.tokens.accessToken, body.data.tokens.refreshToken);
@@ -116,6 +127,128 @@ export async function getReports(learnerId?: string) {
   const query = learnerId ? `?learnerId=${encodeURIComponent(learnerId)}&limit=100` : '?limit=100';
   return (await apiRequest<ApiEnvelope<{ reports: TerminalReport[] }>>(`/reports${query}`)).data.reports;
 }
+export async function getHomework() {
+  return (
+    await apiRequest<
+      ApiEnvelope<{ homework: HomeworkRecord[] }>
+    >('/homework?limit=100')
+  ).data.homework;
+}
+
+export async function getStaffAttendance(
+  date?: string
+) {
+  const query = date
+    ? `?date=${encodeURIComponent(date)}`
+    : '';
+
+  return (
+    await apiRequest<
+      ApiEnvelope<StaffAttendanceOverview>
+    >(`/staff-attendance${query}`)
+  ).data;
+}
+
+export async function recordStaffAttendance(
+  staffId: string,
+  scanAction: 'ARRIVAL' | 'DEPARTURE'
+) {
+  return apiRequest<
+    ApiEnvelope<{
+      recorded: boolean;
+      staffId: string;
+      staffName: string;
+      scanAction: string;
+      recordedAt: string;
+    }>
+  >('/staff-attendance', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'RECORD_ATTENDANCE',
+      staffId,
+      scanAction
+    })
+  });
+}
+
+export async function requestStaffMovement(
+  input: {
+    reason: string;
+    requestedDepartureAt: string;
+    expectedReturnAt: string | null;
+  }
+) {
+  return apiRequest<
+    ApiEnvelope<{
+      requested: boolean;
+      requestId: string;
+    }>
+  >('/staff-attendance', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'REQUEST_MOVEMENT',
+      ...input
+    })
+  });
+}
+
+export async function decideStaffMovement(
+  input: {
+    requestId: string;
+    decision: 'APPROVE' | 'REJECT';
+    decisionReason: string;
+  }
+) {
+  return apiRequest<
+    ApiEnvelope<{
+      decided: boolean;
+      status: string;
+    }>
+  >('/staff-attendance', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'DECIDE_MOVEMENT',
+      ...input
+    })
+  });
+}
+
+export async function recordStaffMovement(
+  requestId: string,
+  movementAction: 'LEAVE' | 'RETURN'
+) {
+  return apiRequest<
+    ApiEnvelope<{
+      recorded: boolean;
+      movementAction: string;
+      recordedAt: string;
+    }>
+  >('/staff-attendance', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'RECORD_MOVEMENT',
+      requestId,
+      movementAction
+    })
+  });
+}
+
+export async function getTransport() {
+  return (
+    await apiRequest<
+      ApiEnvelope<TransportOverview>
+    >('/transport')
+  ).data;
+}
+
+export async function getEvents() {
+  return (
+    await apiRequest<
+      ApiEnvelope<{ events: SchoolEvent[] }>
+    >('/events?limit=100')
+  ).data.events;
+}
+
 export async function getAnnouncements() { return (await apiRequest<ApiEnvelope<{ announcements: Announcement[] }>>('/announcements?limit=100')).data.announcements; }
 export async function getNotifications(unreadOnly = false) { return (await apiRequest<ApiEnvelope<{ notifications: AppNotification[] }>>(`/notifications?limit=100&unreadOnly=${unreadOnly}`)).data.notifications; }
 export async function markNotifications(input: { notificationIds?: string[]; markAll?: boolean }) {

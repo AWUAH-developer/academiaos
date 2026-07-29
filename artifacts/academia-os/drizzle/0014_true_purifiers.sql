@@ -1,0 +1,2 @@
+ALTER TABLE "school_management_controls" ADD COLUMN "staff_attendance_officer_id" text;--> statement-breakpoint
+ALTER TABLE "school_management_controls" ADD CONSTRAINT "school_management_controls_staff_attendance_officer_id_users_id_fk" FOREIGN KEY ("staff_attendance_officer_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;

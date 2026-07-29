@@ -7,6 +7,7 @@ import { audit } from '@/lib/auth';
 import {
   clientIp, createDesktopSession, desktopError, desktopJson, desktopLoginSchema,
 } from '@/lib/desktop-api';
+import { canUseDesktop } from '@/lib/platform-access';
 import { cleanText } from '@/lib/validation';
 
 export const runtime = 'nodejs';
@@ -55,7 +56,12 @@ export async function POST(request: NextRequest) {
   const locked                = Boolean(user?.lockedUntil && user.lockedUntil > now);
   const tempExpired           = Boolean(user && passwordValid && user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt <= now);
   const schoolOk              = !user?.schoolId || school?.isActive;
-  const success               = Boolean(user && passwordValid && !locked && !tempExpired && user.status === 'ACTIVE' && schoolOk);
+  const credentialsAccepted   = Boolean(
+    user && passwordValid && !locked && !tempExpired &&
+    user.status === 'ACTIVE' && schoolOk
+  );
+  const platformAllowed        = Boolean(user && canUseDesktop(user.role));
+  const success                = credentialsAccepted && platformAllowed;
 
   // Non-SUPER_ADMIN must belong to a school
   const noSchool = success && user.role !== 'SUPER_ADMIN' && !user.schoolId;
@@ -76,6 +82,31 @@ export async function POST(request: NextRequest) {
   });
 
   if (!success) {
+    if (user && credentialsAccepted && !platformAllowed) {
+      await audit({
+        schoolId: user.schoolId,
+        userId: user.id,
+        action: 'DESKTOP_LOGIN_BLOCKED_PLATFORM_POLICY',
+        entityType: 'User',
+        entityId: user.id,
+        newValue: { role: user.role }
+      });
+
+      if (user.role === 'LEARNER') {
+        return desktopError(
+          403,
+          'DESKTOP_ACCESS_NOT_ALLOWED',
+          'Learners do not use AcademiaOS login accounts.'
+        );
+      }
+
+      return desktopError(
+        403,
+        'DESKTOP_ACCESS_NOT_ALLOWED',
+        'This account uses AcademiaOS Mobile. Desktop access is limited to Super Admin, School Administrator, Proprietor and Academic Administrator.'
+      );
+    }
+
     if (user) {
       const failed = user.failedLoginCount + 1;
       await db.update(users).set({

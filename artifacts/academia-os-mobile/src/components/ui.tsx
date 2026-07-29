@@ -23,7 +23,7 @@ function generatedInitials(name: string, maximum: number) {
   const meaningful = words.filter((word) => !ignored.has(word.toLowerCase()));
   const source = meaningful.length ? meaningful : words;
   if (!source.length) return 'SCH';
-  if (source.length === 1) return source[0].slice(0, maximum).toUpperCase();
+  if (source.length === 1) return source[0]!.slice(0, maximum).toUpperCase();
   return source.slice(0, maximum).map((part) => part[0]?.toUpperCase()).join('');
 }
 

@@ -182,31 +182,6 @@ function canCreatePortalAccount(role: string) {
   return ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER'].includes(role);
 }
 
-export async function createLearnerPortalAction(formData: FormData) {
-  const actor = await requireUser();
-  if (!canCreatePortalAccount(actor.role)) redirect('/learners?error=Permission+denied');
-  const schoolId = await getActiveSchoolId(actor);
-  const learnerId = String(formData.get('learnerId') || '');
-  const username = String(formData.get('username') || '').trim().toLowerCase();
-  const temporaryPassword = String(formData.get('temporaryPassword') || '');
-  if (username.length < 3 || temporaryPassword.length < 8) redirect(`/learners/${learnerId}?error=Use+a+valid+username+and+an+8-character+temporary+password`);
-  const learner = (await db.select().from(learners).where(and(eq(learners.id, learnerId), eq(learners.schoolId, schoolId))).limit(1))[0];
-  if (!learner) redirect('/learners?error=Learner+not+found');
-  if (learner.userId) redirect(`/learners/${learnerId}?error=Learner+already+has+a+portal+account`);
-  try {
-    const [account] = await db.transaction(async (tx) => {
-      const created = await tx.insert(users).values({ schoolId, name: `${learner.firstName} ${learner.lastName}`, username, role: 'LEARNER', passwordHash: await bcrypt.hash(temporaryPassword, 12), mustChangePassword: true, temporaryPasswordExpiresAt: temporaryPasswordExpiry() }).returning();
-      await tx.update(learners).set({ userId: created[0].id, updatedAt: new Date() }).where(eq(learners.id, learnerId));
-      return created;
-    });
-    await audit({ schoolId, userId: actor.id, action: 'LEARNER_PORTAL_CREATED', entityType: 'User', entityId: account.id, newValue: { learnerId, username } });
-  } catch {
-    redirect(`/learners/${learnerId}?error=Username+already+exists`);
-  }
-  revalidatePath(`/learners/${learnerId}`); revalidatePath('/users');
-  redirect(`/learners/${learnerId}?success=Learner+portal+account+created`);
-}
-
 export async function createGuardianPortalAction(formData: FormData) {
   const actor = await requireUser();
   if (!canCreatePortalAccount(actor.role)) redirect('/learners?error=Permission+denied');

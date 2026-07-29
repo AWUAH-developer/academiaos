@@ -182,6 +182,26 @@ export function SchoolEnrolmentWizard({
                   {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
+
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <input
+                  type="checkbox"
+                  name="authoriseFirstAdminForStaffAttendance"
+                  className="mt-1 accent-[#1f5b45]"
+                />
+
+                <span>
+                  <strong>
+                    Authorise this first administrator to record staff attendance
+                  </strong>
+
+                  <span className="mt-1 block text-xs text-slate-500">
+                    This person may record staff arrival, departure and approved gate movement.
+                    Security-role users are automatically authorised. The selected person can be
+                    changed later in School Setup.
+                  </span>
+                </span>
+              </label>
             </div>
           </section>
 

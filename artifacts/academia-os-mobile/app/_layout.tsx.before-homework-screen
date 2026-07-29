@@ -1,0 +1,13 @@
+import 'react-native-reanimated';
+import React from 'react';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from '@/auth/AuthContext';
+import { colors } from '@/theme';
+
+export default function RootLayout() {
+  return <SafeAreaProvider><AuthProvider><StatusBar style="light" /><Stack screenOptions={{ headerStyle:{backgroundColor:colors.navy},headerTintColor:'#fff',headerTitleStyle:{fontWeight:'800'},contentStyle:{backgroundColor:colors.background} }}>
+    <Stack.Screen name="index" options={{ headerShown:false }} /><Stack.Screen name="login" options={{ headerShown:false }} /><Stack.Screen name="change-password" options={{ title:'Secure your account', gestureEnabled:false }} /><Stack.Screen name="(tabs)" options={{ headerShown:false }} /><Stack.Screen name="learner/[id]" options={{ title:'Learner details' }} /><Stack.Screen name="attendance-record" options={{ title:'Record attendance' }} /><Stack.Screen name="announcements" options={{ title:'Announcements' }} /><Stack.Screen name="devices" options={{ title:'Signed-in devices' }} />
+  </Stack></AuthProvider></SafeAreaProvider>;
+}
