@@ -7,6 +7,8 @@ description: Who may create/publish homework vs. monitor it; teacherMayEnter byp
 
 **Why:** The spec explicitly separates academic publishing (assigned teachers) from administrative oversight. Giving SCHOOL_ADMIN write access was the original bug.
 
+**Also:** HEADTEACHER has NO school-wide oversight — `canReviewAcademics`/`canReviewHomework` are ACADEMIC_ADMIN-only; Headteacher homework/academics views (web + mobile) are filtered through `teachingScope`/`teachingScopeCondition` in lib/access.ts (class+subject pairs, plus class-teacher classes for all subjects); out-of-scope mobile requests return 403 + `HOMEWORK_SCHOOLWIDE_ACCESS_DENIED` audit.
+
 **How to apply:**
 - `canCreateHomework(role)` → SUPER_ADMIN, HEADTEACHER, ACADEMIC_ADMIN, TEACHER only
 - `teacherMayEnter()` in academics.ts: only SUPER_ADMIN bypasses the assignment check; HEADTEACHER and ACADEMIC_ADMIN must also have a `teacher_assignments` row (or be the `classTeacherId`) for the specific class+subject

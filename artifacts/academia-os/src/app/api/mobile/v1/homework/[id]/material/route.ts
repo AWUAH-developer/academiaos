@@ -8,6 +8,8 @@ import {
   mobileError,
   resolveMobileSchoolId
 } from "@/lib/mobile-api";
+import { inTeachingScope, teachingScope } from "@/lib/access";
+import { audit } from "@/lib/auth";
 import type { UserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -62,6 +64,7 @@ export async function GET(
       .select({
         id: homework.id,
         classId: homework.classId,
+        subjectId: homework.subjectId,
         attachmentUrl: homework.attachmentUrl,
         attachmentName: homework.attachmentName,
         attachmentMimeType: homework.attachmentMimeType
@@ -81,6 +84,32 @@ export async function GET(
       "HOMEWORK_NOT_FOUND",
       "The homework was not found."
     );
+  }
+
+  // HEADTEACHER has no school-wide monitoring: material outside their own
+  // class+subject assignments is denied with 403 + audit.
+  if (auth.context.user.role === "HEADTEACHER") {
+    const scope = await teachingScope(auth.context.user.id, schoolId);
+
+    if (!inTeachingScope(scope, row.classId, row.subjectId)) {
+      await audit({
+        schoolId,
+        userId: auth.context.user.id,
+        action: "HOMEWORK_SCHOOLWIDE_ACCESS_DENIED",
+        entityType: "Homework",
+        entityId: row.id,
+        newValue: {
+          role: auth.context.user.role,
+          classId: row.classId,
+          subjectId: row.subjectId
+        }
+      });
+      return mobileError(
+        403,
+        "PERMISSION_DENIED",
+        "You may only view homework material for your own assigned classes and subjects."
+      );
+    }
   }
 
   if (

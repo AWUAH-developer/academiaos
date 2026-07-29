@@ -8,7 +8,7 @@ import { FlashMessage } from '@/components/FlashMessage';
 import { PageHeader } from '@/components/PageHeader';
 import { db } from '@/db';
 import { academicSubmissions, academicYears, classes, learners, subjects, terms, users } from '@/db/schema';
-import { visibleLearnerIds } from '@/lib/access';
+import { teachingScope, teachingScopeCondition, visibleLearnerIds } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
 import { canAccess } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
@@ -40,6 +40,11 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
   ]);
 
   const conditions = [eq(academicSubmissions.schoolId, schoolId)];
+  // HEADTEACHER has no school-wide monitoring: only submissions for their own class+subject assignments.
+  if (user.role === 'HEADTEACHER') {
+    const scope = await teachingScope(user.id, schoolId);
+    conditions.push(teachingScopeCondition(scope, academicSubmissions.classId, academicSubmissions.subjectId) ?? eq(academicSubmissions.id, '__none__'));
+  }
   if (learnerScope !== null) {
     if (!learnerScope.length) conditions.push(eq(academicSubmissions.id, '__none__'));
     else conditions.push(inArray(academicSubmissions.learnerId, learnerScope));

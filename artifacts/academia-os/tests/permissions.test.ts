@@ -26,6 +26,17 @@ describe('role access controls', () => {
     expect(canApproveAcademics('ACADEMIC_ADMIN')).toBe(false);
   });
 
+  it('denies the Headteacher school-wide academic review and correction workflows', () => {
+    expect(canReviewAcademics('HEADTEACHER')).toBe(false);
+    expect(canApproveAcademics('HEADTEACHER')).toBe(false);
+    expect(canAccess('HEADTEACHER', 'approvals')).toBe(false);
+  });
+
+  it('keeps Headteacher access to their own teaching pages', () => {
+    expect(canAccess('HEADTEACHER', 'homework')).toBe(true);
+    expect(canAccess('HEADTEACHER', 'academics')).toBe(true);
+  });
+
   it('restricts accounts staff to the finance workflow', () => {
     expect(canAccess('ACCOUNTS', 'fees')).toBe(true);
     expect(canAccess('ACCOUNTS', 'academics')).toBe(false);

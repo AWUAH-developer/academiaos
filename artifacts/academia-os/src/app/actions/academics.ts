@@ -70,7 +70,12 @@ export async function saveAcademicAction(formData: FormData) {
 }
 
 export async function academicReviewAction(formData: FormData) {
-  const user = await requireUser(); if (!canReviewAcademics(user.role)) redirect('/approvals?error=Only+an+academic+reviewer+can+perform+this+action'); const schoolId = await getActiveSchoolId(user);
+  const user = await requireUser();
+  if (!canReviewAcademics(user.role)) {
+    await audit({ schoolId: await getActiveSchoolId(user), userId: user.id, action: 'ACADEMIC_REVIEW_DENIED', entityType: 'AcademicSubmission', entityId: String(formData.get('submissionId') || ''), newValue: { role: user.role } });
+    redirect('/approvals?error=Only+an+academic+reviewer+can+perform+this+action');
+  }
+  const schoolId = await getActiveSchoolId(user);
   const submissionId = String(formData.get('submissionId') || ''); const decision = String(formData.get('decision') || 'FORWARD'); const reason = String(formData.get('reason') || '').trim();
   const record = (await db.select().from(academicSubmissions).where(and(eq(academicSubmissions.id, submissionId), eq(academicSubmissions.schoolId, schoolId))).limit(1))[0]; if (!record || record.status !== 'SUBMITTED') redirect('/approvals?error=Only+submitted+records+can+be+reviewed');
   if (decision === 'RETURN' && !reason) redirect('/approvals?error=A+reason+is+required'); const next = decision === 'RETURN' ? 'RETURNED' : 'UNDER_REVIEW';

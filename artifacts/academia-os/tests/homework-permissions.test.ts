@@ -63,8 +63,12 @@ describe('Homework permission rules', () => {
   });
 
   // ── canReviewHomework ──────────────────────────────────────────────────────
-  it('allows Headteacher to review and unpublish homework', () => {
-    expect(canReviewHomework('HEADTEACHER')).toBe(true);
+  it('denies Headteacher school-wide homework review (no school-wide oversight)', () => {
+    expect(canReviewHomework('HEADTEACHER')).toBe(false);
+  });
+
+  it('denies Headteacher school-wide homework monitoring', () => {
+    expect(canMonitorHomework('HEADTEACHER')).toBe(false);
   });
 
   it('allows Academic Admin to review and unpublish homework', () => {

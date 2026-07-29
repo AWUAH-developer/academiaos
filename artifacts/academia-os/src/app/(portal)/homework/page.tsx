@@ -6,7 +6,7 @@ import { HomeworkPublishForm } from '@/components/HomeworkPublishForm';
 import { PageHeader } from '@/components/PageHeader';
 import { db } from '@/db';
 import { academicYears, classes, curriculumTopics, homework, homeworkTopics, learners, subjects, terms, users } from '@/db/schema';
-import { visibleLearnerIds } from '@/lib/access';
+import { teachingScope, teachingScopeCondition, visibleLearnerIds } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
 import { canAccess } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
@@ -30,6 +30,11 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
   }
   const filters = [eq(homework.schoolId, schoolId)];
   if (classScope !== null) filters.push(classScope.length ? inArray(homework.classId, classScope) : eq(homework.id, '__none__'));
+  // HEADTEACHER has no school-wide monitoring: scope to their own official class+subject assignments.
+  if (user.role === 'HEADTEACHER') {
+    const scope = await teachingScope(user.id, schoolId);
+    filters.push(teachingScopeCondition(scope, homework.classId, homework.subjectId) ?? eq(homework.id, '__none__'));
+  }
   const rows = await db.select({ assignment: homework, teacherName: users.name, className: classes.name, stream: classes.stream, subjectName: subjects.name, yearName: academicYears.name, termName: terms.name })
     .from(homework).innerJoin(users, eq(homework.teacherId, users.id)).innerJoin(classes, eq(homework.classId, classes.id)).innerJoin(subjects, eq(homework.subjectId, subjects.id)).innerJoin(academicYears, eq(homework.academicYearId, academicYears.id)).innerJoin(terms, eq(homework.termId, terms.id)).where(and(...filters)).orderBy(desc(homework.dueAt)).limit(200);
   const homeworkTopicRows = rows.length

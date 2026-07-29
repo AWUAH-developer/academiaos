@@ -349,8 +349,10 @@ export async function resolveMobileSchoolId(context: MobileAuthContext, request:
   return row?.id || null;
 }
 
+// HEADTEACHER is deliberately not a broad-learner role: like a TEACHER, their
+// access is scoped to their own official class/subject assignments.
 const broadLearnerRoles = new Set<UserRole>([
-  'SUPER_ADMIN', 'SCHOOL_ADMIN', 'PROPRIETOR', 'HEADTEACHER', 'ACADEMIC_ADMIN',
+  'SUPER_ADMIN', 'SCHOOL_ADMIN', 'PROPRIETOR', 'ACADEMIC_ADMIN',
   'ACCOUNTS', 'TRANSPORT', 'SECURITY', 'RECEPTIONIST', 'LIBRARIAN', 'CANTEEN'
 ]);
 
@@ -369,7 +371,7 @@ export async function accessibleLearnerIds(context: MobileAuthContext, schoolId:
       .where(and(eq(learners.userId, user.id), eq(learners.schoolId, schoolId))).limit(1))[0];
     return row ? [row.id] : [];
   }
-  if (user.role === 'TEACHER') {
+  if (user.role === 'TEACHER' || user.role === 'HEADTEACHER') {
     const assigned = await db.select({ classId: teacherAssignments.classId }).from(teacherAssignments)
       .where(and(eq(teacherAssignments.teacherId, user.id), eq(teacherAssignments.schoolId, schoolId)));
     const ownClasses = await db.select({ classId: classes.id }).from(classes)

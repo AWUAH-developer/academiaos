@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
 import { academicSubmissions, academicYears, learners, subjects, terms } from '@/db/schema';
+import { teachingScope, teachingScopeCondition } from '@/lib/access';
 import { accessibleLearnerIds, authenticateMobileRequest, mayAccessLearner, mobileError, mobileJson, pagination, resolveMobileSchoolId } from '@/lib/mobile-api';
 import { cleanText } from '@/lib/validation';
 import type { UserRole } from '@/lib/types';
@@ -27,6 +28,12 @@ export async function GET(request: NextRequest) {
   if (learnerId) conditions.push(eq(academicSubmissions.learnerId, learnerId));
   if (termId) conditions.push(eq(academicSubmissions.termId, termId));
   if (permitted !== null) conditions.push(inArray(academicSubmissions.learnerId, permitted));
+  // HEADTEACHER has no school-wide monitoring: subject-aware scoping to their own assignments.
+  if (auth.context.user.role === 'HEADTEACHER') {
+    const scoped = teachingScopeCondition(await teachingScope(auth.context.user.id, schoolId), academicSubmissions.classId, academicSubmissions.subjectId);
+    if (!scoped) return mobileJson({ data: { results: [], pagination: { limit: 0, offset: 0 } } });
+    conditions.push(scoped);
+  }
   const rows = await db.select({
     id: academicSubmissions.id,
     learnerId: academicSubmissions.learnerId,

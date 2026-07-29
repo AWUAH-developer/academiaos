@@ -20,6 +20,8 @@ import {
   pagination,
   resolveMobileSchoolId
 } from "@/lib/mobile-api";
+import { inTeachingScope, teachingScope, teachingScopeCondition } from "@/lib/access";
+import { audit } from "@/lib/auth";
 import { cleanText } from "@/lib/validation";
 import type { UserRole } from "@/lib/types";
 
@@ -70,6 +72,45 @@ export async function GET(request: NextRequest) {
     eq(homework.schoolId, schoolId),
     eq(homework.status, "PUBLISHED")
   ];
+
+  // HEADTEACHER has no school-wide monitoring: scope to their own official
+  // class+subject assignments, with 403 + audit for out-of-scope requests.
+  if (auth.context.user.role === "HEADTEACHER") {
+    const scope = await teachingScope(auth.context.user.id, schoolId);
+
+    if (classId && !inTeachingScope(scope, classId)) {
+      await audit({
+        schoolId,
+        userId: auth.context.user.id,
+        action: "HOMEWORK_SCHOOLWIDE_ACCESS_DENIED",
+        entityType: "Homework",
+        entityId: classId,
+        newValue: { role: auth.context.user.role, classId }
+      });
+      return mobileError(
+        403,
+        "PERMISSION_DENIED",
+        "You may only view homework for your own assigned classes and subjects."
+      );
+    }
+
+    const scoped = teachingScopeCondition(
+      scope,
+      homework.classId,
+      homework.subjectId
+    );
+
+    if (!scoped) {
+      return mobileJson({
+        data: {
+          homework: [],
+          pagination: { limit: 0, offset: 0 }
+        }
+      });
+    }
+
+    conditions.push(scoped);
+  }
 
   if (
     auth.context.user.role === "PARENT" ||

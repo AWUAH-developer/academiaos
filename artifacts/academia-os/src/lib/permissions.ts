@@ -4,7 +4,7 @@ export const navigationByRole: Record<UserRole, string[]> = {
   SUPER_ADMIN: ['dashboard','schools','demo-requests','packages','users','setup','learners','attendance','staff-attendance','fees','fee-arrears','academics','homework','homework-topics','promotion','approvals','reports','transport','events','messages','helpdesk','audit','id-cards'],
   SCHOOL_ADMIN: ['dashboard','users','learners','attendance','staff-attendance','fees','fee-arrears','academics','homework','homework-topics','approvals','reports','transport','events','messages','helpdesk','audit','id-cards'],
   PROPRIETOR: ['dashboard','users','staff-attendance','learners','academics','homework','fee-arrears','promotion','approvals','reports','events','messages','helpdesk','audit'],
-  HEADTEACHER: ['dashboard','learners','attendance','staff-attendance','academics','homework','homework-topics','promotion','approvals','reports','messages','helpdesk','id-cards'],
+  HEADTEACHER: ['dashboard','learners','attendance','staff-attendance','academics','homework','homework-topics','promotion','reports','messages','helpdesk','id-cards'],
   ACADEMIC_ADMIN: ['dashboard','learners','attendance','staff-attendance','academics','homework','homework-topics','promotion','approvals','reports','events','messages','helpdesk','id-cards'],
   TEACHER: ['dashboard','learners','attendance','academics','homework','reports','messages','helpdesk'],
   ACCOUNTS: ['dashboard','staff-attendance','learners','fees','fee-arrears','reports','messages','helpdesk'],
@@ -23,7 +23,8 @@ export function canRecordAttendance(role: UserRole) { return ['SUPER_ADMIN','SCH
 export function canRecordPayments(role: UserRole) { return ['SUPER_ADMIN','SCHOOL_ADMIN','ACCOUNTS'].includes(role); }
 export function canViewUsers(role: UserRole) { return ['SUPER_ADMIN','SCHOOL_ADMIN','PROPRIETOR'].includes(role); }
 export function canManageUsers(role: UserRole) { return ['SUPER_ADMIN','SCHOOL_ADMIN'].includes(role); }
-export function canReviewAcademics(role: UserRole) { return ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN'].includes(role); }
+/** School-wide academic review / return-for-correction. Academic Administrator only — the Headteacher (and everyone else) has no school-wide review authority. */
+export function canReviewAcademics(role: UserRole) { return ['ACADEMIC_ADMIN'].includes(role); }
 export function canApproveAcademics(role: UserRole) { return ['SUPER_ADMIN','PROPRIETOR'].includes(role); }
 
 // ── Fee arrears ────────────────────────────────────────────────────────────────
@@ -37,8 +38,8 @@ export function canSendFeeReminder(role: UserRole) { return ['SUPER_ADMIN','SCHO
 // ── Homework ───────────────────────────────────────────────────────────────────
 /** May create and publish homework (still requires a teacher assignment check in the action). */
 export function canCreateHomework(role: UserRole) { return ['SUPER_ADMIN','HEADTEACHER','ACADEMIC_ADMIN','TEACHER'].includes(role); }
-/** May review, return or unpublish homework but not routinely create it. */
-export function canReviewHomework(role: UserRole) { return ['HEADTEACHER','ACADEMIC_ADMIN'].includes(role); }
+/** May review, return or unpublish homework but not routinely create it. Academic Administrator only — the Headteacher has no school-wide oversight. */
+export function canReviewHomework(role: UserRole) { return ['ACADEMIC_ADMIN'].includes(role); }
 /** Read-only homework oversight — no create or publish rights. */
 export function canMonitorHomework(role: UserRole) { return ['SUPER_ADMIN','SCHOOL_ADMIN','PROPRIETOR'].includes(role); }
 /** May create curriculum topics (class/subject topic catalogue). */
