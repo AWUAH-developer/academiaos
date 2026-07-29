@@ -69,7 +69,9 @@ export async function createLearnerAction(formData: FormData) {
         address: cleanText(formData.get('address'), 300) || null,
         medicalNotes: cleanMultilineText(formData.get('medicalNotes'), 2000) || null,
         emergencyContact: normalizePhone(formData.get('emergencyContact')) || null,
-        paymentPlan: cleanText(formData.get('paymentPlan'), 30) || 'TERM',
+        paymentPlan: (['FULL_FEE','HALF_FEE','DAILY_FEE','INSTALLMENT'] as const).includes(cleanText(formData.get('paymentPlan'), 30) as never)
+          ? (cleanText(formData.get('paymentPlan'), 30) as string)
+          : 'FULL_FEE',
         badgeCode: `${admissionNo}-${crypto.randomBytes(5).toString('hex').toUpperCase()}`
       }).returning();
 

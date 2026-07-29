@@ -12,6 +12,7 @@ import { attendanceRecords, attendanceRegisters, classes, feeCharges, financialA
 import { mayViewLearner } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
 import { calculateFinancialBalance } from '@/lib/financial-balance';
+import { computePaymentStatus } from '@/lib/fees';
 import { formatDate, formatMoney } from '@/lib/format';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { canManageLearners } from '@/lib/permissions';
@@ -99,6 +100,12 @@ export default async function LearnerProfilePage({
 
   const outstanding = Math.max(0, trueBalance);
   const carryForwardCredit = Math.max(0, -trueBalance);
+  const paymentStatus = computePaymentStatus({
+    trueBalance,
+    totalCharges: Number(charges.value || 0),
+    totalPayments: Number(paid.value || 0),
+  });
+  const planLabel: Record<string, string> = { FULL_FEE: 'Full Fee', HALF_FEE: 'Half Fee', DAILY_FEE: 'Daily Fee', INSTALLMENT: 'Installment' };
 
   const qr = await QRCode.toDataURL(
     row.learner.badgeCode,
@@ -121,7 +128,7 @@ export default async function LearnerProfilePage({
       <StatCard
         label="Outstanding balance"
         value={formatMoney(outstanding, user.school?.currency)}
-        note={outstanding > 0 ? `Payment plan: ${row.learner.paymentPlan}` : 'No outstanding amount'}
+        note={`${paymentStatus.replaceAll('_',' ')} • ${planLabel[row.learner.paymentPlan] ?? row.learner.paymentPlan} plan`}
         icon={CircleDollarSign}
       />
       <StatCard

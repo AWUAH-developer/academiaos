@@ -312,7 +312,10 @@ export async function createFeeCategoryAction(formData: FormData) {
 
 export async function createFeeStructureAction(formData: FormData) {
   const user = await requireUser(); if (user.role !== 'SUPER_ADMIN') redirect('/dashboard'); const schoolId = await getActiveSchoolId(user);
-  const categoryId = String(formData.get('categoryId') || ''); const classId = String(formData.get('classId') || '') || null; const paymentPlan = String(formData.get('paymentPlan') || 'TERM'); const amount = safeMoney(formData.get('amount'));
+  const categoryId = String(formData.get('categoryId') || ''); const classId = String(formData.get('classId') || '') || null;
+  const rawPlan = String(formData.get('paymentPlan') || '');
+  const paymentPlan = (['FULL_FEE','HALF_FEE','DAILY_FEE','INSTALLMENT'] as const).includes(rawPlan as never) ? rawPlan : 'FULL_FEE';
+  const amount = safeMoney(formData.get('amount'));
   if (!categoryId || amount === null) redirect('/setup?error=Enter+a+valid+fee+structure');
   const category = (await db.select({ id: feeCategories.id }).from(feeCategories).where(and(eq(feeCategories.id, categoryId), eq(feeCategories.schoolId, schoolId))).limit(1))[0];
   if (!category) redirect('/setup?error=Fee+category+not+found');

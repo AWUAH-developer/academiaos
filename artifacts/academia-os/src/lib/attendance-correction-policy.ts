@@ -122,7 +122,7 @@ export async function reconcileAttendanceCorrectionFees(
   },
 ) {
   if (
-    input.learner.paymentPlan !== 'DAILY' ||
+    input.learner.paymentPlan !== 'DAILY_FEE' ||
     !input.learner.classId
   ) {
     return;
@@ -141,7 +141,7 @@ export async function reconcileAttendanceCorrectionFees(
     .where(
       and(
         eq(feeStructures.schoolId, input.schoolId),
-        eq(feeStructures.paymentPlan, 'DAILY'),
+        eq(feeStructures.paymentPlan, 'DAILY_FEE'),
         eq(feeStructures.isActive, true),
         or(
           eq(feeStructures.classId, input.learner.classId),

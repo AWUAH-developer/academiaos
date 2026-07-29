@@ -9,7 +9,7 @@ export async function createDailyAttendanceCharges(
   date: Date,
   status: string,
 ) {
-  if (learner.paymentPlan !== 'DAILY' || !learner.classId) return;
+  if (learner.paymentPlan !== 'DAILY_FEE' || !learner.classId) return;
 
   const structures = await tx
     .select({ structure: feeStructures, category: feeCategories })
@@ -18,7 +18,7 @@ export async function createDailyAttendanceCharges(
     .where(
       and(
         eq(feeStructures.schoolId, schoolId),
-        eq(feeStructures.paymentPlan, 'DAILY'),
+        eq(feeStructures.paymentPlan, 'DAILY_FEE'),
         eq(feeStructures.isActive, true),
         or(
           eq(feeStructures.classId, learner.classId),

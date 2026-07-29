@@ -84,7 +84,12 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
           <textarea className="input min-h-20" name="address" placeholder="Home address"/>
           <input className="input" name="medicalNotes" placeholder="Medical notes"/>
           <input className="input" name="emergencyContact" placeholder="Emergency contact"/>
-          <select className="input" name="paymentPlan"><option>TERM</option><option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option><option>INSTALLMENT</option><option>SCHOLARSHIP</option></select>
+          <select className="input" name="paymentPlan">
+            <option value="FULL_FEE">Full Fee — 100% of applicable tuition</option>
+            <option value="HALF_FEE">Half Fee — 50% of applicable tuition</option>
+            <option value="DAILY_FEE">Daily Fee — charged per attendance day</option>
+            <option value="INSTALLMENT">Installment — full fee paid in portions</option>
+          </select>
           <hr/>
           <p className="text-xs font-black uppercase tracking-wide text-slate-500">Primary parent or guardian</p>
           <input className="input" name="guardianName" placeholder="Parent or guardian full name" required/>
@@ -120,7 +125,7 @@ export default async function LearnersPage({ searchParams }: { searchParams: Pro
             <td><div className="flex min-w-52 items-center gap-3"><Image src={learner.photoUrl || '/icon.svg'} alt={`${learner.firstName} ${learner.lastName}`} width={52} height={52} unoptimized className="h-14 w-14 rounded-xl border border-slate-200 object-cover"/><div><p className="font-black">{learner.firstName} {learner.lastName}</p><p className="text-xs text-slate-500">{learner.admissionNo}</p></div></div></td>
             <td>{className ? `${className} ${stream || ''}` : 'Unassigned'}</td>
             <td><p className="font-bold">{guardianName || 'Not linked'}</p><p className="text-xs text-slate-500">{guardianPhone || ''}</p><p className="text-xs text-slate-500">{guardianEmail || ''}</p></td>
-            <td>{learner.paymentPlan}</td>
+            <td>{{FULL_FEE:'Full Fee',HALF_FEE:'Half Fee',DAILY_FEE:'Daily Fee',INSTALLMENT:'Installment'}[learner.paymentPlan] ?? learner.paymentPlan}</td>
             <td>{mayManageLearnerRecords ? <form action={updateLearnerStatusAction} className="flex gap-2"><input type="hidden" name="learnerId" value={learner.id}/><select className="input min-h-9 py-1 text-xs" name="status" defaultValue={learner.status}><option>ACTIVE</option><option>SUSPENDED</option><option>GRADUATED</option><option>WITHDRAWN</option></select><button className="btn-secondary min-h-9 px-2 py-1 text-xs">Save</button></form> : <span className="status-pill bg-emerald-100 text-emerald-800">{learner.status}</span>}</td>
             <td><Link href={`/learners/${learner.id}`} className="font-extrabold text-chalk-700">Profile</Link></td>
           </tr>)}</tbody>

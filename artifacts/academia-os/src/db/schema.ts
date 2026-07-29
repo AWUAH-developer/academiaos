@@ -110,7 +110,7 @@ export const learners = pgTable('learners', {
   firstName: text('first_name').notNull(), lastName: text('last_name').notNull(), photoUrl: text('photo_url'),
   dateOfBirth: timestamp('date_of_birth', { withTimezone: true }), gender: text('gender'), admissionDate: timestamp('admission_date', { withTimezone: true }).notNull().defaultNow(),
   address: text('address'), medicalNotes: text('medical_notes'), emergencyContact: text('emergency_contact'),
-  transportRouteText: text('transport_route_text'), paymentPlan: text('payment_plan').notNull().default('TERM'),
+  transportRouteText: text('transport_route_text'), paymentPlan: text('payment_plan').notNull().default('FULL_FEE'),
   badgeCode: text('badge_code').notNull().unique(), status: text('status').notNull().default('ACTIVE'),
   createdAt: created(), updatedAt: updated()
 }, (t) => [uniqueIndex('learner_school_admission_uq').on(t.schoolId, t.admissionNo), index('learner_school_class_idx').on(t.schoolId, t.classId, t.status)]);
