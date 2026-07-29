@@ -125,7 +125,7 @@ export default async function ChangePasswordPage({
             </div>
 
             <p className="text-xs leading-5 text-slate-500">
-              Use 12 to 128 characters with an uppercase letter, lowercase
+              Use 8 to 128 characters with an uppercase letter, lowercase
               letter and number.
             </p>
 

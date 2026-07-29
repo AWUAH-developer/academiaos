@@ -180,7 +180,7 @@ export async function createDemoAccessAction(
 
   const code = await availableSchoolCode(schoolName, requestedCode);
   const username = await availableUsername(adminName);
-  const temporaryPassword = generateTemporaryPassword(10);
+  const temporaryPassword = generateTemporaryPassword(8);
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
   const startsAt = new Date();
   const expiresAt = new Date(startsAt.getTime() + DEMO_DAYS * DAY_MS);
@@ -374,7 +374,7 @@ export async function sendNewDemoInvitationAction(
     return { status: 'error', message: 'Extend or reactivate the demo before sending a new invitation.' };
   }
 
-  const temporaryPassword = generateTemporaryPassword(10);
+  const temporaryPassword = generateTemporaryPassword(8);
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   try {

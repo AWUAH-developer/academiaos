@@ -18,7 +18,7 @@ export function usernameBaseFromName(name: string) {
   return [first, last].filter(Boolean).join('.').slice(0, 28) || 'staff';
 }
 
-export function generateTemporaryPassword(length = 10) {
+export function generateTemporaryPassword(length = 8) {
   let value = '';
   for (let i = 0; i < length; i += 1) {
     value += PASSWORD_ALPHABET[crypto.randomInt(0, PASSWORD_ALPHABET.length)];

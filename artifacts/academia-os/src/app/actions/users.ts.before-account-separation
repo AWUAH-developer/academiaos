@@ -100,7 +100,7 @@ export async function createUserAction(
   }
 
   const username = await availableUsername(name);
-  const temporaryPassword = generateTemporaryPassword(8);
+  const temporaryPassword = generateTemporaryPassword(10);
 
   try {
     const [created] = await db.insert(users).values({
@@ -215,17 +215,8 @@ export async function updateUserStatusAction(formData: FormData) {
     oldValue: { status: target.status },
     newValue: { status }
   });
-  const requestedReturnTo = String(formData.get('returnTo') || '');
-  const returnTo =
-    requestedReturnTo === '/guardians' ||
-    /^\/learners\/[A-Za-z0-9-]+$/.test(requestedReturnTo)
-      ? requestedReturnTo
-      : '/users';
-
   revalidatePath('/users');
-  revalidatePath('/guardians');
-  revalidatePath(returnTo);
-  redirect(`${returnTo}?success=User+status+updated`);
+  redirect('/users?success=User+status+updated');
 }
 
 export async function resetUserPasswordAction(
@@ -242,7 +233,7 @@ export async function resetUserPasswordAction(
     return { status: 'error', message: 'User not found.' };
   }
 
-  const temporaryPassword = generateTemporaryPassword(8);
+  const temporaryPassword = generateTemporaryPassword(10);
   await db.transaction(async (tx) => {
     await tx.update(users).set({
       passwordHash: await bcrypt.hash(temporaryPassword, 12),

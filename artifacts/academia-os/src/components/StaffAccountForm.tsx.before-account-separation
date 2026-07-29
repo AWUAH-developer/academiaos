@@ -15,7 +15,7 @@ export function StaffAccountForm({ roles }: { roles: UserRole[] }) {
         <div className="grid h-10 w-10 place-items-center rounded-xl bg-chalk-50 text-chalk-700"><UserPlus size={20}/></div>
         <div>
           <h2 className="font-black">Create staff account</h2>
-          <p className="text-xs text-slate-500">Username and eight-character one-time password are generated automatically</p>
+          <p className="text-xs text-slate-500">Username and six-character one-time password are generated automatically</p>
         </div>
       </div>
 

@@ -189,7 +189,7 @@ export async function createLearnerPortalAction(formData: FormData) {
   const learnerId = String(formData.get('learnerId') || '');
   const username = String(formData.get('username') || '').trim().toLowerCase();
   const temporaryPassword = String(formData.get('temporaryPassword') || '');
-  if (username.length < 3 || temporaryPassword.length < 8) redirect(`/learners/${learnerId}?error=Use+a+valid+username+and+an+8-character+temporary+password`);
+  if (username.length < 3 || temporaryPassword.length < 10) redirect(`/learners/${learnerId}?error=Use+a+valid+username+and+a+10-character+temporary+password`);
   const learner = (await db.select().from(learners).where(and(eq(learners.id, learnerId), eq(learners.schoolId, schoolId))).limit(1))[0];
   if (!learner) redirect('/learners?error=Learner+not+found');
   if (learner.userId) redirect(`/learners/${learnerId}?error=Learner+already+has+a+portal+account`);
@@ -215,7 +215,7 @@ export async function createGuardianPortalAction(formData: FormData) {
   const guardianId = String(formData.get('guardianId') || '');
   const username = String(formData.get('username') || '').trim().toLowerCase();
   const temporaryPassword = String(formData.get('temporaryPassword') || '');
-  if (username.length < 3 || temporaryPassword.length < 8) redirect(`/learners/${learnerId}?error=Use+a+valid+username+and+an+8-character+temporary+password`);
+  if (username.length < 3 || temporaryPassword.length < 10) redirect(`/learners/${learnerId}?error=Use+a+valid+username+and+a+10-character+temporary+password`);
   const link = (await db.select({ guardian: guardians }).from(learnerGuardians).innerJoin(guardians, eq(learnerGuardians.guardianId, guardians.id)).where(and(eq(learnerGuardians.learnerId, learnerId), eq(learnerGuardians.guardianId, guardianId), eq(guardians.schoolId, schoolId))).limit(1))[0];
   if (!link) redirect(`/learners/${learnerId}?error=Guardian+not+found`);
   if (link.guardian.userId) redirect(`/learners/${learnerId}?error=Guardian+already+has+a+portal+account`);
@@ -229,7 +229,7 @@ export async function createGuardianPortalAction(formData: FormData) {
   } catch {
     redirect(`/learners/${learnerId}?error=Username+already+exists`);
   }
-  revalidatePath(`/learners/${learnerId}`); revalidatePath('/users'); revalidatePath('/guardians');
+  revalidatePath(`/learners/${learnerId}`); revalidatePath('/users');
   redirect(`/learners/${learnerId}?success=Parent+portal+account+created`);
 }
 

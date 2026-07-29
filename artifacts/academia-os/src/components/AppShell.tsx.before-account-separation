@@ -13,9 +13,7 @@ import type { UserRole } from '@/lib/types';
 
 const navItems = {
   dashboard: { href: '/dashboard', label: 'Dashboard', icon: Gauge }, schools: { href: '/schools', label: 'Schools', icon: School },
-  users: { href: '/users', label: 'Users & staff', icon: Users },
-  guardians: { href: '/guardians', label: 'Parents & guardians', icon: UsersRound },
-  setup: { href: '/setup', label: 'School setup', icon: Settings2 },
+  users: { href: '/users', label: 'Users & staff', icon: Users }, setup: { href: '/setup', label: 'School setup', icon: Settings2 },
   learners: { href: '/learners', label: 'Learners', icon: UsersRound }, attendance: { href: '/attendance', label: 'Learner attendance', icon: ClipboardCheck }, 'staff-attendance': { href: '/staff-attendance', label: 'Staff attendance', icon: UserCheck },
   fees: { href: '/fees', label: 'Fees & receipts', icon: CircleDollarSign }, academics: { href: '/academics', label: 'Results', icon: BookOpenCheck },
   homework: { href: '/homework', label: 'Homework', icon: GraduationCap }, 'homework-topics': { href: '/homework-topics', label: 'Homework topics', icon: ListChecks }, approvals: { href: '/approvals', label: 'Approvals', icon: BadgeCheck },
@@ -31,10 +29,7 @@ type ShellUser = { name: string; role: UserRole; photoUrl?: string | null; schoo
 function roleLabel(role: UserRole) { return role.replaceAll('_',' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()); }
 
 export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
-  const configuredPages = navigationByRole[user.role];
-  const pages = configuredPages.flatMap((key) =>
-    key === 'users' ? [key, 'guardians' as const] : [key]
-  );
+  const pages = navigationByRole[user.role];
   return <div className="min-h-screen lg:grid lg:grid-cols-[286px_1fr]">
     <aside className="wood-grain hidden min-h-screen flex-col p-5 text-white lg:flex">
       <Brand />

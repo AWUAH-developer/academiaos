@@ -24,13 +24,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     'staff'
   );
   const mayManageStaff = canManageUsers(actor.role);
-  const rows = (
-    await db
-      .select()
-      .from(users)
-      .where(eq(users.schoolId, schoolId))
-      .orderBy(asc(users.name))
-  ).filter((row) => row.role !== 'PARENT' && row.role !== 'LEARNER');
+  const rows = await db.select().from(users).where(eq(users.schoolId, schoolId)).orderBy(asc(users.name));
   const delegatedStaffRoles: UserRole[] = [
     'HEADTEACHER',
     'ACADEMIC_ADMIN',
@@ -53,7 +47,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     : delegatedStaffRoles;
 
   return <>
-    <PageHeader eyebrow="Access control" title="Users and staff" description="Create and manage staff accounts only. Parent and guardian accounts are managed separately, while learner accounts remain attached to learner profiles."/>
+    <PageHeader eyebrow="Access control" title="Users and staff" description="Create staff profiles and manage permitted staff accounts. Password resets and Proprietor account security are controlled by the AcademiaOS Super Admin."/>
     <FlashMessage success={params.success} error={params.error}/>
     <div className={`grid gap-6 ${mayCreateStaff ? 'xl:grid-cols-[390px_1fr]' : ''}`}>
       {mayCreateStaff && <StaffAccountForm roles={roles}/>}

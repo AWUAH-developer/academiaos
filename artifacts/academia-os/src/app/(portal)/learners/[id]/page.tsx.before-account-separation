@@ -4,13 +4,11 @@ import { notFound, redirect } from 'next/navigation';
 import QRCode from 'qrcode';
 import { CalendarCheck2, CircleDollarSign, KeyRound, UserRound } from 'lucide-react';
 import { createGuardianPortalAction, createLearnerPortalAction, updateGuardianContactAction, updateLearnerPhotoAction } from '@/app/actions/learners';
-import { updateUserStatusAction } from '@/app/actions/users';
-import { PasswordResetControl } from '@/components/PasswordResetControl';
 import { FlashMessage } from '@/components/FlashMessage';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard } from '@/components/StatCard';
 import { db } from '@/db';
-import { attendanceRecords, attendanceRegisters, classes, feeCharges, financialAdjustments, guardians, learnerGuardians, learners, payments, users } from '@/db/schema';
+import { attendanceRecords, attendanceRegisters, classes, feeCharges, financialAdjustments, guardians, learnerGuardians, learners, payments } from '@/db/schema';
 import { mayViewLearner } from '@/lib/access';
 import { requireUser } from '@/lib/auth';
 import { calculateFinancialBalance } from '@/lib/financial-balance';
@@ -107,21 +105,6 @@ export default async function LearnerProfilePage({
     { margin: 1, width: 220 },
   );
   const canCreatePortals = ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER'].includes(user.role);
-  const learnerAccount = row.learner.userId
-    ? (
-        await db
-          .select()
-          .from(users)
-          .where(
-            and(
-              eq(users.id, row.learner.userId),
-              eq(users.schoolId, schoolId)
-            )
-          )
-          .limit(1)
-      )[0]
-    : null;
-
   const canEditProfile = canManageLearners(user.role);
 
   return <>
@@ -176,73 +159,11 @@ export default async function LearnerProfilePage({
         {canCreatePortals && <div className="paper-card p-5">
           <h2 className="flex items-center gap-2 font-black"><KeyRound size={18}/> Learner portal access</h2>
           {row.learner.userId
-            ? <div className="mt-3 rounded-xl bg-emerald-50 p-3">
-                <p className="text-sm font-bold text-emerald-800">
-                  A learner login is linked to this profile.
-                </p>
-
-                {learnerAccount && (
-                  <div className="mt-3 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs text-slate-500">Username</p>
-                        <p className="font-mono text-sm font-bold">
-                          @{learnerAccount.username}
-                        </p>
-                      </div>
-
-                      <span
-                        className={
-                          learnerAccount.status === 'ACTIVE'
-                            ? 'status-pill bg-emerald-100 text-emerald-800'
-                            : 'status-pill bg-rose-100 text-rose-800'
-                        }
-                      >
-                        {learnerAccount.status}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {canEditProfile && (
-                        <form action={updateUserStatusAction}>
-                          <input
-                            type="hidden"
-                            name="userId"
-                            value={learnerAccount.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="status"
-                            value={
-                              learnerAccount.status === 'ACTIVE'
-                                ? 'SUSPENDED'
-                                : 'ACTIVE'
-                            }
-                          />
-                          <input
-                            type="hidden"
-                            name="returnTo"
-                            value={'/learners/' + row.learner.id}
-                          />
-                          <button className="btn-secondary min-h-9 px-3 py-1.5 text-xs">
-                            {learnerAccount.status === 'ACTIVE'
-                              ? 'Suspend learner login'
-                              : 'Activate learner login'}
-                          </button>
-                        </form>
-                      )}
-
-                      {user.role === 'SUPER_ADMIN' && (
-                        <PasswordResetControl userId={learnerAccount.id} />
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-800">A learner login is linked to this profile. Reset or suspend it from Users and staff.</p>
             : <form action={createLearnerPortalAction} className="mt-4 space-y-3">
                 <input type="hidden" name="learnerId" value={row.learner.id}/>
                 <input className="input" name="username" placeholder="Learner username" required/>
-                <input className="input" name="temporaryPassword" type="password" placeholder="Temporary password, 8 characters minimum" required/>
+                <input className="input" name="temporaryPassword" type="password" placeholder="Temporary password, 10+ characters" required/>
                 <button className="btn-primary w-full">Create learner login</button>
               </form>}
         </div>}
