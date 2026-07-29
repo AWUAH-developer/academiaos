@@ -11,6 +11,7 @@
     "start": "node scripts/start.mjs",
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
+    "db:repair-journal": "tsx scripts/repair-journal.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run",

@@ -72,6 +72,21 @@ try {
                   WHERE schemaname = 'public'
                     AND indexname  = 'doik_idempotency_key_idx'`,
     },
+    {
+      migration: '0013_silky_korvac',
+      label:     'school_events table',
+      query:     `SELECT 1 FROM information_schema.tables
+                  WHERE table_schema = 'public'
+                    AND table_name   = 'school_events'`,
+    },
+    {
+      migration: '0014_true_purifiers',
+      label:     'school_management_controls.staff_attendance_officer_id column',
+      query:     `SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public'
+                    AND table_name   = 'school_management_controls'
+                    AND column_name  = 'staff_attendance_officer_id'`,
+    },
   ];
 
   const failures = [];
