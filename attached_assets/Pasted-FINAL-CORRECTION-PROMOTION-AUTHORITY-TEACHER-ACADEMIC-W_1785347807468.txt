@@ -1,0 +1,641 @@
+FINAL CORRECTION: PROMOTION AUTHORITY, TEACHER ACADEMIC WORK, HEADTEACHER ASSIGNMENTS, PARENT HOMEWORK ACCESS, AND WEBSITE LOGO
+
+Do not create another task, specification, proposal, or implementation plan.
+
+Modify the current AcademiaOS implementation directly. These instructions replace any conflicting promotion, homework, classwork, exercise, Headteacher,, homework, classwork, exercise, Headteacher, or logo rules previously supplied.
+
+Complete all implementation and verification work, but do not publish automatically.
+
+==================================================
+PART 1: FINAL PROMOTION WORKFLOW
+==================================================
+
+Promotion must follow this exact workflow:
+
+1. Assigned teachers enter academic marks for their assigned classes and subjects.
+2. Teachers submit completed academic results.
+3. Academic Administrator reviews the submitted results.
+4. Proprietor gives final approval to the academic results.
+5. The system calculates promotion recommendations using only approved final results.
+6. Academic Administrator prepares the promotion decision.
+7. Proprietor approves or rejects the promotion decision.
+8. The system changes the learner’s class only after Proprietor approval.
+
+Available decisions:
+
+- PROMOTE
+- REPEAT
+- FORCE_PROMOTE
+- GRADUATE
+- DEFER
+
+The system recommendation must consider the school’s configured policy, including where applicable:
+
+- approved annual average
+- number of subjects passed
+- number of subjects failed
+- compulsory subjects passed or failed
+- attendance percentage
+- completion of all required results
+- final result approval status
+
+Do not calculate promotion from:
+
+- draft results
+- unsubmitted results
+- unreviewed results
+- rejected results
+- incomplete academic records
+- results without Proprietor approval
+
+==================================================
+PART 2: FORCE PROMOTION
+==================================================
+
+Force promotion must follow these rules:
+
+1. Force promotion applies to one individual learner at a time.
+2. It must not be included in automatic batch promotion.
+3. A written reason is compulsory.
+4. The original system recommendation must remain visible.
+5. Display:
+   - approved marks
+   - annual average
+   - subjects passed
+   - subjects failed
+   - compulsory-subject outcome
+   - attendance percentage
+6. Academic Administrator recommends FORCE_PROMOTE.
+7. Proprietor approves or rejects the request.
+8. The learner’s class must not change before Proprietor approval.
+9. Record permanently:
+   - learner
+   - academic year
+   - current class
+   - proposed next class
+   - original system recommendation
+   - force-promotion reason
+   - requesting Academic Administrator
+   - approving Proprietor
+   - request date
+   - approval or rejection date
+   - application date
+10. Create a permanent audit entry.
+11. Do not permit force promotion without a written reason.
+12. Do not allow batch force promotion.
+13. Do not allow the Academic Administrator to approve their own recommendation.
+
+==================================================
+PART 3: NORMAL BATCH PROMOTION
+==================================================
+
+1. Support batch promotion for learners who satisfy the configured policy.
+2. Exclude learners with incomplete, rejected, draft, or unapproved results.
+3. Exclude FORCE_PROMOTE cases from normal batches.
+4. Academic Administrator prepares the batch.
+5. Proprietor approves and applies the batch.
+6. Preserve historical:
+   - classes
+   - academic years
+   - attendance
+   - marks
+   - reports
+   - approvals
+   - promotion decisions
+7. Do not overwrite previous academic-year records.
+8. Learners in the final class must be marked COMPLETED or GRADUATED.
+9. Repeating learners remain in their current class for the new academic year.
+10. Deferred learners remain unchanged until a later approved decision.
+
+==================================================
+PART 4: FINAL PROMOTION ROLE MATRIX
+==================================================
+
+ACADEMIC_ADMIN
+
+- review approved academic records
+- prepare promotion recommendations
+- recommend PROMOTE, REPEAT, FORCE_PROMOTE, GRADUATE, or DEFER
+- select the proposed next class
+- provide the compulsory written reason for FORCE_PROMOTE
+- prepare normal promotion batches
+- cannot give final approval
+- cannot apply a promotion before Proprietor approval
+- cannot alter original teacher marks
+
+PROPRIETOR
+
+- review the Academic Administrator’s recommendations
+- approve or reject individual promotion decisions
+- approve individual FORCE_PROMOTE requests
+- give final approval to normal promotion batches
+- apply approved promotions
+- cannot create or alter original teacher marks
+- cannot approve a promotion that has not been prepared by the Academic Administrator
+
+HEADTEACHER
+
+- view approved academic records
+- view system promotion recommendations
+- monitor promotion progress
+- view approved and rejected promotion decisions
+- cannot prepare promotion recommendations
+- cannot recommend FORCE_PROMOTE
+- cannot approve or reject promotion decisions
+- cannot apply promotion batches
+
+SCHOOL_ADMIN
+
+- view promotion progress and reports only
+- cannot prepare or recommend promotion decisions
+- cannot force-promote
+- cannot approve, reject, or apply promotions
+
+SUPER_ADMIN
+
+- configure promotion policy
+- view and audit all promotion activities
+- exceptionally reopen a completed promotion decision with a compulsory reason
+- cannot perform routine promotion recommendations
+- cannot approve or apply ordinary promotion decisions
+
+TEACHER
+
+- view academic records and promotion recommendations for officially assigned classes and subjects
+- cannot recommend, approve, reject, force-promote, or apply promotion decisions
+
+==================================================
+PART 5: ACADEMIC WORK TYPES
+==================================================
+
+Support these teacher-created academic work types:
+
+- HOMEWORK
+- CLASSWORK
+- CLASS_EXERCISE
+- GENERAL_CLASS_ACTIVITY
+
+Each academic work record must identify:
+
+- work type
+- school
+- class
+- subject where applicable
+- creating teacher
+- assigned learners
+- title
+- instructions
+- date assigned
+- due date where applicable
+- publication status
+- learner submission status
+- submission date
+- late-submission status
+- score
+- maximum score
+- teacher remark
+- marking teacher
+- marking date
+- correction history
+- created timestamp
+- updated timestamp
+
+==================================================
+PART 6: OFFICIAL CLASS TEACHER
+==================================================
+
+An official Class Teacher may:
+
+- create and publish general homework for the officially assigned class
+- create and record general classwork
+- create and record general class exercises
+- create general class activities
+- view learners in the assigned class
+- record learner submission status
+- record submitted-late status
+- mark general academic work they created
+- record scores and maximum scores
+- record teacher remarks
+- record submission and marking dates
+- monitor completed, unmarked, and outstanding work for the assigned class
+
+The Class Teacher must not create subject-specific work for a subject they are not assigned to teach.
+
+When the Class Teacher is also officially assigned to teach a subject, they may create and mark work for that subject.
+
+==================================================
+PART 7: ASSIGNED SUBJECT TEACHER
+==================================================
+
+An assigned Subject Teacher may:
+
+- create and publish homework for the assigned subject and class
+- create and record classwork for the assigned subject
+- create and record class exercises for the assigned subject
+- record lessons or academic work completed for that subject where supported
+- record learner submission status
+- record submitted-late status
+- mark homework, classwork, and exercises for that subject
+- record scores and maximum scores
+- record teacher remarks
+- record submission and marking dates
+- view performance for assigned learners and subjects
+
+A Subject Teacher must record only work belonging to their officially assigned subject and class.
+
+A Subject Teacher must not:
+
+- create work for an unassigned subject
+- create work for an unassigned class
+- mark another teacher’s subject work
+- alter another teacher’s scores or remarks
+
+==================================================
+PART 8: HEADTEACHER ACADEMIC WORK
+==================================================
+
+A Headteacher may be an active teacher.
+
+The system must allow a Headteacher to be officially assigned:
+
+- one class as the official Class Teacher
+- all subjects in that class, or
+- selected subjects, such as three or four subjects
+
+HEADTEACHER AS CLASS TEACHER
+
+When officially assigned as the Class Teacher, the Headteacher may:
+
+- create and publish general homework for the assigned class
+- create and record general classwork
+- create and record general class exercises
+- create general class activities
+- record learner submission status
+- mark general work they created
+- record scores, maximum scores, remarks, submission dates, and marking dates
+- monitor every learner in the assigned class
+
+HEADTEACHER AS SUBJECT TEACHER
+
+For every subject officially assigned to the Headteacher, they may:
+
+- create and publish subject homework
+- create and record subject classwork
+- create and record subject class exercises
+- mark learner work for that subject
+- record scores and teacher remarks
+- update submission and marking records
+- view subject performance for assigned learners
+
+HEADTEACHER ASSIGNMENT RULES
+
+1. Being a Headteacher alone must not grant teaching access to every class and subject.
+2. Teaching permissions must come from official class and subject assignments.
+3. When assigned all subjects in one class, the Headteacher may teach, create work, and mark all those subjects.
+4. When assigned only selected subjects, the Headteacher must be restricted to those subjects.
+5. The Headteacher must not create work for an unrelated class.
+6. The Headteacher must not mark another teacher’s subject work.
+
+HEADTEACHER SCHOOL-WIDE MANAGEMENT FUNCTIONS
+
+In addition to their own teaching assignments, the Headteacher may:
+
+- monitor homework, classwork, and exercises throughout the school
+- review completion and marking reports
+- identify unmarked or overdue academic work
+- monitor teacher publishing and marking performance
+- return inappropriate work for correction
+- request corrections through the authorised workflow
+
+School-wide monitoring must not grant permission to alter another teacher’s marks or remarks.
+
+==================================================
+PART 9: ACADEMIC ADMINISTRATOR
+==================================================
+
+The Academic Administrator may:
+
+- monitor homework, classwork, exercises, and general class activities
+- review teacher publishing and marking activity
+- return inappropriate academic work for correction
+- request a correction to a score or remark
+- monitor missing submissions
+- monitor unmarked work
+- view school-wide academic-work reports
+
+The Academic Administrator may create and mark academic work only when officially assigned as the relevant Class Teacher or Subject Teacher.
+
+The Academic Administrator’s management role alone must not grant teaching permission.
+
+==================================================
+PART 10: OTHER ROLE RESTRICTIONS
+==================================================
+
+SCHOOL_ADMIN
+
+- view-only academic monitoring
+- cannot create, publish, or mark homework
+- cannot create or mark classwork or exercises
+- cannot alter teacher scores or remarks
+
+PROPRIETOR
+
+- view academic summaries and reports
+- cannot create, publish, or mark homework, classwork, or exercises
+- cannot alter original teacher scores or remarks
+
+SUPER_ADMIN
+
+- audit and exceptional moderation only
+- may perform an exceptional unpublish or reopen action with a written reason
+- cannot routinely create, publish, or mark teacher academic work
+
+UNASSIGNED TEACHER
+
+- cannot create, edit, publish, or mark work for an unassigned class or subject
+
+==================================================
+PART 11: LEARNER SUBMISSION AND MARKING
+==================================================
+
+Learners do not have AcademiaOS login accounts.
+
+Teachers must record submission and marking for every learner.
+
+Support these learner-level statuses:
+
+- NOT_SUBMITTED
+- SUBMITTED
+- SUBMITTED_LATE
+- EXCUSED
+- MARKED
+
+For every learner record store:
+
+- learner ID
+- academic work ID
+- class ID
+- subject ID where applicable
+- teacher ID
+- submission status
+- submission date
+- late flag
+- score received
+- maximum score
+- teacher remark
+- marked-by teacher ID
+- marked date
+- correction reason where applicable
+- attachment or evidence reference where supported
+- created and updated timestamps
+
+VALIDATION
+
+1. Score must not exceed the maximum score.
+2. Score and maximum score must not be negative.
+3. MARKED status requires a valid score and maximum score.
+4. A marked record must identify the marking teacher and date.
+5. An EXCUSED learner may have no score.
+6. Corrections after marking require a written reason.
+7. Preserve the original score and remark in the audit log.
+8. An unassigned user must not mark or change the record.
+
+==================================================
+PART 12: PARENT AND GUARDIAN HOMEWORK ACCESS
+==================================================
+
+Parents and guardians are mobile-only users.
+
+They must see all published homework assigned to their linked wards.
+
+Where a parent has multiple linked wards:
+
+- show a ward selector
+- keep each ward’s records separate
+- do not combine marks or remarks
+- validate the parent-learner link on every API request
+
+Show:
+
+- learner name
+- class
+- homework title
+- instructions
+- subject
+- assigned teacher
+- published date
+- due date
+- attachment or learning-material availability
+- submission status
+- submission date
+- late-submission status
+- score received
+- maximum score
+- teacher remark
+- marked date
+
+Parents must not:
+
+- create homework
+- edit homework
+- publish homework
+- submit homework through the system
+- alter submission status
+- enter marks
+- alter scores or remarks
+- access another learner’s work
+- access unpublished work
+- access work returned for correction
+- access records after the learner link is removed
+
+Only published homework must be visible to parents.
+
+Unpublished homework and homework returned for correction must be hidden until republished.
+
+Requests for an unlinked learner must return HTTP 403 or 404 without revealing whether the learner exists.
+
+==================================================
+PART 13: WEBSITE LOGIN LOGO CORRECTION
+==================================================
+
+Use the supplied AcademiaOS login-page screenshot as the visual reference.
+
+Correct the logo presentation on the website login page.
+
+Requirements:
+
+1. The complete logo must fit comfortably within its white or off-white background area.
+2. Do not crop the icon, wordmark, or “SCHOOL COMMAND CENTRE” tagline.
+3. Make the logo slightly wider so it fills the available space better.
+4. Preserve the logo’s proportions and visual quality.
+5. Do not stretch it so much that the icon, text, or letters look distorted.
+6. Use an image container with:
+   - object-fit: contain
+   - responsive width
+   - automatic height
+   - sufficient padding
+7. Centre the logo horizontally.
+8. Centre the complete logo vertically inside its background area.
+9. Keep the icon on the left and the AcademiaOS wordmark on the right.
+10. Keep “SCHOOL COMMAND CENTRE” directly below the AcademiaOS wordmark.
+11. Align the icon, wordmark, and tagline according to their natural heights so the whole logo appears balanced from top to bottom.
+12. The result should look like a polished school desktop-software logo, not a small floating image.
+13. On desktop, allow the logo to appear slightly wider like the screenshot.
+14. On tablets and mobile devices, reduce it responsively without cropping.
+15. Do not change the official wording:
+   - AcademiaOS
+   - SCHOOL COMMAND CENTRE
+16. Do not redesign the logo or change its colours.
+17. Remove unnecessary empty space around the image if the source asset contains transparent padding.
+18. Confirm that the logo remains sharp on high-resolution screens.
+
+Apply the same consistent logo sizing to other public authentication pages where the same logo appears.
+
+==================================================
+PART 14: SECURITY ENFORCEMENT
+==================================================
+
+Enforce all permissions in:
+
+- web pages
+- server actions
+- route handlers
+- mobile APIs
+- direct API requests
+- create actions
+- edit actions
+- publish actions
+- marking actions
+- attachment actions
+- promotion actions
+
+Hiding interface controls is not sufficient.
+
+Blocked attempts must return HTTP 403 or a clear permission error and create an audit entry containing:
+
+- actor
+- role
+- school
+- attempted class
+- attempted subject
+- attempted learner
+- attempted record
+- attempted action
+- timestamp
+
+==================================================
+PART 15: REQUIRED TESTS
+==================================================
+
+PROMOTION
+
+1. Promotion recommendation uses approved final results only.
+2. Draft and unapproved results are excluded.
+3. Academic Administrator can prepare promotion decisions.
+4. Headteacher cannot prepare promotion decisions.
+5. Proprietor approval is required before applying promotion.
+6. Force promotion requires a written reason.
+7. Force promotion applies to one learner only.
+8. Force promotion cannot be included in normal batch promotion.
+9. Learner class remains unchanged before approval.
+10. Approved promotion updates the learner’s class.
+11. Repeat keeps the learner in the appropriate class.
+12. Graduation marks the learner completed or graduated.
+13. Historical records remain unchanged.
+14. All promotion decisions are audited.
+
+CLASS TEACHER AND SUBJECT TEACHER
+
+15. Official Class Teacher can create general work for the assigned class.
+16. Class Teacher cannot create subject work without a subject assignment.
+17. Assigned Subject Teacher can create and mark work for the assigned class and subject.
+18. Subject Teacher cannot create work for an unassigned subject.
+19. Subject Teacher cannot create work for an unassigned class.
+20. Subject Teacher cannot alter another teacher’s marks.
+
+HEADTEACHER
+
+21. Headteacher assigned as Class Teacher can create general work for that class.
+22. Headteacher assigned all subjects can create and mark work for those subjects.
+23. Headteacher assigned only three or four subjects is restricted to those subjects.
+24. Headteacher cannot create work for another class.
+25. Headteacher cannot mark another teacher’s subject work.
+26. Headteacher can monitor school-wide work without gaining permission to alter another teacher’s records.
+
+MARKING
+
+27. Assigned teacher can record submission.
+28. Assigned teacher can record late submission.
+29. Assigned teacher can mark work.
+30. Score above the maximum is rejected.
+31. Unassigned teacher cannot mark work.
+32. School Administrator cannot mark work.
+33. Academic reviewer cannot silently change teacher marks.
+34. An authorised correction requires a reason and creates an audit entry.
+
+PARENT ACCESS
+
+35. Parent sees published homework for a linked ward.
+36. Parent with multiple linked wards can switch between them.
+37. Parent cannot access an unlinked learner.
+38. Unpublished homework is hidden.
+39. Homework returned for correction is hidden.
+40. Score and teacher remark appear only for the linked learner.
+41. Parent cannot modify homework records.
+42. Removing the parent-learner link immediately removes access.
+
+LOGO
+
+43. Login logo is not cropped at desktop width.
+44. Login logo scales responsively on mobile.
+45. Logo proportions remain correct.
+46. Tagline remains visible.
+47. Authentication pages use consistent logo sizing.
+
+==================================================
+PART 16: DATABASE AND VERIFICATION
+==================================================
+
+Inspect the existing schema before making changes.
+
+Reuse existing tables and fields where possible.
+
+Create only missing tables, columns, constraints, and indexes.
+
+Generate safe Drizzle migrations.
+
+Do not delete or overwrite existing production data.
+
+Preserve all existing promotion, homework, classwork, marking, and learner records.
+
+Run:
+
+Server project:
+- pnpm db:generate
+- pnpm db:migrate
+- pnpm typecheck
+- pnpm test
+- pnpm security:scan
+- pnpm build
+
+Mobile project:
+- pnpm typecheck
+- pnpm doctor
+- Expo web export
+
+Do not publish automatically.
+
+At completion report:
+
+1. Every file changed
+2. Every migration created
+3. Every table or field added
+4. Updated test count
+5. Final promotion role matrix
+6. Final academic-work role matrix
+7. Headteacher class and subject assignment behaviour
+8. Parent homework access behaviour
+9. Homework, classwork, exercise, submission, and marking workflow
+10. Login-logo changes
+11. Any incomplete attachment functionality
+12. Whether it is safe to republish
