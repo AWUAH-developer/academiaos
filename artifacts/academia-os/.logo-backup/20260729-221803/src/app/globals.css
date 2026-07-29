@@ -192,3 +192,62 @@ body {
   transform: scale(1);
 }
 
+/* ── AcademiaOS eating-logo animation (logo-preview page only) ────────────────
+   Characters hold for a few seconds then the yellow eater (pac-man) consumes
+   each one left-to-right before they rebuild.  The eater is rendered inline as
+   a sibling of each character so it always aligns exactly with the next letter. */
+.devour-logo {
+  --devour-yellow: #f4c542;
+  --devour-academia: #171a3b;   /* navy — logo-preview has a white background */
+  --devour-os: #f4c542;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+}
+.devour-word {
+  display: inline-flex;
+  align-items: center;
+}
+/* Wrapper per character: holds the optional eater + the letter side-by-side */
+.devour-char-slot {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+.devour-letter {
+  display: inline-block;
+  transition: opacity 60ms linear;
+}
+.devour-letter--academia { color: var(--devour-academia); }
+.devour-letter--os       { color: var(--devour-os); }
+
+/* Inline pac-man eater — sits immediately before its target character */
+.devour-pacman {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  background: var(--devour-yellow);
+  box-shadow: 0 2px 5px rgba(0,0,0,.18);
+  clip-path: polygon(0 0, 100% 0, 100% 24%, 54% 50%, 100% 76%, 100% 100%, 0 100%);
+  animation: devour-chomp .18s steps(2, end) infinite;
+  pointer-events: none;
+  /* Tiny gap between eater and the upcoming character */
+  margin-right: 0.04em;
+}
+/* "eater after all chars" variant — no right margin needed */
+.devour-pacman--after {
+  margin-right: 0;
+  margin-left: 0.04em;
+}
+@keyframes devour-chomp {
+  0%, 100% { clip-path: polygon(0 0, 100% 0, 100% 24%, 54% 50%, 100% 76%, 100% 100%, 0 100%); }
+     50%    { clip-path: polygon(0 0, 100% 0, 100% 41%, 58% 50%, 100% 59%, 100% 100%, 0 100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .devour-pacman  { display: none !important; }
+  .devour-letter  { opacity: 1 !important; transition: none !important; }
+}

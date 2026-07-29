@@ -1,143 +1,207 @@
 'use client';
 
-import { useEffect, useState, CSSProperties } from 'react';
+import {
+  type CSSProperties,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
-// Each character of the wordmark including the terminal dot
-const CHARS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S', '.'];
+import styles from './DevourLogo.module.css';
 
-// Timing
-const HOLD_MS = 5000;       // how long the full wordmark rests before eating starts
-const EAT_STEP_MS = 115;    // ms per character eaten
-const EMPTY_PAUSE_MS = 380; // pause after all eaten, before rebuild
-const WRITE_STEP_MS = 62;   // ms per character written back
-const FINISH_PAUSE_MS = 480;// pause after rebuild, before going back to hold
+const CHARACTERS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S', '.'];
 
-type Mode = 'hold' | 'eat' | 'write';
+const HOLD_TIME = 2600;
+const EAT_STEP_TIME = 170;
+const EMPTY_PAUSE_TIME = 420;
+const RESET_TIME = 140;
 
-// Characters 8–10 (O, S, .) are yellow; 0–7 (Academia) use the accent colour
-function isYellow(index: number) {
-  return index >= 8;
-}
+type AnimationPhase = 'hold' | 'eat' | 'reset';
+
+type DevourLogoProps = {
+  className?: string;
+  variant?: 'light' | 'dark';
+};
 
 export function DevourLogo({
   className = '',
   variant = 'dark',
-}: {
-  className?: string;
-  /** 'light' = cream Academia letters, for dark surfaces (nav, hero)
-   *  'dark'  = navy Academia letters, for light surfaces (logo-preview)
-   *  Default is 'dark' to preserve existing logo-preview behaviour. */
-  variant?: 'light' | 'dark';
-}) {
-  const [mode, setMode] = useState<Mode>('hold');
-  const [step, setStep] = useState(0);
+}: DevourLogoProps) {
+  const stageRef = useRef<HTMLSpanElement>(null);
+  const wordRef = useRef<HTMLSpanElement>(null);
+  const eaterRef = useRef<HTMLSpanElement>(null);
+  const letterRefs = useRef<Array<HTMLSpanElement | null>>([]);
+
+  const [phase, setPhase] = useState<AnimationPhase>('hold');
+  const [eatenCount, setEatenCount] = useState(0);
+  const [letterPositions, setLetterPositions] = useState<number[]>([]);
+  const [afterWordPosition, setAfterWordPosition] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReducedMotion(media.matches);
-    update();
-    media.addEventListener?.('change', update);
-    return () => media.removeEventListener?.('change', update);
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const updatePreference = () => {
+      setReducedMotion(mediaQuery.matches);
+    };
+
+    updatePreference();
+    mediaQuery.addEventListener?.('change', updatePreference);
+
+    return () => {
+      mediaQuery.removeEventListener?.('change', updatePreference);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const stage = stageRef.current;
+      const word = wordRef.current;
+      const eater = eaterRef.current;
+
+      if (!stage || !word) return;
+
+      const stageBox = stage.getBoundingClientRect();
+      const wordBox = word.getBoundingClientRect();
+      const eaterWidth = eater?.getBoundingClientRect().width || 0;
+
+      const positions = letterRefs.current.map((letter) => {
+        if (!letter) return 0;
+
+        const letterBox = letter.getBoundingClientRect();
+
+        return (
+          letterBox.left -
+          stageBox.left +
+          letterBox.width / 2 -
+          eaterWidth / 2
+        );
+      });
+
+      setLetterPositions(positions);
+      setAfterWordPosition(
+        wordBox.right - stageBox.left + Math.max(3, eaterWidth * 0.08),
+      );
+    };
+
+    measure();
+
+    const resizeObserver = new ResizeObserver(measure);
+
+    if (stageRef.current) resizeObserver.observe(stageRef.current);
+    if (wordRef.current) resizeObserver.observe(wordRef.current);
+
+    window.addEventListener('resize', measure);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   useEffect(() => {
     if (reducedMotion) {
-      setMode('hold');
-      setStep(0);
+      setPhase('hold');
+      setEatenCount(0);
       return;
     }
 
     let timer: ReturnType<typeof setTimeout>;
 
-    if (mode === 'hold') {
-      // Hold the full wordmark, then start eating
+    if (phase === 'hold') {
       timer = setTimeout(() => {
-        setStep(0);
-        setMode('eat');
-      }, HOLD_MS);
-    } else if (mode === 'eat') {
-      if (step < CHARS.length) {
-        // Advance eater one character at a time
-        timer = setTimeout(() => setStep((v) => v + 1), EAT_STEP_MS);
-      } else {
-        // All eaten — brief pause, then rebuild
+        setEatenCount(0);
+        setPhase('eat');
+      }, HOLD_TIME);
+    } else if (phase === 'eat') {
+      if (eatenCount < CHARACTERS.length) {
         timer = setTimeout(() => {
-          setStep(0);
-          setMode('write');
-        }, EMPTY_PAUSE_MS);
+          setEatenCount((current) => current + 1);
+        }, EAT_STEP_TIME);
+      } else {
+        timer = setTimeout(() => {
+          setPhase('reset');
+        }, EMPTY_PAUSE_TIME);
       }
     } else {
-      // write mode — reveal characters one at a time (typewriter)
-      if (step < CHARS.length) {
-        timer = setTimeout(() => setStep((v) => v + 1), WRITE_STEP_MS);
-      } else {
-        // Fully rebuilt — pause, then go back to hold
-        timer = setTimeout(() => {
-          setStep(0);
-          setMode('hold');
-        }, FINISH_PAUSE_MS);
-      }
+      timer = setTimeout(() => {
+        setEatenCount(0);
+        setPhase('hold');
+      }, RESET_TIME);
     }
 
     return () => clearTimeout(timer);
-  }, [mode, step, reducedMotion]);
+  }, [eatenCount, phase, reducedMotion]);
 
-  // Is character at `index` visible right now?
-  const isVisible = (index: number): boolean => {
-    if (reducedMotion) return true;
-    if (mode === 'hold') return true;
-    if (mode === 'eat') return index >= step;   // chars ahead of eater are still visible
-    // write mode — chars written so far are visible
-    return index < step;
-  };
+  const eaterPosition = (() => {
+    if (phase !== 'eat') return 0;
 
-  // Should the eater (pacman) appear immediately BEFORE character at `index`?
-  // In hold mode → always before index 0 (left of A)
-  // In eat mode → before the next character to be eaten (index === step)
-  const showEaterBefore = (index: number): boolean => {
-    if (reducedMotion) return false;
-    if (mode === 'hold' && index === 0) return true;
-    if (mode === 'eat' && index === step && step < CHARS.length) return true;
-    return false;
-  };
+    if (eatenCount >= CHARACTERS.length) {
+      return afterWordPosition;
+    }
 
-  // When all characters are eaten (step === CHARS.length in eat mode),
-  // show the eater after the last character
-  const showEaterAfterAll =
-    !reducedMotion && mode === 'eat' && step === CHARS.length;
+    return letterPositions[eatenCount] || 0;
+  })();
+
+  const stageClasses = [
+    styles.stage,
+    phase === 'hold' ? styles.holding : '',
+    phase === 'eat' ? styles.eating : '',
+    phase === 'reset' ? styles.resetting : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const colourVariables = {
+    '--devour-academia': variant === 'light' ? '#fff8ea' : '#171a3b',
+    '--devour-os': '#f4c542',
+    '--devour-yellow': '#f4c542',
+    '--devour-surface': variant === 'light' ? '#2f1d14' : '#ffffff',
+  } as CSSProperties;
 
   return (
     <span
-      className={`devour-logo ${className}`.trim()}
+      ref={stageRef}
+      className={stageClasses}
       role="img"
       aria-label="AcademiaOS."
-      style={
-        {
-          '--devour-academia': variant === 'light' ? '#fff8ea' : '#171a3b',
-        } as CSSProperties
-      }
+      style={colourVariables}
     >
-      <span className="devour-word" aria-hidden="true">
-        {CHARS.map((char, index) => (
-          <span key={index} className="devour-char-slot">
-            {showEaterBefore(index) && (
-              <span className="devour-pacman" aria-hidden="true" />
-            )}
+      <span ref={wordRef} className={styles.word} aria-hidden="true">
+        {CHARACTERS.map((character, index) => {
+          const hidden =
+            !reducedMotion && phase === 'eat' && index < eatenCount;
+
+          return (
             <span
-              className={`devour-letter ${
-                isYellow(index) ? 'devour-letter--os' : 'devour-letter--academia'
-              }`}
-              style={{ opacity: isVisible(index) ? 1 : 0 }}
+              key={`${character}-${index}`}
+              ref={(element) => {
+                letterRefs.current[index] = element;
+              }}
+              className={[
+                styles.letter,
+                index >= 8 ? styles.osLetter : styles.academiaLetter,
+              ].join(' ')}
+              style={{ opacity: hidden ? 0 : 1 }}
             >
-              {char}
+              {character}
             </span>
-          </span>
-        ))}
-        {showEaterAfterAll && (
-          <span className="devour-pacman devour-pacman--after" aria-hidden="true" />
-        )}
+          );
+        })}
       </span>
+
+      {!reducedMotion && phase !== 'reset' && (
+        <span
+          ref={eaterRef}
+          className={styles.eater}
+          aria-hidden="true"
+          style={{
+            transform: `translate3d(${eaterPosition}px, -50%, 0)`,
+          }}
+        />
+      )}
     </span>
   );
 }

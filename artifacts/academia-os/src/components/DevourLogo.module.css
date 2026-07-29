@@ -1,0 +1,103 @@
+.stage {
+  --devour-academia: #171a3b;
+  --devour-os: #f4c542;
+  --devour-yellow: #f4c542;
+  --devour-surface: #ffffff;
+
+  position: relative;
+  display: inline-block;
+  width: 8.4em;
+  height: 1.28em;
+  overflow: hidden;
+  vertical-align: middle;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.word {
+  position: absolute;
+  top: 50%;
+  left: 1.08em;
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  transform: translateY(-50%);
+}
+
+.letter {
+  display: inline-block;
+  flex: 0 0 auto;
+  transition: opacity 55ms linear;
+}
+
+.academiaLetter {
+  color: var(--devour-academia);
+}
+
+.osLetter {
+  color: var(--devour-os);
+}
+
+.eater {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 2;
+  display: block;
+  width: 0.86em;
+  height: 0.86em;
+  border-radius: 50%;
+  background: var(--devour-yellow);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 18%);
+  transition: transform 170ms linear;
+  will-change: transform;
+}
+
+.eater::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 56%;
+  height: 56%;
+  background: var(--devour-surface);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: right center;
+}
+
+.holding .eater {
+  transition: none;
+}
+
+.holding .eater::after {
+  transform: translateY(-50%) scaleX(0);
+}
+
+.eating .eater::after {
+  animation: devourMouth 170ms steps(2, end) infinite;
+}
+
+.resetting .letter {
+  opacity: 1 !important;
+  transition: none;
+}
+
+@keyframes devourMouth {
+  0%,
+  100% {
+    transform: translateY(-50%) scaleX(0.92);
+  }
+
+  50% {
+    transform: translateY(-50%) scaleX(0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .letter {
+    opacity: 1 !important;
+    transition: none;
+  }
+}

@@ -1,0 +1,60 @@
+Do not mark Task #13 complete yet. The code changes may be finished, but visual verification has not been completed.
+
+Diagnose the Preview problem and verify the application yourself.
+
+Work inside:
+
+~/workspace/artifacts/academia-os
+
+First inspect:
+- package.json scripts
+- the current .replit port configuration
+- any running Next.js processes
+- middleware or next.config headers that may block Replit's embedded Preview
+
+Start only one development server.
+
+The Next.js server must listen on:
+- host: 0.0.0.0
+- local port: 3000
+
+The Replit port configuration must connect:
+- localPort = 3000
+- externalPort = 80
+
+Do not weaken production security headers merely to make the embedded iframe work. If X-Frame-Options or Content-Security-Policy blocks the embedded Preview, open the external .replit.dev development URL instead.
+
+Verify these routes directly:
+
+/
+ /login
+ /logo-preview
+
+For every route:
+- confirm the HTTP response is 200
+- inspect the rendered page, not only the source code
+- check desktop and mobile layout
+- verify that no EATERY text appears
+- verify that the navbar displays the complete static AcademiaOS. logo
+- verify that the login page displays the complete static AcademiaOS. logo
+- verify that “Academia” has correct contrast for its background
+- verify that “OS.” remains yellow
+- verify that the homepage layout is not damaged
+- verify that the animation appears only on /logo-preview
+- verify that the animation begins with the full AcademiaOS. wordmark
+- verify that the eater starts to the left of the A
+- verify that letters disappear progressively
+- verify that the complete wordmark resets cleanly
+
+Run:
+
+pnpm build
+
+Do not report completion until:
+1. the build passes,
+2. all three routes return 200,
+3. the rendered pages have been visually checked,
+4. you provide the exact working preview URL,
+5. you provide a concise list of every changed file and any remaining issue.
+
+If you cannot access the embedded Preview, state the exact technical reason and use the external development URL for verification. Do not ask me to approve or publish an unverified result.
