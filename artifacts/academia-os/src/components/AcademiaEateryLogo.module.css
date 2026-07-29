@@ -1,0 +1,341 @@
+.logoLockup {
+  --academia-navy: #171a3b;
+  --academia-yellow: #f5c518;
+  --logo-background: #ffffff;
+  --animation-time: 8s;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  width: max-content;
+  user-select: none;
+}
+
+.animationStage {
+  position: relative;
+  width: 390px;
+  height: 92px;
+  flex: 0 0 390px;
+  overflow: hidden;
+  background: var(--logo-background);
+}
+
+.wordmark {
+  position: absolute;
+  top: 19px;
+  left: 54px;
+  z-index: 1;
+
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+
+  color: var(--academia-navy);
+  font-family:
+    Inter,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.9px;
+
+  transform-origin: right center;
+  animation: rebuildWord var(--animation-time) linear infinite;
+}
+
+.navyLetter {
+  color: var(--academia-navy);
+}
+
+.yellowLetter {
+  color: var(--academia-yellow);
+}
+
+.finalDot {
+  width: 9px;
+  height: 9px;
+  margin-left: 7px;
+  margin-bottom: 4px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: var(--academia-yellow);
+}
+
+.eatingMask,
+.restoringMask {
+  position: absolute;
+  top: 11px;
+  left: 49px;
+  z-index: 2;
+
+  width: 342px;
+  height: 61px;
+
+  background: var(--logo-background);
+  pointer-events: none;
+}
+
+.eatingMask {
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: eatLetters var(--animation-time) linear infinite;
+}
+
+.restoringMask {
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: restoreLetters var(--animation-time) linear infinite;
+}
+
+.runner {
+  position: absolute;
+  top: 17px;
+  left: 6px;
+  z-index: 4;
+
+  width: 38px;
+  height: 38px;
+
+  animation: pacmanJourney var(--animation-time) linear infinite;
+  will-change: transform, opacity;
+}
+
+.pacman {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+
+  display: block;
+  width: 38px;
+  height: 38px;
+
+  border-radius: 50%;
+  background: var(--academia-yellow);
+}
+
+.pacman::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -1px;
+
+  width: 19px;
+  height: 20px;
+
+  background: var(--logo-background);
+  clip-path: polygon(100% 50%, 0 0, 0 100%);
+
+  transform: translateY(-50%) scaleY(1);
+  transform-origin: right center;
+  animation: chomp 0.38s steps(2, end) infinite;
+}
+
+.crumbs {
+  position: absolute;
+  top: 27px;
+  left: -5px;
+  z-index: 1;
+
+  width: 2px;
+  height: 2px;
+
+  border-radius: 50%;
+  background: var(--academia-navy);
+
+  box-shadow:
+    -5px 3px 0 var(--academia-navy),
+    -10px 7px 0 var(--academia-navy),
+    -2px 9px 0 var(--academia-navy),
+    -8px 13px 0 var(--academia-navy);
+
+  animation: crumbs var(--animation-time) linear infinite;
+}
+
+.eaterySection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 82px;
+  flex: 0 0 auto;
+}
+
+.divider {
+  display: block;
+  width: 2px;
+  height: 68px;
+  border-radius: 999px;
+  background: var(--academia-yellow);
+}
+
+.eatery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+
+  color: var(--academia-navy);
+  font-family:
+    Inter,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.eatery span {
+  display: block;
+}
+
+@keyframes pacmanJourney {
+  0%,
+  17% {
+    opacity: 1;
+    transform: translate(0, 35px) rotate(0deg);
+  }
+
+  21% {
+    opacity: 1;
+    transform: translate(44px, 0) rotate(0deg);
+  }
+
+  64% {
+    opacity: 1;
+    transform: translate(315px, 0) rotate(0deg);
+  }
+
+  68% {
+    opacity: 1;
+    transform: translate(315px, 0) rotate(0deg);
+  }
+
+  69% {
+    opacity: 0;
+    transform: translate(315px, 0) rotate(0deg);
+  }
+
+  70%,
+  73% {
+    opacity: 0;
+    transform: translate(0, 35px) rotate(0deg);
+  }
+
+  75%,
+  100% {
+    opacity: 1;
+    transform: translate(0, 35px) rotate(0deg);
+  }
+}
+
+@keyframes eatLetters {
+  0%,
+  20% {
+    transform: scaleX(0);
+  }
+
+  64%,
+  69% {
+    transform: scaleX(1);
+  }
+
+  70%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes restoreLetters {
+  0%,
+  69% {
+    transform: scaleX(0);
+  }
+
+  70% {
+    transform: scaleX(1);
+  }
+
+  84%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes rebuildWord {
+  0%,
+  69% {
+    letter-spacing: -1.9px;
+    transform: scale(1);
+  }
+
+  70% {
+    letter-spacing: 4px;
+    transform: scale(0.94);
+  }
+
+  84%,
+  100% {
+    letter-spacing: -1.9px;
+    transform: scale(1);
+  }
+}
+
+@keyframes crumbs {
+  0%,
+  19% {
+    opacity: 0;
+  }
+
+  22%,
+  63% {
+    opacity: 0.75;
+  }
+
+  66%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes chomp {
+  0% {
+    transform: translateY(-50%) scaleY(0.25);
+  }
+
+  100% {
+    transform: translateY(-50%) scaleY(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .logoLockup {
+    gap: 9px;
+    transform: scale(0.76);
+    transform-origin: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark,
+  .eatingMask,
+  .restoringMask,
+  .runner,
+  .crumbs,
+  .pacman::after {
+    animation: none;
+  }
+
+  .runner {
+    transform: translate(0, 35px);
+  }
+
+  .eatingMask,
+  .restoringMask {
+    display: none;
+  }
+}
