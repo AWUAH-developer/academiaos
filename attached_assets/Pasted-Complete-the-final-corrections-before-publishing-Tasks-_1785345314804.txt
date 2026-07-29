@@ -1,0 +1,141 @@
+Complete the final corrections before publishing Tasks #3 and #4.
+
+Do not create another plan or tracked task. Modify the implementation directly.
+
+1. SUPER ADMIN RESTRICTIONS
+
+Super Admin must not perform routine academic work.
+
+For homework:
+- Super Admin may view, audit, unpublish inappropriate content and perform exceptional moderation.
+- Super Admin must not routinely create, edit or publish homework.
+- Remove any general assignment bypass that allows Super Admin to publish homework.
+- Exceptional moderation must not be treated as teacher authorship.
+
+For promotion:
+- Super Admin may configure promotion policy, view all recommendations, audit decisions and exceptionally reopen a completed promotion batch.
+- Super Admin must not record routine Promote, Repeat, Force Promote, Graduate or Defer decisions.
+- Super Admin must not approve or apply an ordinary promotion batch.
+- Headteacher or Academic Administrator records the recommendation decision.
+- Proprietor gives final approval and applies the batch.
+
+2. CURRICULUM TOPIC PERMISSIONS
+
+Only a teacher officially assigned to the exact class and subject may create curriculum topics.
+
+- HEADTEACHER and ACADEMIC_ADMIN may create a topic only when they also have the relevant teacher assignment.
+- Otherwise, they may review, monitor, return or remove topics but cannot create them.
+- SCHOOL_ADMIN and PROPRIETOR remain view-only.
+- Enforce this in server actions and direct requests.
+
+3. TEACHER PROMOTION VISIBILITY
+
+Teachers must be able to view promotion recommendations only for classes where they are:
+- the official Class Teacher, or
+- otherwise explicitly authorised for that class.
+
+Teachers cannot:
+- record the final promotion decision,
+- force-promote,
+- approve,
+- apply a promotion batch.
+
+Update the promotion role matrix accordingly.
+
+4. ACCOUNTS MOBILE ACCESS
+
+ACCOUNTS is a mobile-only role and cannot use the web portal.
+
+Add mobile support for Accounts:
+- Outstanding Fees list
+- learner search
+- class and fee-plan filters
+- guardian contact details
+- total owed, amount paid and outstanding balance
+- carried-forward balance
+- follow-up history
+- record payment
+- issue or view receipt
+
+Use secure mobile APIs and enforce:
+- only ACCOUNTS records routine payments,
+- SCHOOL_ADMIN and PROPRIETOR remain web view/follow-up only,
+- follow-up notes cannot change balances.
+
+Do not enable web login for ACCOUNTS.
+
+5. COMPLETE OUTSTANDING FEES FILTERS AND REPORTS
+
+Confirm and implement:
+- academic year filter
+- term filter
+- class filter
+- learner fee-plan filter
+- unpaid and partially-paid filter
+- days-overdue filter
+- promised-payment-date filter
+- next-follow-up-date filter
+- class summary
+- fee-plan summary
+- ageing summary
+- CSV export
+- printable report
+- PDF export
+
+When approved providers are configured:
+- SMS reminder must send through the configured SMS provider.
+- WhatsApp reminder must send through the configured WhatsApp provider.
+- Email reminder must send through the configured email provider.
+- Do not claim external delivery when only an in-app notification was created.
+- Record delivery status and provider reference in the communication log.
+
+6. FINAL ROLE MATRIX
+
+Required final matrix:
+
+HOMEWORK CREATION
+- Assigned Subject Teacher: yes, assigned class and subject only
+- Official Class Teacher: permitted general class homework only
+- Headteacher: only when also assigned as teacher
+- Academic Administrator: only when also assigned as teacher
+- School Administrator: view-only
+- Proprietor: view-only
+- Super Admin: audit and exceptional moderation only
+
+PROMOTION
+- Teacher: assigned-class recommendations view-only
+- Headteacher: prepare and record decisions
+- Academic Administrator: prepare and record decisions
+- Proprietor: final approval and apply batch
+- School Administrator: view-only
+- Super Admin: configure, audit and exceptional reopen only
+
+OUTSTANDING FEES
+- School Administrator: web search, export, reminders and follow-up
+- Proprietor: web search, export, reminders and follow-up
+- Accounts: mobile search, follow-up, payment and receipt
+- Super Admin: oversight and audit
+- Parents and unauthorised staff: no school-wide arrears access
+
+7. VERIFICATION
+
+Run:
+- pnpm typecheck
+- pnpm test
+- pnpm security:scan
+- pnpm build
+- mobile pnpm typecheck
+- Expo export
+
+Add tests proving all restrictions above.
+
+Do not publish automatically.
+
+Report:
+- every file changed
+- whether another migration was created
+- updated test count
+- final role matrix
+- mobile Accounts functionality
+- missing messaging providers, if any
+- whether it is safe to republish
