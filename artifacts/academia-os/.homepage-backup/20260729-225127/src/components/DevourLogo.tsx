@@ -12,10 +12,10 @@ import styles from './DevourLogo.module.css';
 
 const CHARACTERS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S', '.'];
 
-const HOLD_TIME = 2400;
-const EAT_STEP_TIME = 150;
+const HOLD_TIME = 2600;
+const EAT_STEP_TIME = 170;
 const EMPTY_PAUSE_TIME = 420;
-const RESET_TIME = 150;
+const RESET_TIME = 140;
 
 type AnimationPhase = 'hold' | 'eat' | 'reset';
 
@@ -37,6 +37,22 @@ export function DevourLogo({
   const [eatenCount, setEatenCount] = useState(0);
   const [letterPositions, setLetterPositions] = useState<number[]>([]);
   const [afterWordPosition, setAfterWordPosition] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const updatePreference = () => {
+      setReducedMotion(mediaQuery.matches);
+    };
+
+    updatePreference();
+    mediaQuery.addEventListener?.('change', updatePreference);
+
+    return () => {
+      mediaQuery.removeEventListener?.('change', updatePreference);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -71,20 +87,26 @@ export function DevourLogo({
 
     measure();
 
-    const observer = new ResizeObserver(measure);
+    const resizeObserver = new ResizeObserver(measure);
 
-    if (stageRef.current) observer.observe(stageRef.current);
-    if (wordRef.current) observer.observe(wordRef.current);
+    if (stageRef.current) resizeObserver.observe(stageRef.current);
+    if (wordRef.current) resizeObserver.observe(wordRef.current);
 
     window.addEventListener('resize', measure);
 
     return () => {
-      observer.disconnect();
+      resizeObserver.disconnect();
       window.removeEventListener('resize', measure);
     };
   }, []);
 
   useEffect(() => {
+    if (reducedMotion) {
+      setPhase('hold');
+      setEatenCount(0);
+      return;
+    }
+
     let timer: ReturnType<typeof setTimeout>;
 
     if (phase === 'hold') {
@@ -110,16 +132,29 @@ export function DevourLogo({
     }
 
     return () => clearTimeout(timer);
-  }, [eatenCount, phase]);
+  }, [eatenCount, phase, reducedMotion]);
 
-  const eaterPosition =
-    phase === 'eat'
-      ? eatenCount >= CHARACTERS.length
-        ? afterWordPosition
-        : letterPositions[eatenCount] || 0
-      : 0;
+  const eaterPosition = (() => {
+    if (phase !== 'eat') return 0;
 
-  const variables = {
+    if (eatenCount >= CHARACTERS.length) {
+      return afterWordPosition;
+    }
+
+    return letterPositions[eatenCount] || 0;
+  })();
+
+  const stageClasses = [
+    styles.stage,
+    phase === 'hold' ? styles.holding : '',
+    phase === 'eat' ? styles.eating : '',
+    phase === 'reset' ? styles.resetting : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const colourVariables = {
     '--devour-academia': variant === 'light' ? '#fff8ea' : '#171a3b',
     '--devour-os': '#f4c542',
     '--devour-yellow': '#f4c542',
@@ -129,22 +164,15 @@ export function DevourLogo({
   return (
     <span
       ref={stageRef}
-      className={[
-        styles.stage,
-        phase === 'hold' ? styles.holding : '',
-        phase === 'eat' ? styles.eating : '',
-        phase === 'reset' ? styles.resetting : '',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      className={stageClasses}
       role="img"
       aria-label="AcademiaOS."
-      style={variables}
+      style={colourVariables}
     >
       <span ref={wordRef} className={styles.word} aria-hidden="true">
         {CHARACTERS.map((character, index) => {
-          const hidden = phase === 'eat' && index < eatenCount;
+          const hidden =
+            !reducedMotion && phase === 'eat' && index < eatenCount;
 
           return (
             <span
@@ -164,7 +192,7 @@ export function DevourLogo({
         })}
       </span>
 
-      {phase !== 'reset' && (
+      {!reducedMotion && phase !== 'reset' && (
         <span
           ref={eaterRef}
           className={styles.eater}
