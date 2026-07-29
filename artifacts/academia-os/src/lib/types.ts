@@ -13,3 +13,9 @@ export type PaymentPlan = 'FULL_FEE' | 'HALF_FEE' | 'DAILY_FEE' | 'INSTALLMENT';
 
 /** Learner-level payment status, computed from charges and payments. */
 export type PaymentStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID' | 'CREDIT_BALANCE';
+
+/** System-calculated promotion recommendation at end of academic year. */
+export type PromotionRecommendation = 'ELIGIBLE_FOR_PROMOTION' | 'REPEAT_RECOMMENDED' | 'INCOMPLETE_RESULTS' | 'GRADUATION_ELIGIBLE';
+
+/** Final promotion decision recorded by an authorised user. */
+export type PromotionDecision = 'PROMOTED' | 'REPEAT' | 'FORCE_PROMOTED' | 'GRADUATED' | 'DEFERRED';

@@ -252,11 +252,13 @@ export async function createSubjectAction(formData: FormData) {
 
 export async function createCurriculumTopicAction(formData: FormData) {
   const user = await requireUser();
-  const topicManagers = ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN'];
+  // SCHOOL_ADMIN has view-only homework oversight; only academic staff may create topics.
+  const topicManagers = ['SUPER_ADMIN','HEADTEACHER','ACADEMIC_ADMIN'];
   const returnTo = formData.get('returnTo') === 'homework-topics' ? '/homework-topics' : '/setup';
 
   if (!topicManagers.includes(user.role)) {
-    redirect('/dashboard');
+    await audit({ schoolId: await getActiveSchoolId(user), userId: user.id, action: 'CURRICULUM_TOPIC_CREATE_DENIED', entityType: 'CurriculumTopic', entityId: '', newValue: { role: user.role } });
+    redirect(`${returnTo}?error=Only+academic+staff+may+create+curriculum+topics`);
   }
 
   const schoolId = await getActiveSchoolId(user);

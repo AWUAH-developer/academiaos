@@ -1,13 +1,13 @@
 'use server';
 import crypto from 'crypto';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { feeCategories, feeCharges, financialAdjustments, learners, paymentAllocations, payments } from '@/db/schema';
+import { feeCategories, feeCharges, feeFollowUps, financialAdjustments, guardians, learnerGuardians, learners, notifications, paymentAllocations, payments } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
 import { allocatePayment } from '@/lib/fees';
-import { canRecordPayments } from '@/lib/permissions';
+import { canRecordPayments, canRecordFeeFollowUp, canSendFeeReminder } from '@/lib/permissions';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { notifyLearnerGuardians } from '@/lib/notifications';
 
@@ -55,4 +55,65 @@ export async function reversePaymentAction(formData: FormData) {
     await tx.insert(financialAdjustments).values({ schoolId, learnerId: payment.learnerId, paymentId, type: 'PAYMENT_REVERSAL', amount: payment.amount, reason, requestedById: user.id, approvedById: user.id, approvedAt: new Date() });
   });
   await audit({ schoolId, userId: user.id, action: 'PAYMENT_REVERSED', entityType: 'Payment', entityId: payment.id, oldValue: { amount: payment.amount, receiptNo: payment.receiptNo }, newValue: { reason } }); revalidatePath('/fees'); revalidatePath('/dashboard'); redirect('/fees?success=Payment+reversed+with+an+audit+record');
+}
+
+// ── Fee arrears follow-up ──────────────────────────────────────────────────────
+
+const VALID_CONTACT_METHODS = ['PHONE','SMS','WHATSAPP','EMAIL','IN_PERSON'] as const;
+const VALID_OUTCOMES = ['CONTACTED','PROMISED_PAYMENT','PARTIALLY_RESOLVED','UNREACHABLE','DISPUTED','REFERRED_TO_MANAGEMENT'] as const;
+
+export async function recordFeeFollowUpAction(formData: FormData) {
+  const user = await requireUser();
+  if (!canRecordFeeFollowUp(user.role)) redirect('/fee-arrears?error=Permission+denied');
+  const schoolId = await getActiveSchoolId(user);
+  const learnerId = String(formData.get('learnerId') || '');
+  const contactMethod = String(formData.get('contactMethod') || '');
+  const outcome = String(formData.get('outcome') || '');
+  const note = String(formData.get('note') || '').trim() || null;
+  const rawPromised = String(formData.get('promisedPaymentDate') || '').trim();
+  const rawNext = String(formData.get('nextFollowUpDate') || '').trim();
+  if (!learnerId || !contactMethod || !outcome) redirect('/fee-arrears?error=Contact+method+and+outcome+are+required');
+  if (!(VALID_CONTACT_METHODS as readonly string[]).includes(contactMethod)) redirect('/fee-arrears?error=Invalid+contact+method');
+  if (!(VALID_OUTCOMES as readonly string[]).includes(outcome)) redirect('/fee-arrears?error=Invalid+outcome');
+  const learner = (await db.select({ id: learners.id }).from(learners).where(and(eq(learners.id, learnerId), eq(learners.schoolId, schoolId))).limit(1))[0];
+  if (!learner) redirect('/fee-arrears?error=Learner+not+found');
+  const promisedPaymentDate = rawPromised ? new Date(rawPromised) : null;
+  const nextFollowUpDate = rawNext ? new Date(rawNext) : null;
+  await db.insert(feeFollowUps).values({ schoolId, learnerId, contactMethod, outcome, note, promisedPaymentDate, nextFollowUpDate, recordedById: user.id });
+  await audit({ schoolId, userId: user.id, action: 'FEE_FOLLOW_UP_RECORDED', entityType: 'FeeFollowUp', entityId: learnerId, newValue: { contactMethod, outcome, note, promisedPaymentDate, nextFollowUpDate } });
+  revalidatePath('/fee-arrears');
+  redirect(`/fee-arrears?success=Follow-up+recorded+for+learner`);
+}
+
+export async function sendFeeReminderAction(formData: FormData) {
+  const user = await requireUser();
+  if (!canSendFeeReminder(user.role)) redirect('/fee-arrears?error=Permission+denied');
+  const schoolId = await getActiveSchoolId(user);
+  const learnerId = String(formData.get('learnerId') || '');
+  const outstanding = String(formData.get('outstanding') || '0');
+  const learnerName = String(formData.get('learnerName') || '');
+  if (!learnerId) redirect('/fee-arrears?error=Learner+not+found');
+  // Notify linked guardian accounts (in-app notification). External SMS/WhatsApp/email
+  // channels will activate once messaging providers are configured in School Settings.
+  const guardianLinks = await db.select({ userId: guardians.userId, phone: guardians.phone })
+    .from(learnerGuardians).innerJoin(guardians, eq(learnerGuardians.guardianId, guardians.id))
+    .where(and(eq(learnerGuardians.learnerId, learnerId)));
+  const currency = user.school?.currency ?? 'GHS';
+  const schoolName = user.school?.name ?? 'Your school';
+  // phone is not on the session school object — fetch it directly
+  const { schools } = await import('@/db/schema');
+  const schoolRow = user.school ? (await db.select({ phone: schools.phone }).from(schools).where(eq(schools.id, user.school.id)).limit(1))[0] : null;
+  const schoolPhone = schoolRow?.phone ?? '';
+  let notified = 0;
+  for (const g of guardianLinks) {
+    if (g.userId) {
+      await db.insert(notifications).values({ schoolId, userId: g.userId, type: 'PAYMENT', title: `Fee payment reminder — ${learnerName}`, body: `Outstanding balance: ${currency} ${Number(outstanding).toFixed(2)}. Please contact ${schoolName}${schoolPhone ? ` on ${schoolPhone}` : ''} to settle this balance.`, link: '/fees' });
+      notified++;
+    }
+  }
+  await audit({ schoolId, userId: user.id, action: 'FEE_REMINDER_SENT', entityType: 'Learner', entityId: learnerId, newValue: { outstanding, guardiansNotified: notified } });
+  const latestFollowUp = (await db.select({ id: feeFollowUps.id }).from(feeFollowUps).where(and(eq(feeFollowUps.learnerId, learnerId), eq(feeFollowUps.schoolId, schoolId))).orderBy(desc(feeFollowUps.createdAt)).limit(1))[0];
+  if (!latestFollowUp) await db.insert(feeFollowUps).values({ schoolId, learnerId, contactMethod: 'IN_PERSON', outcome: 'CONTACTED', note: `Reminder sent via system notification to ${notified} guardian account(s).`, recordedById: user.id });
+  revalidatePath('/fee-arrears');
+  redirect(`/fee-arrears?success=Reminder+sent+to+${notified}+guardian+account(s)`);
 }

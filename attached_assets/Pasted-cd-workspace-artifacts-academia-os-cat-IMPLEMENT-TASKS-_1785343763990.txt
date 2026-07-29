@@ -1,0 +1,133 @@
+cd ~/workspace/artifacts/academia-os
+
+cat > IMPLEMENT_TASKS_3_AND_4_NOW.md <<'EOF'
+# IMPLEMENT TASKS 3 AND 4 NOW
+
+Do not create more tracked tasks, plans, specifications, or follow-up proposals.
+
+Read the complete existing specifications in tracked Task #3 and Task #4, then implement them directly in the current AcademiaOS projects.
+
+## Execution order
+
+### Phase 1: Correct homework permissions
+
+Implement the homework and curriculum-topic permission corrections from Task #4 first because this is an active role-security issue.
+
+Required final workflow:
+
+- Only the assigned Subject Teacher may create, edit and publish homework for their assigned class and subject.
+- The official Class Teacher may create permitted general class homework for their assigned class.
+- School Administrator is view-only.
+- Proprietor is view-only.
+- Headteacher and Academic Administrator review, return, unpublish and monitor homework.
+- Headteacher or Academic Administrator may create homework only when also officially assigned to that class or subject.
+- Super Admin has audit and exceptional moderation access, not routine homework publishing.
+- Parents see only published homework for linked learners.
+- Learners have no login account.
+
+Enforce permissions in the interface, server actions, mobile APIs and direct API requests.
+
+### Phase 2: Learner promotion
+
+Implement the complete learner-promotion workflow from Task #4.
+
+Required actions:
+
+- Promote to next class
+- Repeat current class
+- Force promote
+- Mark completed or graduated
+- Defer decision
+
+Rules:
+
+- Use only final approved academic results.
+- Calculate the recommendation from the configured school promotion policy.
+- Headteacher or Academic Administrator prepares and reviews the promotion list.
+- Proprietor gives final approval.
+- School Administrator is view-only.
+- Teachers Proprietor gives final approval.
+- School Administrator is view-only.
+- Teachers may view recommendations for assigned classes but cannot approve promotion.
+- Force promotion requires a written reason and audit entry.
+- Preserve historical classes, attendance, reports and results.
+- Never overwrite previous academic-year records.
+- Support safe batch promotion.
+- Final-class learners must be marked completed or graduated.
+
+### Phase 3: Outstanding Fees
+
+Implement the complete Outstanding Fees feature from Task #3.
+
+Required access:
+
+- School Administrator and Proprietor may search, filter, print, export and record follow-up activities.
+- Accounts may perform those actions and record actual payments.
+- Only Accounts may perform routine fee-payment entry and issue receipts.
+- Follow-up notes and statuses must never alter financial balances.
+- Super Admin has oversight and audit access.
+
+Required information:
+
+- Learner
+- Admission number
+- Class
+- Guardian and telephone
+- Fee plan
+- Total owed
+- Amount paid
+- Outstanding balance
+- Carried-forward balance
+- Last payment date
+- Follow-up status
+- Promised-payment date
+- Next follow-up date
+
+Support:
+
+- Full-fee balances
+- Half-fee balances
+- Daily-fee balances
+- Installment balances
+- Carried-forward balances
+- Ageing reports
+- Class summaries
+- CSV and PDF export
+- SMS, WhatsApp and email reminders when providers are configured
+
+Preserve the existing School Setup Fee Rules and the existing learner fee-plan implementation.
+
+## Development requirements
+
+1. Inspect the existing database schema and reuse existing structures where appropriate.
+2. Generate safe Drizzle migrations for new tables or columns.
+3. Do not delete or overwrite existing production data.
+4. Add server-side permission enforcement, not only hidden buttons.
+5. Add audit logging for every sensitive action.
+6. Add automated role and calculation tests.
+7. Keep web, mobile and desktop access rules consistent.
+8. Do not publish automatically.
+
+After every phase run:
+
+- pnpm typecheck
+- pnpm test
+- pnpm security:scan
+- pnpm build
+- mobile pnpm typecheck when mobile files change
+
+Complete all three phases. Do not stop after Phase 1 and do not return another planning document.
+
+At completion report:
+
+- every file changed
+- every migration created
+- tests added
+- final role-permission matrix
+- final promotion workflow
+- final arrears workflow
+- whether it is safe to republish
+EOF
+
+echo "Created:"
+echo "$PWD/IMPLEMENT_TASKS_3_AND_4_NOW.md"

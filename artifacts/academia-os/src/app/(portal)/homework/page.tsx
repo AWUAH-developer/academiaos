@@ -59,8 +59,10 @@ export default async function HomeworkPage({ searchParams }: { searchParams: Pro
     topicsByHomework.set(item.homeworkId, current);
   }
 
-  const canCreate = ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN','TEACHER'].includes(user.role);
-  return <><PageHeader eyebrow="Teaching and learning" title="Homework and class assignments" description="Publish homework by class and subject, connect it to topics taught, and include textbook pages or uploaded material. Parents and learners see assignments for their linked class."/><FlashMessage success={params.success} error={params.error}/>
+  // SCHOOL_ADMIN and PROPRIETOR have read-only monitoring rights; they cannot publish.
+  const canCreate = ['SUPER_ADMIN','HEADTEACHER','ACADEMIC_ADMIN','TEACHER'].includes(user.role);
+  const isMonitorOnly = ['SCHOOL_ADMIN','PROPRIETOR'].includes(user.role);
+  return <><PageHeader eyebrow="Teaching and learning" title={isMonitorOnly ? 'Homework monitoring' : 'Homework and class assignments'} description={isMonitorOnly ? 'Read-only view of all published homework across the school. Only assigned teachers may create and publish assignments.' : 'Publish homework by class and subject, connect it to topics taught, and include textbook pages or uploaded material. Parents and learners see assignments for their linked class.'}/><FlashMessage success={params.success} error={params.error}/>
   {canCreate && (
     <HomeworkPublishForm
       years={years}

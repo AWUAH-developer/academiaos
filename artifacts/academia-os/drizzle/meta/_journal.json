@@ -113,6 +113,20 @@
       "when": 1753790400000,
       "tag": "0015_fee_plan_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1753876800000,
+      "tag": "0016_promotion",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1753963200000,
+      "tag": "0017_fee_follow_ups",
+      "breakpoints": true
     }
   ]
 }

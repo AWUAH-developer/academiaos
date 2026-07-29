@@ -20,6 +20,8 @@ export default async function HomeworkTopicsPage({
 }) {
   const user = await requireUser();
   if (!canAccess(user.role, 'homework-topics')) redirect('/dashboard');
+  // SCHOOL_ADMIN has view-only oversight; cannot create topics.
+  const canManageTopics = ['SUPER_ADMIN','HEADTEACHER','ACADEMIC_ADMIN'].includes(user.role);
 
   const schoolId = await getActiveSchoolId(user);
   const params = await searchParams;
@@ -39,39 +41,40 @@ export default async function HomeworkTopicsPage({
   return <>
     <PageHeader
       eyebrow="Teaching and learning"
-      title="Homework topics"
-      description="Create the topics teachers can select when publishing homework for a class and subject."
+      title={canManageTopics ? 'Homework topics' : 'Curriculum topic monitoring'}
+      description={canManageTopics ? 'Create the topics teachers can select when publishing homework for a class and subject.' : 'Read-only view of curriculum topics configured for each class and subject.'}
     />
     <FlashMessage success={params.success} error={params.error}/>
 
-    <section className="paper-card p-5">
-      <h2 className="flex items-center gap-2 font-black">
-        <BookOpen size={19}/> Add homework topic
-      </h2>
-      <p className="mt-1 text-xs text-slate-500">
-        Topics are managed here by authorised academic administrators. Full School Setup remains a Super Admin control.
-      </p>
-
-      <form action={createCurriculumTopicAction} className="mt-4 grid gap-3 sm:grid-cols-3">
-        <input type="hidden" name="returnTo" value="homework-topics"/>
-        <select className="input" name="classId" required>
-          <option value="">Select class</option>
-          {classRows.map((schoolClass) => (
-            <option key={schoolClass.id} value={schoolClass.id}>
-              {schoolClass.name} {schoolClass.stream || ''}
-            </option>
-          ))}
-        </select>
-        <select className="input" name="subjectId" required>
-          <option value="">Select subject</option>
-          {subjectRows.map((subject) => (
-            <option key={subject.id} value={subject.id}>{subject.name}</option>
-          ))}
-        </select>
-        <input className="input" name="name" placeholder="Topic, e.g. Fractions" required/>
-        <button className="btn-primary sm:col-span-3">Add homework topic</button>
-      </form>
-    </section>
+    {canManageTopics && (
+      <section className="paper-card p-5">
+        <h2 className="flex items-center gap-2 font-black">
+          <BookOpen size={19}/> Add homework topic
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Topics are managed here by authorised academic administrators. Full School Setup remains a Super Admin control.
+        </p>
+        <form action={createCurriculumTopicAction} className="mt-4 grid gap-3 sm:grid-cols-3">
+          <input type="hidden" name="returnTo" value="homework-topics"/>
+          <select className="input" name="classId" required>
+            <option value="">Select class</option>
+            {classRows.map((schoolClass) => (
+              <option key={schoolClass.id} value={schoolClass.id}>
+                {schoolClass.name} {schoolClass.stream || ''}
+              </option>
+            ))}
+          </select>
+          <select className="input" name="subjectId" required>
+            <option value="">Select subject</option>
+            {subjectRows.map((subject) => (
+              <option key={subject.id} value={subject.id}>{subject.name}</option>
+            ))}
+          </select>
+          <input className="input" name="name" placeholder="Topic, e.g. Fractions" required/>
+          <button className="btn-primary sm:col-span-3">Add homework topic</button>
+        </form>
+      </section>
+    )}
 
     <section className="paper-card mt-6 p-5">
       <h2 className="font-black">Configured topics</h2>

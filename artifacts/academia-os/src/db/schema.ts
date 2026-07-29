@@ -554,6 +554,65 @@ export const mobileSessions = pgTable('mobile_sessions', {
   index('mobile_session_refresh_expiry_idx').on(t.refreshExpiresAt)
 ]);
 
+// ── Fee arrears follow-ups ────────────────────────────────────────────────────
+
+/** One row per follow-up activity recorded against a learner's outstanding fees. */
+export const feeFollowUps = pgTable('fee_follow_ups', {
+  id: id(),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  /** PHONE | SMS | WHATSAPP | EMAIL | IN_PERSON */
+  contactMethod: text('contact_method').notNull(),
+  /** CONTACTED | PROMISED_PAYMENT | PARTIALLY_RESOLVED | UNREACHABLE | DISPUTED | REFERRED_TO_MANAGEMENT */
+  outcome: text('outcome').notNull(),
+  note: text('note'),
+  promisedPaymentDate: timestamp('promised_payment_date', { withTimezone: true }),
+  nextFollowUpDate: timestamp('next_follow_up_date', { withTimezone: true }),
+  recordedById: text('recorded_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: created()
+}, (t) => [
+  index('fee_follow_up_learner_idx').on(t.schoolId, t.learnerId, t.createdAt)
+]);
+
+// ── Promotion ──────────────────────────────────────────────────────────────────
+
+/** Per-school end-of-year promotion policy configured by Super Admin. */
+export const promotionPolicies = pgTable('promotion_policies', {
+  id: id(),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  minAnnualAverage: numeric('min_annual_average', { precision: 5, scale: 2, mode: 'number' }).notNull().default(50),
+  minSubjectsPassed: integer('min_subjects_passed').notNull().default(5),
+  /** JSON array of subject IDs that must be individually passed. */
+  compulsorySubjectIds: jsonb('compulsory_subject_ids').$type<string[]>(),
+  minAttendancePct: numeric('min_attendance_pct', { precision: 5, scale: 2, mode: 'number' }),
+  incompleteResultsBlock: boolean('incomplete_results_block').notNull().default(true),
+  createdAt: created(),
+  updatedAt: updated()
+}, (t) => [uniqueIndex('promotion_policy_school_uq').on(t.schoolId)]);
+
+/** One record per learner per academic year — captures system recommendation and final decision. */
+export const learnerPromotions = pgTable('learner_promotions', {
+  id: id(),
+  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  academicYearId: text('academic_year_id').notNull().references(() => academicYears.id, { onDelete: 'cascade' }),
+  fromClassId: text('from_class_id').notNull().references(() => classes.id, { onDelete: 'restrict' }),
+  toClassId: text('to_class_id').references(() => classes.id, { onDelete: 'restrict' }),
+  systemRecommendation: text('system_recommendation').notNull(), // PromotionRecommendation
+  decision: text('decision'),                                    // PromotionDecision | null
+  reason: text('reason'),
+  decidedBy: text('decided_by').references(() => users.id, { onDelete: 'set null' }),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+  approvedBy: text('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  appliedAt: timestamp('applied_at', { withTimezone: true }),
+  createdAt: created(),
+  updatedAt: updated()
+}, (t) => [
+  uniqueIndex('learner_promotion_year_uq').on(t.learnerId, t.academicYearId),
+  index('learner_promotion_school_year_idx').on(t.schoolId, t.academicYearId)
+]);
+
 export const auditLogs = pgTable('audit_logs', {
   id: id(), schoolId: text('school_id').references(() => schools.id, { onDelete: 'set null' }), userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   action: text('action').notNull(), entityType: text('entity_type').notNull(), entityId: text('entity_id'), oldValue: jsonb('old_value'), newValue: jsonb('new_value'),

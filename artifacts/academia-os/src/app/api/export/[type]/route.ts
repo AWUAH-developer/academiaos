@@ -332,5 +332,39 @@ export async function GET(_request: Request, context: { params: Promise<{ type: 
     );
   }
 
+  if (type === 'fee-arrears') {
+    if (!canAccess(user.role, 'fee-arrears')) return NextResponse.json({ error: 'Permission denied.' }, { status: 403 });
+    const { feeFollowUps } = await import('@/db/schema');
+    const { calculateFinancialBalance } = await import('@/lib/financial-balance');
+    const { computePaymentStatus } = await import('@/lib/fees');
+    const { guardians, learnerGuardians } = await import('@/db/schema');
+    const [learnerRows, chargeRows, paymentRows, adjustmentRows, guardianLinks, followUpRows] = await Promise.all([
+      db.select({ learner: learners, className: classes.name, stream: classes.stream }).from(learners).leftJoin(classes, eq(learners.classId, classes.id)).where(and(eq(learners.schoolId, schoolId), eq(learners.status, 'ACTIVE'))).orderBy(learners.admissionNo),
+      db.select({ learnerId: feeCharges.learnerId, amount: feeCharges.amount, dueDate: feeCharges.dueDate, status: feeCharges.status }).from(feeCharges).where(eq(feeCharges.schoolId, schoolId)),
+      db.select({ learnerId: payments.learnerId, amount: payments.amount, createdAt: payments.createdAt }).from(payments).where(eq(payments.schoolId, schoolId)).orderBy(desc(payments.createdAt)),
+      db.select({ learnerId: financialAdjustments.learnerId, type: financialAdjustments.type, amount: financialAdjustments.amount }).from(financialAdjustments).where(and(eq(financialAdjustments.schoolId, schoolId), isNotNull(financialAdjustments.approvedAt))),
+      db.select({ learnerId: learnerGuardians.learnerId, name: guardians.name, phone: guardians.phone, isPrimary: learnerGuardians.isPrimary }).from(learnerGuardians).innerJoin(guardians, eq(learnerGuardians.guardianId, guardians.id)).where(eq(guardians.schoolId, schoolId)),
+      db.select({ learnerId: feeFollowUps.learnerId, outcome: feeFollowUps.outcome, createdAt: feeFollowUps.createdAt, nextFollowUpDate: feeFollowUps.nextFollowUpDate }).from(feeFollowUps).where(eq(feeFollowUps.schoolId, schoolId)).orderBy(desc(feeFollowUps.createdAt)),
+    ]);
+    const cm = new Map<string, typeof chargeRows>(); for (const c of chargeRows) { const l = cm.get(c.learnerId) ?? []; l.push(c); cm.set(c.learnerId, l); }
+    const pm = new Map<string, typeof paymentRows>(); for (const p of paymentRows) { const l = pm.get(p.learnerId) ?? []; l.push(p); pm.set(p.learnerId, l); }
+    const am = new Map<string, typeof adjustmentRows>(); for (const a of adjustmentRows) { const l = am.get(a.learnerId) ?? []; l.push(a); am.set(a.learnerId, l); }
+    const gm = new Map<string, typeof guardianLinks>(); for (const g of guardianLinks) { const l = gm.get(g.learnerId) ?? []; l.push(g); gm.set(g.learnerId, l); }
+    const fm = new Map<string, typeof followUpRows>(); for (const f of followUpRows) { const l = fm.get(f.learnerId) ?? []; l.push(f); fm.set(f.learnerId, l); }
+    const exportRows = learnerRows.map(({ learner, className, stream }) => {
+      const charges = cm.get(learner.id) ?? []; const pays = pm.get(learner.id) ?? []; const adjs = am.get(learner.id) ?? [];
+      const totalCharges = charges.reduce((s, c) => s + Number(c.amount), 0);
+      const totalPayments = pays.reduce((s, p) => s + Number(p.amount), 0);
+      const trueBalance = calculateFinancialBalance({ totalCharges, totalPayments, adjustments: adjs.map((a) => ({ type: a.type, amount: a.amount })) });
+      const outstanding = Math.max(0, trueBalance); const carryForward = Math.max(0, -trueBalance);
+      const status = computePaymentStatus({ trueBalance, totalCharges, totalPayments });
+      const lastPay = pays[0]?.createdAt ?? null;
+      const guardian = (gm.get(learner.id) ?? []).find((g) => g.isPrimary) ?? (gm.get(learner.id) ?? [])[0] ?? null;
+      const latestFu = (fm.get(learner.id) ?? [])[0] ?? null;
+      return [learner.admissionNo, `${learner.firstName} ${learner.lastName}`, `${className ?? ''}${stream ? ` ${stream}` : ''}`, learner.paymentPlan, totalCharges.toFixed(2), totalPayments.toFixed(2), outstanding.toFixed(2), carryForward.toFixed(2), status, lastPay?.toISOString() ?? '', guardian?.name ?? '', guardian?.phone ?? '', latestFu?.outcome ?? '', latestFu?.createdAt?.toISOString() ?? '', latestFu?.nextFollowUpDate?.toISOString() ?? ''];
+    }).filter((r) => Number(r[6]) > 0 || Number(r[7]) > 0);
+    return csvResponse('fee-arrears', ['Admission No','Learner','Class','Fee Plan','Total Charged','Total Paid','Outstanding','Credit Balance','Payment Status','Last Payment','Guardian Name','Guardian Phone','Last Follow-up Outcome','Last Follow-up Date','Next Follow-up Date'], exportRows);
+  }
+
   return NextResponse.json({ error: 'Unknown export type.' }, { status: 404 });
 }

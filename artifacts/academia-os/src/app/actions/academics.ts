@@ -6,11 +6,14 @@ import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import {
   academicSubmissions, academicYears, approvalEvents, attendanceRecords, attendanceRegisters, classes, feeCharges, financialAdjustments, curriculumTopics, homework, homeworkTopics, learnerGuardians,
-  learners, notifications, payments, subjects, teacherAssignments, terminalReports, terms, guardians
+  learners, notifications, payments, subjects, teacherAssignments, terminalReports, terms, guardians,
+  promotionPolicies, learnerPromotions
 } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
 import { calculateFinancialBalance } from '@/lib/financial-balance';
-import { canApproveAcademics, canReviewAcademics } from '@/lib/permissions';
+import { canApproveAcademics, canReviewAcademics, canDecidePromotion, canApprovePromotion, canConfigurePromotionPolicy } from '@/lib/permissions';
+import { computePromotionRecommendation, DEFAULT_POLICY, SUBJECT_PASS_MARK } from '@/lib/promotion';
+import type { PromotionDecision } from '@/lib/types';
 import { getActiveSchoolId } from '@/lib/tenant';
 import { notifyClassGuardians } from '@/lib/notifications';
 import { homeworkMaterialToDataUrl, HomeworkMaterialUploadError } from '@/lib/homework-material';
@@ -18,10 +21,23 @@ import { homeworkMaterialToDataUrl, HomeworkMaterialUploadError } from '@/lib/ho
 function gradeFor(total: number) { if (total >= 80) return 'A'; if (total >= 70) return 'B'; if (total >= 60) return 'C'; if (total >= 50) return 'D'; return 'F'; }
 function refresh() { for (const path of ['/academics','/approvals','/reports','/dashboard']) revalidatePath(path); }
 
+/**
+ * Returns true when the user may create/publish homework for a specific class+subject.
+ *
+ * SUPER_ADMIN bypasses the assignment check.
+ * Everyone else — including HEADTEACHER and ACADEMIC_ADMIN — must have a
+ * teacher_assignment row for the class+subject, or be the class teacher (classTeacherId).
+ * SCHOOL_ADMIN has no homework-creation rights at all.
+ */
 async function teacherMayEnter(schoolId: string, userId: string, role: string, classId: string, subjectId: string) {
-  if (['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN'].includes(role)) return true;
-  if (role !== 'TEACHER') return false;
-  return Boolean((await db.select({ id: teacherAssignments.id }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.teacherId, userId), eq(teacherAssignments.classId, classId), eq(teacherAssignments.subjectId, subjectId))).limit(1))[0]);
+  if (role === 'SUPER_ADMIN') return true;
+  if (!['HEADTEACHER','ACADEMIC_ADMIN','TEACHER'].includes(role)) return false;
+  // Check subject-teacher assignment
+  const assignment = (await db.select({ id: teacherAssignments.id }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.teacherId, userId), eq(teacherAssignments.classId, classId), eq(teacherAssignments.subjectId, subjectId))).limit(1))[0];
+  if (assignment) return true;
+  // Fallback: class teacher may publish general class homework for any subject
+  const classRow = (await db.select({ classTeacherId: classes.classTeacherId }).from(classes).where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId))).limit(1))[0];
+  return Boolean(classRow?.classTeacherId === userId);
 }
 
 export async function saveAcademicAction(formData: FormData) {
@@ -98,8 +114,9 @@ export async function reopenAcademicAction(formData: FormData) {
 export async function createHomeworkAction(formData: FormData) {
   const user = await requireUser();
 
-  if (!["SUPER_ADMIN","SCHOOL_ADMIN","HEADTEACHER","ACADEMIC_ADMIN","TEACHER"].includes(user.role)) {
-    redirect("/homework?error=Permission+denied");
+  if (!["SUPER_ADMIN","HEADTEACHER","ACADEMIC_ADMIN","TEACHER"].includes(user.role)) {
+    await audit({ schoolId: await getActiveSchoolId(user), userId: user.id, action: 'HOMEWORK_PUBLISH_DENIED', entityType: 'Homework', entityId: '', newValue: { role: user.role } });
+    redirect("/homework?error=Only+assigned+teachers+may+publish+homework");
   }
 
   const schoolId = await getActiveSchoolId(user);
@@ -310,6 +327,84 @@ export async function approveTerminalReportAction(formData: FormData) {
   const linked = await db.select({ guardianUserId: guardians.userId }).from(learnerGuardians).innerJoin(guardians, eq(learnerGuardians.guardianId, guardians.id)).where(eq(learnerGuardians.learnerId, report.learnerId));
   for (const item of linked) if (item.guardianUserId) await db.insert(notifications).values({ schoolId, userId: item.guardianUserId, type: 'RESULT', title: 'Terminal report published', body: 'A new terminal report is available.', link: `/reports/${report.id}` });
   await audit({ schoolId, userId: user.id, action: 'TERMINAL_REPORT_PUBLISHED', entityType: 'TerminalReport', entityId: reportId }); revalidatePath('/reports'); redirect('/reports?success=Terminal+report+approved+and+published');
+}
+
+// ── Promotion ──────────────────────────────────────────────────────────────────
+
+export async function savePromotionPolicyAction(formData: FormData) {
+  const user = await requireUser();
+  if (!canConfigurePromotionPolicy(user.role)) redirect('/promotion?error=Only+Super+Admin+can+configure+the+promotion+policy');
+  const schoolId = await getActiveSchoolId(user);
+  const minAnnualAverage = Number(formData.get('minAnnualAverage') ?? 50);
+  const minSubjectsPassed = Number(formData.get('minSubjectsPassed') ?? 5);
+  const rawAtt = formData.get('minAttendancePct');
+  const minAttendancePct = rawAtt && String(rawAtt).trim() !== '' ? Number(rawAtt) : null;
+  const incompleteResultsBlock = formData.get('incompleteResultsBlock') === 'true';
+  const compulsorySubjectIds = formData.getAll('compulsorySubjectIds').map(String).filter(Boolean);
+  if (!Number.isFinite(minAnnualAverage) || minAnnualAverage < 0 || minAnnualAverage > 100) redirect('/promotion?error=Minimum+annual+average+must+be+between+0+and+100');
+  if (!Number.isFinite(minSubjectsPassed) || minSubjectsPassed < 0) redirect('/promotion?error=Minimum+subjects+passed+must+be+a+positive+number');
+  const existing = (await db.select({ id: promotionPolicies.id }).from(promotionPolicies).where(eq(promotionPolicies.schoolId, schoolId)).limit(1))[0];
+  const data = { schoolId, minAnnualAverage, minSubjectsPassed, compulsorySubjectIds: compulsorySubjectIds.length ? compulsorySubjectIds : null, minAttendancePct, incompleteResultsBlock, updatedAt: new Date() };
+  if (existing) await db.update(promotionPolicies).set(data).where(eq(promotionPolicies.id, existing.id));
+  else await db.insert(promotionPolicies).values(data);
+  await audit({ schoolId, userId: user.id, action: 'PROMOTION_POLICY_SAVED', entityType: 'PromotionPolicy', entityId: schoolId, newValue: data });
+  revalidatePath('/promotion'); redirect('/promotion?success=Promotion+policy+saved');
+}
+
+export async function recordPromotionDecisionAction(formData: FormData) {
+  const user = await requireUser();
+  if (!canDecidePromotion(user.role)) redirect('/promotion?error=Only+Headteacher+or+Academic+Administrator+may+record+promotion+decisions');
+  const schoolId = await getActiveSchoolId(user);
+  const learnerId = String(formData.get('learnerId') || '');
+  const academicYearId = String(formData.get('academicYearId') || '');
+  const decision = String(formData.get('decision') || '') as PromotionDecision;
+  const toClassId = String(formData.get('toClassId') || '').trim() || null;
+  const reason = String(formData.get('reason') || '').trim();
+  if (!learnerId || !academicYearId || !decision) redirect('/promotion?error=Invalid+promotion+data');
+  if (!(['PROMOTED','REPEAT','FORCE_PROMOTED','GRADUATED','DEFERRED'] as const).includes(decision)) redirect('/promotion?error=Invalid+promotion+decision');
+  if (decision === 'FORCE_PROMOTED' && !reason) redirect(`/promotion?yearId=${academicYearId}&error=A+written+reason+is+required+for+force+promotion`);
+  if (['PROMOTED','FORCE_PROMOTED'].includes(decision) && !toClassId) redirect(`/promotion?yearId=${academicYearId}&error=Select+the+target+class+for+promotion`);
+  const learnerRow = (await db.select({ id: learners.id, classId: learners.classId }).from(learners).where(and(eq(learners.id, learnerId), eq(learners.schoolId, schoolId))).limit(1))[0];
+  if (!learnerRow?.classId) redirect(`/promotion?yearId=${academicYearId}&error=Learner+not+found`);
+  if (toClassId) { const cls = (await db.select({ id: classes.id }).from(classes).where(and(eq(classes.id, toClassId), eq(classes.schoolId, schoolId))).limit(1))[0]; if (!cls) redirect(`/promotion?yearId=${academicYearId}&error=Target+class+not+found`); }
+  // Recompute system recommendation server-side (cannot trust form data)
+  const subs = await db.select({ subjectId: academicSubmissions.subjectId, totalScore: academicSubmissions.totalScore, status: academicSubmissions.status }).from(academicSubmissions).where(and(eq(academicSubmissions.learnerId, learnerId), eq(academicSubmissions.schoolId, schoolId), eq(academicSubmissions.academicYearId, academicYearId)));
+  const policy = (await db.select().from(promotionPolicies).where(eq(promotionPolicies.schoolId, schoolId)).limit(1))[0];
+  const activePolicy = policy ? { minAnnualAverage: Number(policy.minAnnualAverage), minSubjectsPassed: policy.minSubjectsPassed, compulsorySubjectIds: (policy.compulsorySubjectIds as string[] | null) ?? [], minAttendancePct: policy.minAttendancePct !== null ? Number(policy.minAttendancePct) : null, incompleteResultsBlock: policy.incompleteResultsBlock } : DEFAULT_POLICY;
+  const locked = subs.filter((s) => s.status === 'LOCKED');
+  const hasIncomplete = subs.some((s) => !['LOCKED','REJECTED'].includes(s.status));
+  const annualAverage = locked.length > 0 ? locked.reduce((sum, s) => sum + Number(s.totalScore), 0) / locked.length : 0;
+  const subjectsPassed = locked.filter((s) => Number(s.totalScore) >= SUBJECT_PASS_MARK).length;
+  const compulsoryResults: Record<string, number | null> = {};
+  for (const subId of activePolicy.compulsorySubjectIds) { const s = locked.find((x) => x.subjectId === subId); compulsoryResults[subId] = s ? Number(s.totalScore) : null; }
+  const systemRecommendation = computePromotionRecommendation({ learnerId, totalSubjects: subs.length, approvedSubjects: locked.length, annualAverage, subjectsPassed, compulsorySubjectResults: compulsoryResults, attendancePct: null, hasIncompleteResults: hasIncomplete }, activePolicy, decision === 'GRADUATED');
+  const existing = (await db.select({ id: learnerPromotions.id }).from(learnerPromotions).where(and(eq(learnerPromotions.learnerId, learnerId), eq(learnerPromotions.academicYearId, academicYearId))).limit(1))[0];
+  const data = { schoolId, learnerId, academicYearId, fromClassId: learnerRow.classId, toClassId, systemRecommendation, decision, reason: reason || null, decidedBy: user.id, decidedAt: new Date(), updatedAt: new Date() };
+  if (existing) await db.update(learnerPromotions).set(data).where(eq(learnerPromotions.id, existing.id));
+  else await db.insert(learnerPromotions).values(data);
+  await audit({ schoolId, userId: user.id, action: `PROMOTION_DECISION_${decision}`, entityType: 'LearnerPromotion', entityId: learnerId, newValue: { decision, reason: reason || null, toClassId, systemRecommendation, academicYearId } });
+  revalidatePath('/promotion'); redirect(`/promotion?yearId=${academicYearId}&success=Decision+recorded`);
+}
+
+export async function batchApprovePromotionsAction(formData: FormData) {
+  const user = await requireUser();
+  if (!canApprovePromotion(user.role)) redirect('/promotion?error=Only+the+Proprietor+may+approve+and+apply+promotions');
+  const schoolId = await getActiveSchoolId(user);
+  const academicYearId = String(formData.get('academicYearId') || '');
+  if (!academicYearId) redirect('/promotion?error=Academic+year+required');
+  const records = await db.select().from(learnerPromotions).where(and(eq(learnerPromotions.schoolId, schoolId), eq(learnerPromotions.academicYearId, academicYearId), isNotNull(learnerPromotions.decision)));
+  const pending = records.filter((r) => r.decision && r.decision !== 'DEFERRED' && !r.approvedAt);
+  if (!pending.length) redirect(`/promotion?yearId=${academicYearId}&error=No+pending+decisions+to+approve`);
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    for (const rec of pending) {
+      if (['PROMOTED','FORCE_PROMOTED'].includes(rec.decision!) && rec.toClassId) await tx.update(learners).set({ classId: rec.toClassId, updatedAt: now }).where(and(eq(learners.id, rec.learnerId), eq(learners.schoolId, schoolId)));
+      if (rec.decision === 'GRADUATED') await tx.update(learners).set({ status: 'GRADUATED', updatedAt: now }).where(and(eq(learners.id, rec.learnerId), eq(learners.schoolId, schoolId)));
+      await tx.update(learnerPromotions).set({ approvedBy: user.id, approvedAt: now, appliedAt: now, updatedAt: now }).where(eq(learnerPromotions.id, rec.id));
+    }
+  });
+  await audit({ schoolId, userId: user.id, action: 'PROMOTION_BATCH_APPROVED', entityType: 'LearnerPromotion', entityId: academicYearId, newValue: { count: pending.length, academicYearId, learnerIds: pending.map((r) => r.learnerId) } });
+  revalidatePath('/promotion'); redirect(`/promotion?yearId=${academicYearId}&success=${pending.length}+learner(s)+promoted+successfully`);
 }
 
 export async function bulkProprietorApproveAction(formData: FormData) {

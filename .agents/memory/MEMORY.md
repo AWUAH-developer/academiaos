@@ -1,2 +1,4 @@
 - [Desktop app architecture](desktop-app-architecture.md) — Electron app is excluded from pnpm workspace; must be built independently on Windows; full security model and DB design documented here.
 - [Migration immutability rule](migration-immutability.md) — applied migrations are immutable; corrections go in a new file (0010+); watch journal timestamps vs production watermark
+- [Homework permission model](homework-permissions.md) — SCHOOL_ADMIN is view-only; only assigned teachers (teacherMayEnter checks assignments even for HEADTEACHER/ACADEMIC_ADMIN); curriculum topics restricted to SUPER_ADMIN/HEADTEACHER/ACADEMIC_ADMIN
+- [user.school shape](user-school-shape.md) — session school object has id/name/code/currency/logoUrl/proprietorApprovalRequired only; phone requires a separate DB query
