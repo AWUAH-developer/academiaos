@@ -1,0 +1,96 @@
+Add an “Outstanding Fees” feature to AcademiaOS.
+
+PURPOSE
+School Administrator and Proprietor must be able to search learners who owe school fees and record fee follow-up activities. Accounts remains responsible for recording actual payments.
+
+ACCESS
+1. SCHOOL_ADMIN and PROPRIETOR:
+   - view and search outstanding balances
+   - export or print reports
+   - view guardian contact details
+   - send payment reminders
+   - record follow-up notes and outcomes
+   - set the next follow-up date
+2. ACCOUNTS:
+   - all viewing and follow-up permissions
+   - record payments and issue receipts
+3. SUPER_ADMIN:
+   - oversight, search, export and audit access
+4. No role except ACCOUNTS may create payments ACCOUNTS may create payments, modify payment amounts or manually mark fees as paid.
+
+PAGE
+Create an “Outstanding Fees” or “Fee Arrears” page.
+
+SEARCH AND FILTERS
+- learner name
+- admission number
+- class
+- guardian name or phone
+- academic year
+- term
+- learner fee plan
+- unpaid or partially paid
+- minimum and maximum outstanding amount
+- carried-forward balance
+- days overdue
+- follow-up status
+- next follow-up date
+
+RESULT COLUMNS
+- learner
+- admission number
+- class
+- fee plan
+- total charged
+- amount paid
+- current outstanding
+- carried-forward balance
+- last payment date
+- guardian name
+- guardian phone
+- follow-up status
+- next follow-up date
+
+FOLLOW-UP ACTIONS
+Allow authorised users to record:
+- contact method: phone, SMS, WhatsApp, email, in person
+- outcome: contacted, promised payment, partially resolved, unreachable, disputed, referred to management
+- note
+- promised payment date
+- next follow-up date
+- actor and timestamp
+
+REMINDERS
+Where messaging providers are configured, allow one-click reminders by SMS, WhatsApp or email. The message must show the learner, outstanding amount and school contact details without exposing unrelated learner information.
+
+CALCULATIONS
+1. FULL_FEE: show unpaid balance from the full configured fee.
+2. HALF_FEE: show unpaid balance from 50% of the configured fee.
+3. DAILY_FEE: calculate outstanding daily charges using the existing daily-fee and absence rules.
+4. INSTALLMENT: show total owed, payments received and remaining installment balance.
+5. Include all carried-forward balances.
+6. Never allow follow-up status to change the financial balance.
+7. A balance changes only through authorised charges, payments, reversals or approved adjustments.
+
+REPORTS
+- printable outstanding-fees list
+- class summary
+- payment-plan summary
+- ageing report: 1–30, 31–60, 61–90 and over 90 days
+- total outstanding by class and school
+- CSV and PDF export
+
+AUDIT
+Audit every reminder, follow-up note, promised-payment date, export and financial action.
+
+TESTS
+- Administrator can search and follow up but cannot record payment
+- Proprietor can search and follow up but cannot record payment
+- Accounts can record payment and the outstanding balance updates automatically
+- Daily-fee balances respect absence rules
+- Half-fee balances use 50%
+- Carried-forward balances appear correctly
+- Follow-up notes do not alter balances
+- Parent and unauthorised staff cannot access the school-wide arrears list
+
+Run migration generation, typecheck, tests, security scan, server build and mobile typecheck. Do not publish automatically.

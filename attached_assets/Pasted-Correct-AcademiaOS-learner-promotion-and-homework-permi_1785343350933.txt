@@ -1,0 +1,125 @@
+Correct AcademiaOS learner-promotion and homework permissions.
+
+PART 1: LEARNER PROMOTION
+
+Create an end-of-academic-year learner promotion workflow.
+
+PROMOTION BASIS
+1. Use only final, approved academic results.
+2. Do not calculate promotion from drafts, unreviewed results or one incomplete term.
+3. Allow Super Admin to configure the school promotion policy:
+   - minimum annual average
+   - minimum number of subjects passed
+   - compulsory subjects that must be passed
+   - minimum attendance percentage, if used
+   - whether incomplete results block promotion
+4. Calculate an automatic recommendation:
+   - ELIGIBLE_FOR_PROMOTION
+   - REPEAT_RECOMMENDED
+   - INCOMPLETE_RESULTS
+   - GRADUATION_ELIGIBLE
+
+PROMOTION ACTIONS
+Allow authorised users to choose:
+- Promote to next class
+- Repeat current class
+- Force promote
+- Mark completed/graduated
+- Defer decision
+
+FORCE PROMOTION
+1. Force promotion must require a written reason.
+2. Record the original system recommendation.
+3. Record the actor, timestamp, old class and new class.
+4. Create a permanent audit-log entry.
+5. Never allow force promotion without a reason.
+
+AUTHORITY
+1. Headteacher or Academic Administrator may prepare and review the promotion list.
+2. Proprietor gives final approval to the promotion batch.
+3. School Administrator may view the promotion list but cannot decide academic promotion.
+4. Super Admin has oversight, configuration, audit and exceptional reopen authority.
+5. Teachers may view recommendations for their assigned classes but cannot approve the final promotion batch.
+
+PROMOTION PAGE
+Show:
+- learner
+- admission number
+- current class
+- proposed next class
+- annual average
+- subjects passed and failed
+- compulsory-subject result
+- attendance percentage
+- result-approval status
+- system recommendation
+- final decision
+- reason
+- decision maker
+
+BATCH PROCESSING
+1. Support selecting multiple eligible learners and promoting them together.
+2. Do not include learners with incomplete or unapproved results unless force-promoted individually.
+3. Create the next-year class enrolment safely.
+4. Preserve all historical classes, results, reports and attendance.
+5. Do not overwrite the learner's previous academic-year records.
+6. Final-class learners must be marked Completed/Graduated instead of being assigned to a nonexistent next class.
+
+PART 2: HOMEWORK AND CURRICULUM-TOPIC PERMISSIONS
+
+CURRENT PROBLEM
+School Administrator can create or publish homework and homework topics. This is incorrect.
+
+CORRECT WORKFLOW
+1. Only an assigned Subject Teacher may create, edit, save and publish homework for the class and subject assigned to that teacher.
+2. The official Class Teacher may create general class homework only for the class officially assigned to them.
+3. A teacher must not publish homework for an unassigned class or subject.
+4. Only authorised teachers may create curriculum topics for their assigned classes and subjects.
+5. Headteacher and Academic Administrator may:
+   - review homework
+   - return it for correction
+   - unpublish or remove inappropriate homework
+   - monitor completion and publishing activity
+6. Headteacher and Academic Administrator must not routinely create original teacher homework unless they are also assigned as the teacher for that class or subject.
+7. School Administrator must have view-only homework oversight.
+8. Proprietor may view homework summaries and reports but cannot create or publish homework.
+9. Super Admin has audit and exceptional moderation access but must not perform routine homework publishing.
+10. Parents may view published homework only for their linked learners.
+11. Learners have no account or portal.
+
+INTERFACE
+1. Hide “Create homework,” “Publish homework” and “Create homework topic” controls from unauthorised roles.
+2. School Administrator should see a read-only homework-monitoring page showing:
+   - teacher
+   - class
+   - subject
+   - topic
+   - homework title
+   - draft/published status
+   - due date
+   - published date
+3. Keep the Homework menu visible to School Administrator only if it opens the read-only monitoring page.
+4. Rename “Homework topics” for administrators to “Curriculum topic monitoring” or hide it if there is no useful read-only view.
+
+SECURITY
+Enforce all restrictions in:
+- web pages
+- server actions
+- mobile APIs
+- direct API calls
+
+Return 403 or a clear permission error for blocked actions and audit attempted unauthorised mutations.
+
+TESTS
+1. Assigned Subject Teacher can publish homework for the assigned class and subject.
+2. Unassigned Teacher cannot publish it.
+3. Official Class Teacher can publish permitted general class homework.
+4. School Administrator can view but cannot create, edit or publish.
+5. Headteacher and Academic Administrator can review but cannot create unless assigned as teacher.
+6. Proprietor can view summaries but cannot publish.
+7. Parent sees only published homework for linked learners.
+8. Promotion uses approved annual results only.
+9. Force promotion requires a reason and creates an audit entry.
+10. Batch promotion preserves historical records.
+
+Run migration generation, typecheck, tests, security scan, server build and mobile typecheck. Do not publish automatically. Report every file changed and the final promotion and homework role matrix.
