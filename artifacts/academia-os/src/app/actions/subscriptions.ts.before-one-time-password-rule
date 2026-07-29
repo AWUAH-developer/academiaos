@@ -117,7 +117,7 @@ export async function enrolSchoolAction(
   }
 
   const username              = await availableUsername(adminName);
-  const temporaryPassword     = generateTemporaryPassword(10);
+  const temporaryPassword     = generateTemporaryPassword(8);
   const passwordHash          = await bcrypt.hash(temporaryPassword, 12);
   const tempExpiry            = new Date(Date.now() + TEMPORARY_PASSWORD_HOURS * 3600000);
 

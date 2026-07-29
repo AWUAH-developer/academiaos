@@ -60,20 +60,7 @@ export async function POST(request: NextRequest) {
   // Non-SUPER_ADMIN must belong to a school
   const noSchool = success && user.role !== 'SUPER_ADMIN' && !user.schoolId;
 
-  // New and reset accounts must complete their one permitted password
-  // change before using the Windows or Mac desktop application.
-  const passwordChangeRequired = Boolean(
-    success && !noSchool && user.mustChangePassword
-  );
-
-  await db.insert(loginAttempts).values({
-    schoolId: user?.schoolId,
-    username,
-    userId: user?.id,
-    success: success && !noSchool && !passwordChangeRequired,
-    ipAddress: ip,
-    userAgent: ua
-  });
+  await db.insert(loginAttempts).values({ schoolId: user?.schoolId, username, userId: user?.id, success: success && !noSchool, ipAddress: ip, userAgent: ua });
 
   if (!success) {
     if (user) {
@@ -89,36 +76,9 @@ export async function POST(request: NextRequest) {
       tempExpired ? 'Temporary password expired. Ask an administrator to reset it.' : 'Invalid credentials or account locked.');
   }
 
-  if (noSchool) {
-    return desktopError(
-      403,
-      'NO_SCHOOL_MEMBERSHIP',
-      'This account has no active school membership.'
-    );
-  }
+  if (noSchool) return desktopError(403, 'NO_SCHOOL_MEMBERSHIP', 'This account has no active school membership.');
 
-  if (passwordChangeRequired) {
-    await audit({
-      schoolId: user.schoolId,
-      userId: user.id,
-      action: 'DESKTOP_LOGIN_BLOCKED_PASSWORD_CHANGE_REQUIRED',
-      entityType: 'User',
-      entityId: user.id
-    });
-
-    return desktopError(
-      403,
-      'PASSWORD_CHANGE_REQUIRED',
-      'Complete your first password setup at academiaos.cc using the system-generated temporary password. Then sign in to the desktop app with your new private password.'
-    );
-  }
-
-  await db.update(users).set({
-    failedLoginCount: 0,
-    lockedUntil: null,
-    lastLoginAt: now,
-    updatedAt: now
-  }).where(eq(users.id, user.id));
+  await db.update(users).set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: now, updatedAt: now }).where(eq(users.id, user.id));
 
   const tokens = await createDesktopSession({
     userId: user.id, schoolId: user.schoolId,
