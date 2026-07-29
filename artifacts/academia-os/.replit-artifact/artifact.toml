@@ -19,7 +19,7 @@ run = "pnpm --filter @workspace/academia-os run dev"
 [services.production]
 
 [services.production.build]
-args = ["sh", "-c", "cd artifacts/academia-os && pnpm build"]
+args = ["sh", "-c", "cd artifacts/academia-os && pnpm db:migrate && pnpm build"]
 
 [services.production.build.env]
 NODE_ENV = "production"

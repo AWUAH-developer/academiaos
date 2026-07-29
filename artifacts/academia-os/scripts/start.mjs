@@ -3,17 +3,17 @@
  *
  * Startup sequence:
  *   1. Validate DATABASE_URL
- *   2. Run Drizzle migrations (single authoritative migration mechanism)
- *   3. Post-migration schema verification (read-only; fails loudly if anything
+ *   2. Post-migration schema verification (read-only; fails loudly if anything
  *      required by migrations 0008/0009 is absent)
- *   4. Start Next.js
+ *   3. Start Next.js
  *
- * Migration authority: Drizzle only.
- * This script does NOT maintain a second copy of schema DDL. If a required
- * column or table is missing after Drizzle runs, startup fails with a
- * precise error naming the missing object and the migration that should have
- * created it. This makes schema drift visible immediately rather than
- * silently patching it with a slightly different definition.
+ * Migration authority: build phase only.
+ * Migrations are applied by `pnpm db:migrate` in the production build command
+ * (artifact.toml [services.production.build]), not at runtime.  Running
+ * migrations at startup delays Next.js port binding past Replit's port-detection
+ * window (~2 min), which causes the promote step to time out and fail.
+ * The schema verification below is a lightweight read-only sanity check that
+ * confirms the required schema objects exist before serving traffic.
  */
 import { spawn } from 'node:child_process';
 
@@ -32,24 +32,7 @@ if (!/^postgres(?:ql)?:\/\//i.test(databaseUrl)) {
 // Resolve the artifact root (artifacts/academia-os/)
 const artifactRoot = new URL('..', import.meta.url).pathname;
 
-// ── Step 1: Run Drizzle migrations (authoritative) ────────────────────────────
-console.log('[start] Running Drizzle migrations…');
-try {
-  const { Pool }    = await import('pg');
-  const { drizzle } = await import('drizzle-orm/node-postgres');
-  const { migrate } = await import('drizzle-orm/node-postgres/migrator');
-
-  const pool = new Pool({ connectionString: databaseUrl });
-  const db   = drizzle(pool);
-  await migrate(db, { migrationsFolder: `${artifactRoot}/drizzle` });
-  await pool.end();
-  console.log('[start] Drizzle migrations complete.');
-} catch (err) {
-  console.error('[start] Migration failed — aborting startup:', err.message);
-  process.exit(1);
-}
-
-// ── Step 2: Post-migration schema verification ────────────────────────────────
+// ── Step 1: Post-migration schema verification ────────────────────────────────
 // Read-only checks against information_schema.  If anything required by a
 // migration is absent, startup fails immediately with a precise error message.
 // This is a verification step only — it does NOT create or alter anything.
