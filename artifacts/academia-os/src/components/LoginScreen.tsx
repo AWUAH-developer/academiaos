@@ -2,7 +2,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { CheckCircle2 } from 'lucide-react';
 import { loginAction } from '@/app/actions/auth';
-import { DevourLogo } from '@/components/DevourLogo';
 import type { AuthUser } from '@/lib/auth';
 
 export function LoginScreen({
@@ -39,10 +38,15 @@ export function LoginScreen({
             </div>
 
             <div className="min-w-0">
-              <DevourLogo
-                tone="light"
-                className="text-[clamp(1.55rem,4vw,2.3rem)] font-black"
-              />
+              {/* Static wordmark — "Academia" in warm cream, "OS." in yellow */}
+              <div
+                className="font-black tracking-tight leading-none"
+                style={{ fontSize: 'clamp(1.55rem, 4vw, 2.3rem)' }}
+                aria-label="AcademiaOS."
+              >
+                <span style={{ color: '#fff8ea' }}>Academia</span>
+                <span style={{ color: '#f4c542' }}>OS.</span>
+              </div>
 
               <p className="mt-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.22em] text-[#f4c542] sm:text-sm sm:tracking-[0.28em]">
                 School Command Centre
