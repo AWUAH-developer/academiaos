@@ -17,7 +17,7 @@
     "dist:win": "pnpm run build && pnpm run rebuild:native && electron-builder --win",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "test:typecheck": "tsc -p tsconfig.tests.json --noEmit",
-    "test": "vitest run",
+    "test": "node node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -166,7 +166,8 @@ describe('secure-storage', () => {
     // Async decrypt fails (legacy format not understood by new API)
     mockSafeStorage.isAsyncEncryptionAvailable
       .mockResolvedValueOnce(true)   // getCredential path-1 check
-      .mockResolvedValueOnce(true);  // migration re-encrypt check inside path-2
+      .mockResolvedValueOnce(true)   // migration check inside path-2
+      .mockResolvedValueOnce(true);  // saveCredential security guard
     mockSafeStorage.decryptStringAsync.mockRejectedValue(
       new Error('Unsupported ciphertext format')
     );
