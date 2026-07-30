@@ -29,35 +29,17 @@ const quickQuestions = [
   'Tell me about Smart ID',
 ];
 
-function getTimeGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-
-  return 'Good evening';
-}
-
 function getAdepaReply(rawQuestion: string) {
   const question = rawQuestion.toLowerCase().trim();
 
-  if (/^(hi|hello|hey)(\\s+(there|adepa))?[.!?]*$/.test(question)) {
-    return 'Hi too! I am Adepa. How may I help your school today?';
-  }
-
   if (
+    question.includes('hello') ||
+    question.includes('hi') ||
     question.includes('good morning') ||
     question.includes('good afternoon') ||
-    question.includes('good evening')
+    question.includes('akwaaba')
   ) {
-    return `${getTimeGreeting()}! How may I help your school today?`;
-  }
-
-  if (
-    question.includes('akwaaba') ||
-    question.includes('welcome back')
-  ) {
-    return 'Thank you. How may I help your school today?';
+    return 'Akwaaba! I am Adepa, the AcademiaOS website assistant. I can explain our features, packages, Smart ID, daily fees, mobile access and demo process.';
   }
 
   if (
@@ -204,21 +186,16 @@ export function AdepaChat() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 1,
+      role: 'adepa',
+      text: 'Akwaaba! I am Adepa, the AcademiaOS website assistant. How may I help your school today?',
+    },
+  ]);
 
   const messageAreaRef = useRef<HTMLDivElement>(null);
   const replyTimerRef = useRef<number | null>(null);
-  const hasOpenedRef = useRef(false);
-
-  useEffect(() => {
-    setMessages([
-      {
-        id: 1,
-        role: 'adepa',
-        text: `${getTimeGreeting()}! I am Adepa, the AcademiaOS website assistant. How may I help your school today?`,
-      },
-    ]);
-  }, []);
 
   const isPublicPage =
     pathname === '/' ||
@@ -241,25 +218,6 @@ export function AdepaChat() {
   }, []);
 
   if (!isPublicPage) return null;
-
-  function toggleAdepaChat() {
-    if (!open) {
-      if (hasOpenedRef.current) {
-        setMessages((current) => [
-          ...current,
-          {
-            id: Date.now(),
-            role: 'adepa',
-            text: 'Akwaaba! How may I help your school today?',
-          },
-        ]);
-      } else {
-        hasOpenedRef.current = true;
-      }
-    }
-
-    setOpen((current) => !current);
-  }
 
   function sendQuestion(question: string) {
     const cleanedQuestion = question.trim();
@@ -433,7 +391,7 @@ export function AdepaChat() {
 
       <button
         type="button"
-        onClick={toggleAdepaChat}
+        onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-label={open ? 'Close Adepa chat' : 'Chat with Adepa'}
         className="ml-auto flex min-h-14 items-center gap-3 rounded-full bg-[#d9a441] px-4 text-[#2f1d14] shadow-[0_18px_45px_rgba(47,29,20,0.30)] transition hover:-translate-y-1 hover:bg-amber-400"
