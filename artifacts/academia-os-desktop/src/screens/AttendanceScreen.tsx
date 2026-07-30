@@ -215,7 +215,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
               cursor: 'pointer',
             }}
           >
-            Scan Barcode & Mark Present
+            Scan Barcode & Scan Barcode & Mark Present
           </button>
         </form>
 
