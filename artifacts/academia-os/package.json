@@ -21,7 +21,8 @@
     "security:scan": "node scripts/security-scan.mjs",
     "db:provision-auth": "tsx scripts/provision-auth.ts",
     "mobile:api:check": "node scripts/mobile-api-check.mjs",
-    "replit:mobile-api": "pnpm run db:migrate && pnpm run db:provision-auth && pnpm run mobile:api:check && pnpm run build"
+    "replit:mobile-api": "pnpm run db:migrate && pnpm run db:provision-auth && pnpm run mobile:api:check && pnpm run build",
+    "db:seed-demo": "tsx scripts/seed-demo-tenant.ts"
   },
   "dependencies": {
     "@zxing/browser": "^0.1.5",
