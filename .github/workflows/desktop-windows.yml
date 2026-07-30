@@ -105,7 +105,7 @@ jobs:
       # ── 12. electron-builder Windows x64 (NSIS packaging) ────────────────────
       - name: Build Windows installer
         working-directory: artifacts/academia-os-desktop
-        run: pnpm exec electron-builder --win --x64
+        run: pnpm exec electron-builder --win --x64 --publish never
         env:
           # Code signing — supply via repository secrets for signed builds
           # WIN_CSC_LINK:         ${{ secrets.WIN_CERT_PFX_BASE64 }}

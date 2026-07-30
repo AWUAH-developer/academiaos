@@ -71,14 +71,14 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowDirChange": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "AcademiaOS",
       "uninstallDisplayName": "AcademiaOS Desktop",
       "installerIcon": "build-resources/icons/icon.ico",
       "uninstallerIcon": "build-resources/icons/icon.ico",
-      "license": "build-resources/LICENSE.txt"
+      "license": "build-resources/LICENSE.txt",
+      "allowToChangeInstallationDirectory": true
     },
     "mac": {
       "target": [
