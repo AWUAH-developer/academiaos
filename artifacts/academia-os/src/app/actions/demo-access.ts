@@ -14,6 +14,7 @@ import {
 } from '@/db/schema';
 import { audit, requireUser } from '@/lib/auth';
 import { generateTemporaryPassword, usernameBaseFromName } from '@/lib/credentials';
+import { seedDemoTenant } from '@/lib/seed-demo-tenant';
 import { imageToDataUrl, ImageUploadError } from '@/lib/images';
 import { sendDemoInvitationEmail } from '@/lib/email';
 import {
@@ -241,6 +242,14 @@ export async function createDemoAccessAction(
         .set({ status: 'APPROVED', updatedAt: new Date() })
         .where(eq(demoRequests.id, requestId));
 
+      await seedDemoTenant({
+        schoolId: school.id,
+        targetEmail: adminEmail,
+        demoPassword: temporaryPassword,
+        database: tx,
+        requireAuthorization: false,
+      });
+
       return { schoolId: school.id, subscriptionId: subscription.id };
     });
 
@@ -312,7 +321,7 @@ export async function createDemoAccessAction(
 
     return {
       status: 'success',
-      message: `${schoolName} now has seven-day web demo access.`,
+      message: `${schoolName} now has populated seven-day web demo access.`,
       username,
       temporaryPassword,
       expiresAt: expiresAt.toISOString(),
