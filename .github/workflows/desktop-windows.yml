@@ -106,11 +106,6 @@ jobs:
       - name: Build Windows installer
         working-directory: artifacts/academia-os-desktop
         run: pnpm exec electron-builder --win --x64 --publish never
-        env:
-          # Code signing — supply via repository secrets for signed builds
-          # WIN_CSC_LINK:         ${{ secrets.WIN_CERT_PFX_BASE64 }}
-          # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ── 13. SHA-256 hash ──────────────────────────────────────────────────────
       - name: Compute SHA-256

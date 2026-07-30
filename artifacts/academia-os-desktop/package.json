@@ -107,5 +107,9 @@
       "category": "Education",
       "artifactName": "AcademiaOS-Desktop-Linux-${version}.AppImage"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AWUAH-developer/academiaos.git"
   }
 }
