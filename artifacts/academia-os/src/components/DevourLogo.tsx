@@ -10,7 +10,7 @@ import {
 
 import styles from './DevourLogo.module.css';
 
-const CHARACTERS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S', '.'];
+const CHARACTERS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S'];
 
 const HOLD_TIME = 2400;
 const EAT_STEP_TIME = 150;
