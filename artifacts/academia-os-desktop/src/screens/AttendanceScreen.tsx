@@ -181,7 +181,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
 
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>
-          Barcode attendance
+          Barcode attendance scanner · v1.0.10
         </div>
 
         <form

@@ -112,12 +112,28 @@ export default function TitleBar({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <img
+          src="./brand-logo.jpg"
+          alt="AcademiaOS logo"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 7,
+            objectFit: 'cover',
+            background: '#fff',
+          }}
+        />
+
         <span
           style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em' }}
           aria-label="AcademiaOS"
         >
           <span style={{ color: '#fff8ea' }}>Academia</span>
           <span style={{ color: '#f4c542' }}>OS</span>
+        </span>
+
+        <span style={{ fontSize: 9, opacity: 0.55 }}>
+          v1.0.10
         </span>
 
         {schoolName && (

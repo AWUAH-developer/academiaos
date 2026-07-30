@@ -1,7 +1,7 @@
 {
   "name": "academiaos-desktop",
-  "version": "1.0.9",
-  "description": "AcademiaOS — School Command Centre",
+  "version": "1.0.10",
+  "description": "AcademiaOS \u2014 School Command Centre",
   "author": "AcademiaOS <hello@academiaos.cc>",
   "license": "UNLICENSED",
   "private": true,
@@ -41,7 +41,7 @@
   "build": {
     "appId": "com.academiaos.desktop",
     "productName": "AcademiaOS",
-    "copyright": "Copyright © 2026 AcademiaOS",
+    "copyright": "Copyright \u00a9 2026 AcademiaOS",
     "directories": {
       "output": "release",
       "buildResources": "build-resources"
