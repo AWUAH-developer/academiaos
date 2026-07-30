@@ -17,7 +17,7 @@ permissions:
 jobs:
   build-windows:
     name: Build Windows Installer
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
@@ -27,10 +27,15 @@ jobs:
           fetch-depth: 0
 
       # ── 2. Node.js ───────────────────────────────────────────────────────────
-      - name: Set up Node.js 24
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       # ── 3. pnpm ──────────────────────────────────────────────────────────────
       - name: Set up pnpm
@@ -63,6 +68,8 @@ jobs:
         run: |
           pnpm exec electron-rebuild -f -w better-sqlite3-multiple-ciphers --arch x64
         env:
+          PYTHON: ${{ env.pythonLocation }}\python.exe
+          npm_config_msvs_version: '2022'
           npm_config_target: '43.2.0'
           npm_config_arch: x64
           npm_config_target_arch: x64
