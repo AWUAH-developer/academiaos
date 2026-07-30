@@ -52,16 +52,11 @@ export default function LoginScreen() {
         </section>
 
         <section className="desktop-auth-introduction">
-          <p className="desktop-auth-kicker">
-            AcademiaOS Account
-          </p>
-
-          <h1>Sign in with username and password</h1>
+<h1>Sign in with username and password</h1>
 
           <p className="desktop-auth-description">
             Use the username and password assigned by your
-            school administrator. No Replit account is required.
-          </p>
+            school administrator. </p>
         </section>
 
         {error && (
@@ -122,9 +117,7 @@ export default function LoginScreen() {
           </button>
         </form>
 
-        <footer className="desktop-auth-footer">
-          AcademiaOS · School Command Centre
-        </footer>
+        <footer className="desktop-auth-footer">AcademiaOS™ © 2026. All rights reserved.</footer>
       </div>
     </main>
   );

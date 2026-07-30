@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (e.g. 1.0.5)'
+        description: 'Version to build (e.g. 1.0.6)'
         required: true
-        default: '1.0.5'
+        default: '1.0.6'
 
 permissions:
   contents: write
@@ -160,7 +160,7 @@ jobs:
 
             ### Verification
             ```powershell
-            Get-FileHash AcademiaOS-Desktop-Windows-1.0.5-Setup.exe -Algorithm SHA256
+            Get-FileHash AcademiaOS-Desktop-Windows-1.0.6-Setup.exe -Algorithm SHA256
             ```
           files: |
             artifacts/academia-os-desktop/release/*.exe
