@@ -139,7 +139,7 @@ export function DevourLogo({
         .filter(Boolean)
         .join(' ')}
       role="img"
-      aria-label="AcademiaOS."
+      aria-label="AcademiaOS"
       style={variables}
     >
       <span ref={wordRef} className={styles.word} aria-hidden="true">

@@ -12,7 +12,7 @@ export function PublicFooter() {
             </span>
             <span>
               <span className="block text-lg font-black text-white">
-                Academia<span className="text-[#f4c542]">OS.</span>
+                Academia<span className="text-[#f4c542]">OS</span>
               </span>
               <span className="block text-[9px] font-bold uppercase tracking-[.2em] text-amber-200/70">
                 School command centre

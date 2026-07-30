@@ -56,10 +56,10 @@ export function Brand({
         <div className="min-w-0">
           <div
             className={`${selectedSize.text} whitespace-nowrap font-black tracking-tight`}
-            aria-label="AcademiaOS."
+            aria-label="AcademiaOS"
           >
             <span style={{ color: academiaColor }}>Academia</span>
-            <span style={{ color: '#f4c542' }}>OS.</span>
+            <span style={{ color: '#f4c542' }}>OS</span>
           </div>
 
           {showTagline && (

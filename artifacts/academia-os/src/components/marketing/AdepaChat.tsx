@@ -306,8 +306,12 @@ export function AdepaChat() {
         >
           <header className="flex items-center justify-between bg-[#2f1d14] px-5 py-4 text-white">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#d9a441] text-[#2f1d14]">
+              <div className="relative grid h-11 w-11 place-items-center rounded-2xl bg-[#d9a441] text-[#2f1d14] motion-safe:animate-pulse">
                 <Bot size={23} />
+                <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                  <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-[#2f1d14] bg-emerald-400" />
+                </span>
               </div>
 
               <div>
@@ -316,8 +320,9 @@ export function AdepaChat() {
                   <Sparkles size={14} className="text-amber-300" />
                 </div>
 
-                <p className="text-xs text-white/60">
-                  AcademiaOS website assistant
+                <p className="flex items-center gap-1.5 text-xs text-white/70">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                  Online · automated assistant
                 </p>
               </div>
             </div>
@@ -429,6 +434,24 @@ export function AdepaChat() {
             </p>
           </div>
         </section>
+      )}
+
+      {!open && (
+        <button
+          type="button"
+          onClick={toggleAdepaChat}
+          className="mb-3 ml-auto block max-w-[250px] rounded-2xl rounded-br-md border border-black/10 bg-white px-4 py-3 text-left text-sm font-bold leading-5 text-slate-700 shadow-[0_14px_35px_rgba(47,29,20,0.20)] transition hover:-translate-y-0.5"
+          aria-label="Open Adepa chat"
+        >
+          <span className="mb-1 flex items-center gap-2 text-xs font-black text-[#1f5b45]">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            Adepa is online
+          </span>
+          Hello! Tap here to ask me about AcademiaOS.
+        </button>
       )}
 
       <button

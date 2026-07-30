@@ -42,7 +42,7 @@ export function LoginScreen({
               {/* Animated AcademiaOS eater wordmark */}
               <div
                 className="w-[230px] overflow-hidden sm:w-[285px]"
-                aria-label="AcademiaOS."
+                aria-label="AcademiaOS"
               >
                 <DevourLogo
                   variant="light"

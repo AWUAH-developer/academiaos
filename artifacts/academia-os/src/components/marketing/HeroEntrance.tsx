@@ -35,7 +35,7 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
             <DevourLogo variant="light" className="text-[1.45rem] font-black" />
           </div>
           <div className="whitespace-nowrap text-lg font-black tracking-tight sm:hidden" aria-hidden="true">
-            <span className="text-[#fff8ea]">Academia</span><span className="text-[#f4c542]">OS.</span>
+            <span className="text-[#fff8ea]">Academia</span><span className="text-[#f4c542]">OS</span>
           </div>
         </Link>
 
