@@ -361,3 +361,39 @@ export function markOpStatus(
     WHERE id = @id
   `).run({ id, status, error: error ?? null });
 }
+
+export function upsertStaff(
+  db: InstanceType<typeof Database>,
+  rows: Record<string, unknown>[],
+): void {
+  const statement = db.prepare(`
+    INSERT INTO cached_staff
+      (id, school_id, name, username, role, status, photo_url, synced_at)
+    VALUES
+      (@id, @school_id, @name, @username, @role, @status, @photo_url, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET
+      school_id = excluded.school_id,
+      name = excluded.name,
+      username = excluded.username,
+      role = excluded.role,
+      status = excluded.status,
+      photo_url = excluded.photo_url,
+      synced_at = datetime('now')
+  `);
+
+  const saveRows = db.transaction((items: Record<string, unknown>[]) => {
+    for (const row of items) {
+      statement.run({
+        id: String(row.id ?? ''),
+        school_id: String(row.schoolId ?? row.school_id ?? ''),
+        name: String(row.name ?? ''),
+        username: String(row.username ?? ''),
+        role: String(row.role ?? ''),
+        status: String(row.status ?? 'ACTIVE'),
+        photo_url: row.photoUrl ?? row.photo_url ?? null,
+      });
+    }
+  });
+
+  saveRows(rows);
+}

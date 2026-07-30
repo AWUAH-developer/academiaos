@@ -55,6 +55,9 @@ export const db = {
   getLearners: (opts?: { classId?: string; search?: string }) =>
     invoke<ApiResult<{ learners: LocalLearner[] }>>('db:getLearners', opts),
 
+  getStaff: (opts?: { search?: string }) =>
+    invoke<ApiResult<{ staff: LocalStaff[] }>>('db:getStaff', opts),
+
   saveAttendance: (params: { learnerId: string; date: string; status: AttendanceStatus; schoolId: string; userId: string; deviceId: string }) =>
     invoke<ApiResult<{ operationId: string; idempotencyKey: string }>>('db:saveAttendance', params),
 
@@ -85,6 +88,16 @@ export type LocalLearner = {
   first_name: string; last_name: string; class_id: string | null;
   status: string; photo_url: string | null; badge_code: string | null;
   gender: string | null;
+};
+
+export type LocalStaff = {
+  id: string;
+  school_id: string;
+  name: string;
+  username: string;
+  role: string;
+  status: string;
+  photo_url: string | null;
 };
 
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'HALF_DAY';

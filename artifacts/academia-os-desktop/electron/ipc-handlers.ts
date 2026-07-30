@@ -19,7 +19,7 @@ import {
   ACCOUNT_ACCESS_TOKEN, ACCOUNT_REFRESH_TOKEN, ACCOUNT_DEVICE_ID,
 } from './secure-storage';
 import {
-  getDb, upsertLearners, addToOutbox, getPendingOps, markOpStatus,
+  getDb, upsertLearners, upsertStaff, addToOutbox, getPendingOps, markOpStatus,
 } from './sqlite';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -203,10 +203,20 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
       if (Array.isArray(d.learners) && (d.learners as unknown[]).length > 0) {
         upsertLearners(db, d.learners as Record<string, unknown>[]);
       }
+
+      if (Array.isArray(d.staff) && (d.staff as unknown[]).length > 0) {
+        upsertStaff(db, d.staff as Record<string, unknown>[]);
+      }
+
       db.prepare(`
         INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
         VALUES (?, ?, ?)
       `).run('learners', d.syncCursor, (d.learners as unknown[])?.length ?? 0);
+
+      db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `).run('staff', d.syncCursor, (d.staff as unknown[])?.length ?? 0);
 
       return { ok: true, data: d };
     } catch (err) {
@@ -228,6 +238,7 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
       const chg = d.changes as Record<string, unknown[]>;
 
       if (chg?.learners?.length) upsertLearners(db, chg.learners as Record<string, unknown>[]);
+      if (chg?.staff?.length) upsertStaff(db, chg.staff as Record<string, unknown>[]);
       db.prepare(`
         INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
         VALUES (?, ?, ?)
@@ -318,6 +329,24 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
 
     const rows = db.prepare(sql).all(...args);
     return { ok: true, learners: rows };
+  });
+
+  // ── db:getStaff ─────────────────────────────────────────────────────────────
+  ipcMain.handle('db:getStaff', async (_, opts: { search?: string } = {}) => {
+    const db = getDb();
+    let sql = `SELECT * FROM cached_staff WHERE status = 'ACTIVE'`;
+    const args: string[] = [];
+
+    if (opts.search) {
+      const q = `%${opts.search}%`;
+      sql += ` AND (name LIKE ? OR username LIKE ? OR role LIKE ?)`;
+      args.push(q, q, q);
+    }
+
+    sql += ` ORDER BY name LIMIT 500`;
+
+    const rows = db.prepare(sql).all(...args);
+    return { ok: true, staff: rows };
   });
 
   // ── db:saveAttendance ───────────────────────────────────────────────────────
