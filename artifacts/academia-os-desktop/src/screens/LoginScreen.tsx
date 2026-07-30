@@ -7,6 +7,7 @@ export default function LoginScreen() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -52,11 +53,12 @@ export default function LoginScreen() {
         </section>
 
         <section className="desktop-auth-introduction">
-<h1>Sign in with username and password</h1>
+          <h1>Sign in with username and password</h1>
 
           <p className="desktop-auth-description">
-            Use the username and password assigned by your
-            school administrator. </p>
+            Use the username and password assigned by your school
+            administrator.
+          </p>
         </section>
 
         {error && (
@@ -93,17 +95,30 @@ export default function LoginScreen() {
               Password
             </label>
 
-            <input
-              id="desktop-password"
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-            />
+            <div className="desktop-auth-password-control">
+              <input
+                id="desktop-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                required
+              />
+
+              <button
+                type="button"
+                className="desktop-auth-password-toggle"
+                onClick={() => setShowPassword((visible) => !visible)}
+                onMouseDown={(event) => event.preventDefault()}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
 
           <button
@@ -117,7 +132,9 @@ export default function LoginScreen() {
           </button>
         </form>
 
-        <footer className="desktop-auth-footer">AcademiaOS™ © 2026. All rights reserved.</footer>
+        <footer className="desktop-auth-footer">
+          AcademiaOS™ © 2026. All rights reserved.
+        </footer>
       </div>
     </main>
   );

@@ -391,3 +391,40 @@ h3 { font-size: 14px; font-weight: 700; }
     opacity: 1 !important;
   }
 }
+
+/* Password visibility control */
+.desktop-auth-password-control {
+  position: relative;
+}
+
+.desktop-auth-password-control input {
+  padding-right: 86px;
+}
+
+.desktop-auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  min-width: 62px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #edf7f2;
+  color: #1f5c46;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.desktop-auth-password-toggle:hover {
+  background: #dff1e8;
+}
+
+.desktop-auth-password-toggle:focus-visible {
+  outline: 3px solid rgba(31, 92, 70, 0.24);
+  outline-offset: 2px;
+}
+
