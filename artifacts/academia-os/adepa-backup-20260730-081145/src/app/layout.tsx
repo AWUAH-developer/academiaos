@@ -1,4 +1,3 @@
-import { AdepaChat } from '@/components/marketing/AdepaChat';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { PwaRegister } from '@/components/PwaRegister';
@@ -26,7 +25,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <PwaRegister />
-              <AdepaChat />
       </body>
     </html>
   );
