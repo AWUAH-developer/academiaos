@@ -55,7 +55,7 @@ jobs:
       # ── 4. Install dependencies ───────────────────────────────────────────────
       - name: Install desktop dependencies
         working-directory: artifacts/academia-os-desktop
-        run: pnpm install --frozen-lockfile
+        run: pnpm --ignore-workspace install --frozen-lockfile
 
       # ── 5. Rebuild native modules for Electron 43 ────────────────────────────
       - name: Rebuild native modules
