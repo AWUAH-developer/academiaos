@@ -48,8 +48,17 @@ export function useSyncStore() {
       await syncApi.uploadOutbox();
       // Then pull incremental changes
       const statusRes = await syncApi.status();
-      const cursor = statusRes.ok ? statusRes.cursors.find((c) => c.entity_type === 'learners')?.last_synced : null;
-      if (cursor) {
+      const cursors = statusRes.ok ? statusRes.cursors : [];
+      const cursor = cursors.find(
+        (c) => c.entity_type === 'learners',
+      )?.last_synced;
+      const classesReady = cursors.some(
+        (c) => c.entity_type === 'classes',
+      );
+
+      if (!cursor || !classesReady) {
+        await syncApi.initial();
+      } else {
         await syncApi.incremental(cursor);
       }
       await refreshStatus();

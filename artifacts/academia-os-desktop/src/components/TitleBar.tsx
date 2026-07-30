@@ -1,10 +1,6 @@
 import React from 'react';
+import { media } from '../api/client';
 
-/**
- * Augment React.CSSProperties to include the Electron-specific
- * -webkit-app-region CSS property used for native window dragging.
- * This extension is file-scoped: it only affects this module.
- */
 declare module 'react' {
   interface CSSProperties {
     WebkitAppRegion?: 'drag' | 'no-drag';
@@ -31,9 +27,7 @@ function schoolInitials(name: string) {
   const source = meaningful.length ? meaningful : words;
 
   if (!source.length) return 'SCH';
-  if (source.length === 1) {
-    return source[0].slice(0, 3).toUpperCase();
-  }
+  if (source.length === 1) return source[0].slice(0, 3).toUpperCase();
 
   return source
     .slice(0, 3)
@@ -42,20 +36,15 @@ function schoolInitials(name: string) {
     .toUpperCase();
 }
 
-function resolveSchoolLogoUrl(value?: string | null) {
+function resolveLogoUrl(value?: string | null) {
   const logo = String(value ?? '').trim();
 
   if (!logo || ['null', 'undefined', 'none'].includes(logo.toLowerCase())) {
     return null;
   }
 
-  if (/^(data:|blob:|file:|https?:\/\/)/i.test(logo)) {
-    return logo;
-  }
-
-  if (logo.startsWith('//')) {
-    return `https:${logo}`;
-  }
+  if (/^(data:|https?:\/\/)/i.test(logo)) return logo;
+  if (logo.startsWith('//')) return `https:${logo}`;
 
   try {
     return new URL(logo, 'https://academiaos.cc').toString();
@@ -71,16 +60,37 @@ export default function TitleBar({
   onLogout,
 }: Props) {
   const resolvedLogoUrl = React.useMemo(
-    () => resolveSchoolLogoUrl(schoolLogoUrl),
+    () => resolveLogoUrl(schoolLogoUrl),
     [schoolLogoUrl],
   );
+  const [logoSrc, setLogoSrc] = React.useState<string | null>(null);
   const [logoFailed, setLogoFailed] = React.useState(false);
 
   React.useEffect(() => {
+    let active = true;
+    setLogoSrc(null);
     setLogoFailed(false);
+
+    if (!resolvedLogoUrl) return () => { active = false; };
+
+    if (resolvedLogoUrl.startsWith('data:image/')) {
+      setLogoSrc(resolvedLogoUrl);
+      return () => { active = false; };
+    }
+
+    media.loadImage(resolvedLogoUrl)
+      .then((result) => {
+        if (!active) return;
+        setLogoSrc(result.ok ? result.dataUrl : resolvedLogoUrl);
+      })
+      .catch(() => {
+        if (active) setLogoSrc(resolvedLogoUrl);
+      });
+
+    return () => { active = false; };
   }, [resolvedLogoUrl, schoolName]);
 
-  const showLogo = Boolean(resolvedLogoUrl && !logoFailed);
+  const showLogo = Boolean(logoSrc && !logoFailed);
 
   return (
     <div
@@ -103,11 +113,7 @@ export default function TitleBar({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span
-          style={{
-            fontSize: 13,
-            fontWeight: 800,
-            letterSpacing: '.04em',
-          }}
+          style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em' }}
           aria-label="AcademiaOS"
         >
           <span style={{ color: '#fff8ea' }}>Academia</span>
@@ -120,13 +126,12 @@ export default function TitleBar({
 
             {showLogo ? (
               <img
-                key={resolvedLogoUrl ?? undefined}
-                src={resolvedLogoUrl ?? undefined}
+                src={logoSrc ?? undefined}
                 alt={`${schoolName} logo`}
                 onError={() => setLogoFailed(true)}
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 30,
+                  height: 30,
                   borderRadius: 7,
                   objectFit: 'contain',
                   background: '#fff',
@@ -135,11 +140,10 @@ export default function TitleBar({
               />
             ) : (
               <span
-                title={`${schoolName} initials logo`}
-                aria-label={`${schoolName} initials logo`}
+                title={`${schoolName} logo fallback`}
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 30,
+                  height: 30,
                   borderRadius: 7,
                   display: 'grid',
                   placeItems: 'center',
@@ -147,7 +151,6 @@ export default function TitleBar({
                   color: '#F4C542',
                   fontSize: 9,
                   fontWeight: 900,
-                  letterSpacing: '.04em',
                 }}
               >
                 {schoolInitials(schoolName)}
@@ -170,9 +173,7 @@ export default function TitleBar({
         }}
       >
         {userName && (
-          <span style={{ fontSize: 12, opacity: 0.65 }}>
-            {userName}
-          </span>
+          <span style={{ fontSize: 12, opacity: 0.65 }}>{userName}</span>
         )}
 
         <button

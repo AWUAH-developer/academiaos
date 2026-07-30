@@ -12,6 +12,7 @@
  */
 import { IpcMain } from 'electron';
 import https from 'https';
+import http, { type IncomingMessage } from 'http';
 import crypto from 'crypto';
 import { app } from 'electron';
 import {
@@ -19,7 +20,7 @@ import {
   ACCOUNT_ACCESS_TOKEN, ACCOUNT_REFRESH_TOKEN, ACCOUNT_DEVICE_ID,
 } from './secure-storage';
 import {
-  getDb, upsertLearners, upsertStaff, addToOutbox, getPendingOps, markOpStatus,
+  getDb, upsertLearners, upsertClasses, upsertStaff, addToOutbox, getPendingOps, markOpStatus,
 } from './sqlite';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -69,6 +70,121 @@ function apiRequest(
     req.on('error', reject);
     if (payload) req.write(payload);
     req.end();
+  });
+}
+
+
+function resolveImageUrl(rawUrl: string): URL {
+  const value = String(rawUrl ?? '').trim();
+
+  if (!value) throw new Error('Logo URL is empty.');
+  if (value.startsWith('//')) return new URL(`https:${value}`);
+
+  return new URL(value, 'https://academiaos.cc');
+}
+
+function fetchImageDataUrl(
+  rawUrl: string,
+  accessToken?: string,
+  redirectCount = 0,
+): Promise<string> {
+  if (rawUrl.startsWith('data:image/')) {
+    return Promise.resolve(rawUrl);
+  }
+
+  if (redirectCount > 5) {
+    return Promise.reject(new Error('Too many logo redirects.'));
+  }
+
+  const url = resolveImageUrl(rawUrl);
+  const isAcademiaHost =
+    url.hostname === 'academiaos.cc' ||
+    url.hostname.endsWith('.academiaos.cc');
+
+  return new Promise((resolve, reject) => {
+    const onResponse = (response: IncomingMessage) => {
+      const status = response.statusCode ?? 0;
+
+      if (
+        [301, 302, 303, 307, 308].includes(status) &&
+        response.headers.location
+      ) {
+        response.resume();
+        const nextUrl = new URL(
+          response.headers.location,
+          url,
+        ).toString();
+
+        fetchImageDataUrl(
+          nextUrl,
+          accessToken,
+          redirectCount + 1,
+        ).then(resolve, reject);
+        return;
+      }
+
+      if (status < 200 || status >= 300) {
+        response.resume();
+        reject(new Error(`Logo request returned HTTP ${status}.`));
+        return;
+      }
+
+      const mime = String(
+        response.headers['content-type'] ?? 'image/png',
+      ).split(';')[0].trim();
+
+      if (!mime.startsWith('image/')) {
+        response.resume();
+        reject(new Error(`Logo response is ${mime}.`));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      let total = 0;
+
+      response.on('data', (chunk: Buffer) => {
+        total += chunk.length;
+
+        if (total > 10 * 1024 * 1024) {
+          request.destroy(
+            new Error('School logo is larger than 10 MB.'),
+          );
+          return;
+        }
+
+        chunks.push(chunk);
+      });
+
+      response.on('end', () => {
+        const image = Buffer.concat(chunks);
+        resolve(
+          `data:${mime};base64,${image.toString('base64')}`,
+        );
+      });
+    };
+
+    const options = {
+      headers: {
+        'User-Agent': `AcademiaOS-Desktop/${APP_VERSION}`,
+        Accept: 'image/*',
+        ...(accessToken && isAcademiaHost
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {}),
+      },
+      timeout: 30_000,
+    };
+
+    const request =
+      url.protocol === 'http:'
+        ? http.request(url, options, onResponse)
+        : https.request(url, options, onResponse);
+
+    request.on('timeout', () => {
+      request.destroy(new Error('Logo request timed out.'));
+    });
+
+    request.on('error', reject);
+    request.end();
   });
 }
 
@@ -204,6 +320,10 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         upsertLearners(db, d.learners as Record<string, unknown>[]);
       }
 
+      if (Array.isArray(d.classes)) {
+        upsertClasses(db, d.classes as Record<string, unknown>[]);
+      }
+
       if (Array.isArray(d.staff) && (d.staff as unknown[]).length > 0) {
         upsertStaff(db, d.staff as Record<string, unknown>[]);
       }
@@ -217,6 +337,11 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
         VALUES (?, ?, ?)
       `).run('staff', d.syncCursor, (d.staff as unknown[])?.length ?? 0);
+
+      db.prepare(`
+        INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
+        VALUES (?, ?, ?)
+      `).run('classes', d.syncCursor, (d.classes as unknown[])?.length ?? 0);
 
       return { ok: true, data: d };
     } catch (err) {
@@ -238,6 +363,7 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
       const chg = d.changes as Record<string, unknown[]>;
 
       if (chg?.learners?.length) upsertLearners(db, chg.learners as Record<string, unknown>[]);
+      if (chg?.classes?.length) upsertClasses(db, chg.classes as Record<string, unknown>[]);
       if (chg?.staff?.length) upsertStaff(db, chg.staff as Record<string, unknown>[]);
       db.prepare(`
         INSERT OR REPLACE INTO sync_cursor (entity_type, last_synced, record_count)
@@ -313,22 +439,48 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
     return { ok: true, cursors, pendingOps: pending.n, conflictCount: conflicts.n };
   });
 
-  // ── db:getLearners ──────────────────────────────────────────────────────────
-  ipcMain.handle('db:getLearners', async (_, opts: { classId?: string; search?: string } = {}) => {
-    const db   = getDb();
-    let sql    = `SELECT * FROM cached_learners WHERE status = 'ACTIVE'`;
+  // ── db:getLearners
+  ipcMain.handle('db:getLearners', async (_, opts: {
+    classId?: string;
+    search?: string;
+  } = {}) => {
+    const db = getDb();
+
+    let sql = `
+      SELECT
+        l.*,
+        c.name AS class_name,
+        c.stream AS class_stream
+      FROM cached_learners l
+      LEFT JOIN cached_classes c ON c.id = l.class_id
+      WHERE l.status = 'ACTIVE'
+    `;
+
     const args: (string | number)[] = [];
 
-    if (opts.classId) { sql += ` AND class_id = ?`;  args.push(opts.classId); }
+    if (opts.classId) {
+      sql += ` AND l.class_id = ?`;
+      args.push(opts.classId);
+    }
+
     if (opts.search) {
       const q = `%${opts.search}%`;
-      sql += ` AND (first_name LIKE ? OR last_name LIKE ? OR admission_no LIKE ?)`;
+      sql += `
+        AND (
+          l.first_name LIKE ?
+          OR l.last_name LIKE ?
+          OR l.admission_no LIKE ?
+        )
+      `;
       args.push(q, q, q);
     }
-    sql += ` ORDER BY last_name, first_name LIMIT 500`;
 
-    const rows = db.prepare(sql).all(...args);
-    return { ok: true, learners: rows };
+    sql += ` ORDER BY l.last_name, l.first_name LIMIT 500`;
+
+    return {
+      ok: true,
+      learners: db.prepare(sql).all(...args),
+    };
   });
 
   // ── db:getStaff ─────────────────────────────────────────────────────────────
@@ -393,6 +545,33 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
       `SELECT * FROM conflicts WHERE resolved = 0 ORDER BY created_at DESC`,
     ).all();
     return { ok: true, conflicts: rows };
+  });
+
+
+  // ── media:loadImage
+  ipcMain.handle('media:loadImage', async (_, payload: {
+    url: string;
+  }) => {
+    try {
+      const accessToken = await getCredential(
+        ACCOUNT_ACCESS_TOKEN,
+      );
+
+      const dataUrl = await fetchImageDataUrl(
+        payload.url,
+        accessToken ?? undefined,
+      );
+
+      return { ok: true, dataUrl };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'LOGO_LOAD_FAILED',
+          message: String(error),
+        },
+      };
+    }
   });
 
   // ── app:getVersion / app:getPlatform ────────────────────────────────────────

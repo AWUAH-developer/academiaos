@@ -50,6 +50,12 @@ export const sync = {
     invoke<{ ok: boolean; cursors: SyncCursor[]; pendingOps: number; conflictCount: number }>('sync:status'),
 };
 
+// ── Protected media ────────────────────────────────────────────────────────────
+export const media = {
+  loadImage: (url: string) =>
+    invoke<ApiResult<{ dataUrl: string }>>('media:loadImage', { url }),
+};
+
 // ── Local DB ──────────────────────────────────────────────────────────────────
 export const db = {
   getLearners: (opts?: { classId?: string; search?: string }) =>
@@ -86,6 +92,7 @@ export type Session = { sessionId: string; deviceId: string; platform: string; a
 export type LocalLearner = {
   id: string; school_id: string; admission_no: string;
   first_name: string; last_name: string; class_id: string | null;
+  class_name: string | null; class_stream: string | null;
   status: string; photo_url: string | null; badge_code: string | null;
   gender: string | null;
 };

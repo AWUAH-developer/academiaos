@@ -362,6 +362,42 @@ export function markOpStatus(
   `).run({ id, status, error: error ?? null });
 }
 
+
+export function upsertClasses(
+  db: InstanceType<typeof Database>,
+  rows: Record<string, unknown>[],
+): void {
+  const statement = db.prepare(`
+    INSERT INTO cached_classes
+      (id, school_id, name, stream, level, is_active, synced_at)
+    VALUES
+      (@id, @school_id, @name, @stream, @level, @is_active, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET
+      school_id = excluded.school_id,
+      name = excluded.name,
+      stream = excluded.stream,
+      level = excluded.level,
+      is_active = excluded.is_active,
+      synced_at = datetime('now')
+  `);
+
+  const saveRows = db.transaction((items: Record<string, unknown>[]) => {
+    for (const row of items) {
+      statement.run({
+        id: String(row.id ?? ''),
+        school_id: String(row.schoolId ?? row.school_id ?? ''),
+        name: String(row.name ?? row.className ?? 'Unnamed class'),
+        stream: row.stream ?? null,
+        level: row.level ?? null,
+        is_active:
+          (row.isActive ?? row.is_active ?? true) === false ? 0 : 1,
+      });
+    }
+  });
+
+  saveRows(rows);
+}
+
 export function upsertStaff(
   db: InstanceType<typeof Database>,
   rows: Record<string, unknown>[],
