@@ -80,12 +80,12 @@ jobs:
       # ── 6. Renderer TypeScript check ─────────────────────────────────────────
       - name: Renderer TypeScript check
         working-directory: artifacts/academia-os-desktop
-        run: tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       # ── 7. Electron main/preload TypeScript check ─────────────────────────────
       - name: Electron main/preload TypeScript check
         working-directory: artifacts/academia-os-desktop
-        run: tsc -p tsconfig.electron.json --noEmit
+        run: pnpm exec tsc -p tsconfig.electron.json --noEmit
 
       # ── 8. Test file TypeScript check ─────────────────────────────────────────
       - name: Test file TypeScript check
