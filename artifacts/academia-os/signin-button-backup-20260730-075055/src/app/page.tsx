@@ -72,6 +72,9 @@ export default async function HomePage() {
                 <a href="#request" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#d9a441] px-7 py-3 text-base font-black text-[#2f1d14] shadow-lg transition-all duration-200 hover:bg-amber-400 hover:scale-105 active:scale-100">
                   Request a demo for your school
                 </a>
+                <Link href="/login" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-7 py-3 text-base font-bold text-white transition hover:bg-white/20">
+                  <LockKeyhole size={17} /> School sign in
+                </Link>
               </div>
             </HeroText>
             <HeroText delay={400}>
@@ -324,6 +327,9 @@ export default async function HomePage() {
             <div className="mt-10 rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
               <p className="font-black text-white">Already a school on AcademiaOS?</p>
               <p className="mt-1 text-sm text-white/65">Use the credentials your administrator provided.</p>
+              <Link href="/login" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-black text-[#2f1d14] transition hover:bg-amber-50">
+                <LockKeyhole size={15} /> School sign in
+              </Link>
             </div>
           </ScrollReveal>
 
@@ -348,6 +354,7 @@ export default async function HomePage() {
           <div className="flex gap-5">
             <Link href="/features" className="text-xs font-bold text-white/60 hover:text-white">Features</Link>
             <Link href="/pricing" className="text-xs font-bold text-white/60 hover:text-white">Packages</Link>
+            <Link href="/login" className="text-xs font-bold text-white/60 hover:text-white">School sign in</Link>
             <a href="mailto:hello@academiaos.cc" className="text-xs font-bold text-white/60 hover:text-white">Contact</a>
           </div>
         </div>

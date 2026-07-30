@@ -30,6 +30,7 @@ export function PublicFooter() {
             <Link href="/features" className="hover:text-white">Features</Link>
             <Link href="/pricing" className="hover:text-white">Packages</Link>
             <Link href="/pricing?type=demo#request" className="hover:text-white">Request a demo</Link>
+            <Link href="/login" className="hover:text-white">School sign in</Link>
           </div>
         </div>
 
