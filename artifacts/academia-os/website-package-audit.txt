@@ -1,0 +1,2542 @@
+ACADEMIAOS WEBSITE AND PACKAGE AUDIT
+Created: Wed Jul 29 11:43:38 PM UTC 2026
+Project: /home/runner/workspace/artifacts/academia-os
+
+======================================================
+RELEVANT FILE LIST
+======================================================
+src/app/actions/demo-access.ts
+src/app/actions/demo-requests.ts
+src/app/actions/subscriptions.ts
+src/components/CopyDemoInvitationButton.tsx
+src/components/CopyDemoRequestDetailsButton.tsx
+src/components/DeleteDemoRequestButton.tsx
+src/components/DemoAccessWizard.tsx
+src/components/DemoRequestForm.tsx
+src/components/marketing/HeroCards.tsx
+src/components/marketing/HeroEntrance.tsx
+src/components/marketing/RolesMarquee.module.css
+src/components/marketing/RolesMarquee.tsx
+src/components/marketing/ScrollReveal.tsx
+src/lib/notifications.ts
+
+======================================================
+PUBLIC HOMEPAGE
+======================================================
+import Image from 'next/image';
+import Link from 'next/link';
+import {
+  BadgeCheck, BookOpenCheck, BusFront, CircleDollarSign,
+  ClipboardCheck, CreditCard, GraduationCap, LockKeyhole,
+  Mail, Smartphone, Users, UsersRound,
+} from 'lucide-react';
+import { currentUser } from '@/lib/auth';
+import { DemoRequestForm } from '@/components/DemoRequestForm';
+import { HeroCards } from '@/components/marketing/HeroCards';
+import { ScrollReveal } from '@/components/marketing/ScrollReveal';
+import { RolesMarquee } from '@/components/marketing/RolesMarquee';
+import { AnimatedNav, HeroText } from '@/components/marketing/HeroEntrance';
+
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'AcademiaOS — School Command Centre' };
+
+const features = [
+  { icon: UsersRound,       title: 'Admissions & Learners',    desc: 'Digital admission records, profile photos, class assignments, guardian contacts and payment plan configuration — all in one place.',                                                         color: 'bg-emerald-50 text-emerald-700' },
+  { icon: ClipboardCheck,   title: 'Attendance & Daily Fees',  desc: 'Mark attendance in seconds. Daily-fee learners are charged automatically per day present. Missed days carry forward — nothing slips through.',                                                color: 'bg-amber-50 text-amber-700' },
+  { icon: CircleDollarSign, title: 'Fees & Finance',           desc: 'Collect payments, generate official receipts and track outstanding balances. Term, monthly and daily fee plans all supported.',                                                               color: 'bg-blue-50 text-blue-700' },
+  { icon: BookOpenCheck,    title: 'Academic Results',         desc: 'Teachers enter marks, headteachers review, proprietors approve. Results are locked until every level signs off.',                                                                               color: 'bg-violet-50 text-violet-700' },
+  { icon: CreditCard,       title: 'Smart ID Cards',           desc: 'Print scannable ID cards for every staff member and learner. QR codes link directly to their profile for gate security and transport tracking.',                                               color: 'bg-rose-50 text-rose-700' },
+  { icon: Users,            title: 'Parent & Guardian Portal', desc: 'Parents see attendance, fees, homework and results in real time. No WhatsApp chasing — everything is in the app.',                                                                             color: 'bg-teal-50 text-teal-700' },
+];
+
+const stats = [
+  { value: '14', label: 'Role types' },
+  { value: '15+', label: 'Core modules' },
+  { value: '100%', label: 'Ghana curriculum' },
+  { value: '0', label: 'Spreadsheets needed' },
+];
+
+export default async function HomePage() {
+  const user = await currentUser();
+
+  return (
+    <div className="min-h-screen bg-[#fffdf7] font-sans antialiased">
+
+      {/* ── NAV ──────────────────────────────────────────────────────────── */}
+      <AnimatedNav user={user} />
+
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <section className="wood-grain relative overflow-hidden px-5 py-20 text-white sm:px-8 sm:py-28 lg:py-32">
+        {/* Background decorative rings */}
+        <div className="pointer-events-none absolute -right-32 -top-32 h-[600px] w-[600px] rounded-full border-[60px] border-white/5" style={{ animation: 'float-b 12s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full border-[40px] border-white/5" style={{ animation: 'float-a 10s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1px] border-white/5" />
+
+        <div className="relative mx-auto max-w-7xl lg:grid lg:grid-cols-[1fr_460px] lg:items-center lg:gap-16">
+          {/* Left — copy */}
+          <div>
+            <HeroText delay={0}>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
+                School command centre
+              </div>
+            </HeroText>
+            <HeroText delay={100}>
+              <h1 className="mt-6 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+                Run every aspect of your school
+                <br />
+                <span className="text-[#d9a441]">from one secure platform.</span>
+              </h1>
+            </HeroText>
+            <HeroText delay={200}>
+              <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-white/75">
+                AcademiaOS connects admissions, attendance, daily fees, academic results, Smart ID cards, parent communication and mobile access — all under one login, with role-based security for every member of staff.
+              </p>
+            </HeroText>
+            <HeroText delay={300}>
+              <div className="mt-10 flex flex-wrap items-center gap-4">
+                <a href="#request" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#d9a441] px-7 py-3 text-base font-black text-[#2f1d14] shadow-lg transition-all duration-200 hover:bg-amber-400 hover:scale-105 active:scale-100">
+                  Request a demo for your school
+                </a>
+                <Link href="/login" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-7 py-3 text-base font-bold text-white transition hover:bg-white/20">
+                  <LockKeyhole size={17} /> School sign in
+                </Link>
+              </div>
+            </HeroText>
+            <HeroText delay={400}>
+              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-bold text-white/60">
+                {['Ghanaian curriculum ready','GHS & multi-currency','Works offline on desktop','Android & iOS apps'].map(f => (
+                  <span key={f} className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#d9a441]"/>{f}
+                  </span>
+                ))}
+              </div>
+            </HeroText>
+          </div>
+
+          {/* Right — floating notification cards */}
+          <div
+            className="mt-16 flex justify-center lg:mt-0 lg:justify-end"
+            style={{ animation: 'fade-in .9s .35s cubic-bezier(.16,1,.3,1) both' }}
+          >
+            <HeroCards />
+          </div>
+        </div>
+      </section>
+
+      {/* ── STATS STRIP ──────────────────────────────────────────────────── */}
+      <div className="border-y border-black/10 bg-[#2f1d14] px-5 py-6 sm:px-8">
+        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 sm:grid-cols-4">
+          {stats.map(({ value, label }, i) => (
+            <div key={label} className="text-center" style={{ animation: `fade-up .6s ${i * 80}ms both` }}>
+              <p className="text-3xl font-black text-[#d9a441]">{value}</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-wider text-white/50">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── ROLES MARQUEE ─────────────────────────────────────────────────── */}
+      <div className="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-8 overflow-hidden">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex items-center gap-4">
+            <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-slate-400">Built for</span>
+            <RolesMarquee />
+          </div>
+        </div>
+      </div>
+
+      {/* ── FEATURES ─────────────────────────────────────────────────────── */}
+      <section id="features" className="scroll-mt-20 px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-7xl">
+          <ScrollReveal className="text-center">
+            <p className="eyebrow">Everything in one system</p>
+            <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-900">Complete school administration</h2>
+            <p className="mx-auto mt-4 max-w-xl text-slate-500">Every module is connected. A payment updates the fee balance. An attendance mark triggers the daily fee charge. A result enters the approval workflow automatically.</p>
+          </ScrollReveal>
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map(({ icon: Icon, title, desc, color }, i) => (
+              <ScrollReveal key={title} delay={i * 80}>
+                <div className="paper-card h-full p-6 transition-shadow hover:shadow-lg">
+                  <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${color}`}>
+                    <Icon size={22} />
+                  </div>
+                  <h3 className="mt-4 text-lg font-black text-slate-900">{title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-500">{desc}</p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── DAILY FEES SPOTLIGHT ─────────────────────────────────────────── */}
+      <section id="daily-fees" className="scroll-mt-20 bg-[#1f5b45] px-5 py-20 text-white sm:px-8">
+        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
+          <ScrollReveal direction="left">
+            <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">Attendance · Finance · Fees</p>
+            <h2 className="mt-4 text-4xl font-black leading-tight tracking-tight">Daily fees that actually add up.</h2>
+            <p className="mt-5 text-lg leading-8 text-white/75">
+              For schools charging per school day attended — AcademiaOS calculates the fee automatically when attendance is marked. Absent days are skipped. Holidays are skipped.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {[
+                ['Carry-forward logic','Any unpaid balance from the previous day is automatically carried forward — no manual chasing.'],
+                ['Term, monthly & daily plans','Set a different payment plan per learner. The system handles the maths.'],
+                ['Real-time balance','Accounts staff always see the live balance. No spreadsheets.'],
+                ['Official PDF receipts','Every payment generates a printable, numbered receipt instantly.'],
+              ].map(([title, desc]) => (
+                <li key={title} className="flex gap-4">
+                  <div className="mt-1 h-5 w-5 shrink-0 rounded-full bg-[#d9a441] grid place-items-center">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#2f1d14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <div><p className="font-black">{title}</p><p className="mt-0.5 text-sm text-white/65">{desc}</p></div>
+                </li>
+              ))}
+            </ul>
+          </ScrollReveal>
+          <ScrollReveal direction="right" className="mt-12 lg:mt-0">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+              <p className="text-xs font-bold uppercase tracking-wider text-emerald-300">Live example · Daily fee learner</p>
+              <div className="mt-5 space-y-3">
+                {[
+                  ['Term days attended','42 days','text-white'],
+                  ['Fee per day','GHS 12.50','text-white'],
+                  ['Gross charge','GHS 525.00','text-white'],
+                  ['Payments received','GHS 480.00','text-emerald-300'],
+                  ['Balance carried forward','GHS 45.00','text-amber-300'],
+                ].map(([label, value, cls]) => (
+                  <div key={label} className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <span className="text-sm text-white/65">{label}</span>
+                    <span className={`text-sm font-black ${cls}`}>{value}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Mini bar chart */}
+              <div className="mt-5">
+                <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">Week-by-week payments</p>
+                <div className="flex items-end gap-1.5 h-14">
+                  {[40, 65, 80, 55, 90, 70, 100].map((h, i) => (
+                    <div key={i} className="flex-1 rounded-t-sm bg-emerald-500/30 relative overflow-hidden">
+                      <div className="absolute bottom-0 left-0 right-0 bg-emerald-400 rounded-t-sm transition-all" style={{ height: `${h}%` }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-white/40">Calculated automatically. No spreadsheet needed.</p>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ── SMART ID ─────────────────────────────────────────────────────── */}
+      <section id="id-cards" className="scroll-mt-20 px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
+          <ScrollReveal direction="left" className="order-2 lg:order-1">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              {[
+                { label: 'STAFF',   name: 'Mrs. E. Asante', sub: 'Headteacher',         id: 'headteacher',    accent: 'bg-amber-700' },
+                { label: 'LEARNER', name: 'Kofi Mensah',    sub: 'Primary 4 (Blue)',     id: 'ADM-2024-0042',  accent: 'bg-emerald-800' },
+              ].map(card => (
+                <div key={card.label} className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl transition-transform hover:-translate-y-1 hover:shadow-2xl" style={{ transition: 'transform .25s, box-shadow .25s' }}>
+                  <div className={`${card.accent} flex items-center justify-between px-4 py-2`}>
+                    <span className="text-xs font-black text-white">AcademiaOS School</span>
+                    <span className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-white">{card.label}</span>
+                  </div>
+                  <div className="flex gap-3 p-4">
+                    <div className="flex h-[80px] w-[62px] items-center justify-center rounded-xl bg-slate-100 text-2xl font-black text-slate-300">{card.name[0]}</div>
+                    <div className="flex flex-col justify-between">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">{card.name}</p>
+                        <p className="text-xs text-slate-500">{card.sub}</p>
+                        <p className="mt-1 text-[10px] text-slate-400">ID: <span className="font-bold text-slate-600">{card.id}</span></p>
+                      </div>
+                      <div className="flex items-end justify-between">
+                        <p className="text-[8px] uppercase tracking-widest text-slate-400">Scan to verify</p>
+                        <div className="h-10 w-10 rounded border border-slate-200 bg-slate-50 grid place-items-center text-[6px] font-mono text-slate-300">QR</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`${card.accent} h-1.5`}/>
+                </div>
+              ))}
+            </div>
+          </ScrollReveal>
+          <ScrollReveal direction="right" className="order-1 lg:order-2">
+            <p className="eyebrow">Identity & gate security</p>
+            <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-900">Smart ID cards — print & scan.</h2>
+            <p className="mt-5 text-lg leading-8 text-slate-500">Every staff member and learner gets a scannable ID card. Print individually or in bulk. QR codes link directly to the person's record for gate security, transport tracking and attendance.</p>
+            <ul className="mt-6 space-y-3">
+              {['Staff (amber) and learner (green) cards are visually distinct','Print on any A4 printer — 2 per row','QR codes encode the unique badge ID','Filter by class or role before printing'].map(t => (
+                <li key={t} className="flex items-start gap-3 text-sm text-slate-600">
+                  <BadgeCheck size={18} className="mt-0.5 shrink-0 text-[#1f5b45]" /> {t}
+                </li>
+              ))}
+            </ul>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ── ROLE SECURITY ────────────────────────────────────────────────── */}
+      <section className="bg-slate-50 px-5 py-16 sm:px-8">
+        <div className="mx-auto max-w-7xl text-center">
+          <ScrollReveal>
+            <p className="eyebrow">Access control</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Every staff member sees only what they need.</h2>
+            <p className="mx-auto mt-4 max-w-xl text-slate-500">14 role types from Super Admin to Canteen staff. Permissions are fixed by role — not configurable by accident.</p>
+          </ScrollReveal>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            {['Super admin','Proprietor','Headteacher','Academic admin','Class teacher','Accounts','Receptionist','Transport','Security / gate','Librarian','Canteen','Parent','Learner'].map((r, i) => (
+              <ScrollReveal key={r} delay={i * 45} direction="scale">
+                <span className="block rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#1f5b45]/40 hover:text-[#1f5b45]">{r}</span>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── MOBILE & MULTI-CHANNEL ───────────────────────────────────────── */}
+      <section className="px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-7xl">
+          <ScrollReveal className="text-center mb-14">
+            <p className="eyebrow">Access anywhere</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Web, mobile, and desktop — all connected.</h2>
+          </ScrollReveal>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {[
+              { icon: Smartphone,    title: 'Android & iOS apps',     desc: 'Native mobile apps for staff who need to work on the go. Attendance, approvals and messages — all from a phone.',                   color: 'bg-violet-100 text-violet-700' },
+              { icon: GraduationCap, title: 'Desktop offline app',    desc: 'Electron-based desktop app for schools with unreliable internet. Data syncs when connection is restored.',                            color: 'bg-amber-100 text-amber-700' },
+              { icon: Mail,          title: 'Built-in messaging',     desc: 'Secure internal messaging between staff and parents. No third-party apps needed — everything stays in the system.',                  color: 'bg-blue-100 text-blue-700' },
+            ].map(({ icon: Icon, title, desc, color }, i) => (
+              <ScrollReveal key={title} delay={i * 100}>
+                <div className="paper-card h-full p-7 transition-shadow hover:shadow-lg">
+                  <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}><Icon size={24}/></div>
+                  <h3 className="mt-5 text-xl font-black text-slate-900">{title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-500">{desc}</p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── DEMO REQUEST FORM ────────────────────────────────────────────── */}
+      <section id="request" className="scroll-mt-20 wood-grain px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-5xl lg:grid lg:grid-cols-[1fr_480px] lg:items-start lg:gap-16">
+          <ScrollReveal direction="left" className="text-white">
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-300">For schools</p>
+            <h2 className="mt-4 text-4xl font-black leading-tight tracking-tight">
+              Ready to run your school from one desk?
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-white/70">
+              Fill in the form and we will set up a demo for your school. You will receive login credentials to explore the full system before committing to anything.
+            </p>
+
+            <div className="mt-8 space-y-5">
+              {[
+                ['We set up your school','Your data, your staff, your classes — configured before you log in for the first time.'],
+                ['You get real credentials','No demo sandbox — you see a live system with your school name and logo.'],
+                ['Training included','We walk your administrator through every module before handover.'],
+              ].map(([title, desc]) => (
+                <div key={title} className="flex gap-4">
+                  <div className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-[#d9a441] grid place-items-center">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#2f1d14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <div>
+                    <p className="font-black text-white">{title}</p>
+                    <p className="mt-0.5 text-sm text-white/65">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+              <p className="font-black text-white">Already a school on AcademiaOS?</p>
+              <p className="mt-1 text-sm text-white/65">Use the credentials your administrator provided.</p>
+              <Link href="/login" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-black text-[#2f1d14] transition hover:bg-amber-50">
+                <LockKeyhole size={15} /> School sign in
+              </Link>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal direction="right" className="mt-10 lg:mt-0">
+            <div className="rounded-3xl border border-white/15 bg-white p-8 shadow-2xl">
+              <h3 className="mb-6 text-xl font-black text-slate-900">Request a demo</h3>
+              <DemoRequestForm />
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
+      <footer className="border-t border-black/10 bg-[#2f1d14] px-5 py-10 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <Image src="/brand-logo.jpg" alt="AcademiaOS" width={32} height={32} unoptimized className="h-8 w-8 rounded-xl object-cover" />
+            <span className="text-sm font-black text-white">AcademiaOS</span>
+            <span className="text-xs text-white/40">School Command Centre</span>
+          </div>
+          <p className="text-xs text-white/40">Built for primary and secondary schools. © {new Date().getFullYear()} AcademiaOS.</p>
+          <div className="flex gap-5">
+            <Link href="/login" className="text-xs font-bold text-white/60 hover:text-white">School sign in</Link>
+            <a href="mailto:hello@academiaos.cc" className="text-xs font-bold text-white/60 hover:text-white">Contact</a>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  );
+}
+
+======================================================
+PUBLIC NAVIGATION
+======================================================
+'use client';
+
+import { type ReactNode, useEffect, useRef } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+
+import { DevourLogo } from '@/components/DevourLogo';
+
+export function AnimatedNav({
+  user,
+}: {
+  user: { name: string } | null;
+}) {
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const nav = navRef.current;
+
+    if (!nav) return;
+
+    nav.style.transform = 'translateY(-100%)';
+    nav.style.opacity = '0';
+    nav.style.transition =
+      'transform .55s cubic-bezier(.16,1,.3,1), opacity .4s ease';
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        nav.style.transform = 'translateY(0)';
+        nav.style.opacity = '1';
+      });
+    });
+  }, []);
+
+  return (
+    <header
+      ref={navRef}
+      className="sticky top-0 z-50 border-b border-black/10 bg-[#2f1d14]/95 backdrop-blur-md"
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-3 sm:px-8">
+        <Link
+          href="/"
+          aria-label="AcademiaOS home"
+          className="flex min-w-0 items-center gap-3"
+        >
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white p-1 shadow-lg shadow-black/20">
+            <Image
+              src="/icon.svg"
+              alt=""
+              width={48}
+              height={48}
+              priority
+              className="h-full w-full object-contain"
+            />
+          </div>
+
+          <div className="hidden w-[205px] overflow-hidden sm:block">
+            <DevourLogo
+              variant="light"
+              className="text-[1.45rem] font-black"
+            />
+          </div>
+
+          <div
+            className="whitespace-nowrap text-lg font-black tracking-tight sm:hidden"
+            aria-hidden="true"
+          >
+            <span className="text-[#fff8ea]">Academia</span>
+            <span className="text-[#f4c542]">OS.</span>
+          </div>
+        </Link>
+
+        <nav className="hidden items-center gap-6 md:flex">
+          {(
+            [
+              ['#features', 'Features'],
+              ['#daily-fees', 'Daily fees'],
+              ['#id-cards', 'Smart ID'],
+              ['#request', 'Request demo'],
+            ] as const
+          ).map(([href, label]) => (
+            <a
+              key={href}
+              href={href}
+              className="text-sm font-bold text-white/70 transition hover:text-white"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="flex shrink-0 items-center gap-3">
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="btn-primary px-5 py-2.5 text-sm"
+            >
+              Open dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-white/70 transition hover:text-white lg:block"
+              >
+                School sign in
+              </Link>
+
+              <a
+                href="#request"
+                className="btn-primary px-4 py-2.5 text-sm sm:px-5"
+              >
+                Request demo
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function HeroText({
+  children,
+  delay = 0,
+}: {
+  children: ReactNode;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+
+    if (!element) return;
+
+    element.style.opacity = '0';
+    element.style.transform = 'translateY(24px)';
+    element.style.transition =
+      `opacity .7s ${delay}ms cubic-bezier(.16,1,.3,1), ` +
+      `transform .7s ${delay}ms cubic-bezier(.16,1,.3,1)`;
+
+    const timer = setTimeout(() => {
+      element.style.opacity = '1';
+      element.style.transform = 'translateY(0)';
+    }, 40);
+
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  return <div ref={ref}>{children}</div>;
+}
+
+======================================================
+CURRENT DEMO REQUEST FORM
+======================================================
+'use client';
+import { useActionState } from 'react';
+import { CheckCircle2, Loader2, Send } from 'lucide-react';
+import { submitDemoRequestAction, type DemoRequestState } from '@/app/actions/demo-requests';
+import { SchoolInitialsInput } from '@/components/SchoolInitialsInput';
+
+export function DemoRequestForm() {
+  const [state, action, pending] = useActionState<DemoRequestState, FormData>(
+    submitDemoRequestAction,
+    { status: 'idle' }
+  );
+
+  if (state.status === 'success') {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-10 text-center">
+        <CheckCircle2 className="text-emerald-600" size={40} />
+        <h3 className="text-xl font-black text-emerald-900">Request sent!</h3>
+        <p className="max-w-sm text-sm leading-7 text-emerald-700">{state.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <form action={action} className="space-y-4">
+      {state.status === 'error' && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">
+          {state.message}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SchoolInitialsInput
+          className="sm:col-span-2"
+          nameInputName="schoolName"
+          nameLabel="School name *"
+          namePlaceholder="e.g. Paul Lawrence Academy"
+        />
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Your name *</label>
+          <input name="contactName" required placeholder="Contact person" className="input w-full" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Email address *</label>
+          <input name="email" type="email" required placeholder="school@email.com" className="input w-full" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Phone number *</label>
+          <input name="phone" type="tel" required placeholder="+233…" className="input w-full" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Approx. number of learners</label>
+          <input name="learnerCount" type="number" min={1} placeholder="e.g. 300" className="input w-full" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-bold text-slate-600">Approx. number of staff</label>
+          <input name="staffCount" type="number" min={1} placeholder="e.g. 25" className="input w-full" />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-bold text-slate-600">Message or questions (optional)</label>
+        <textarea name="message" rows={3} placeholder="Tell us about your school, any specific requirements…" className="input w-full resize-none" />
+      </div>
+
+      <button type="submit" disabled={pending} className="btn-primary w-full gap-2">
+        {pending ? <><Loader2 size={17} className="animate-spin" /> Sending…</> : <><Send size={17} /> Send demo request</>}
+      </button>
+      <p className="text-center text-xs text-slate-400">We respond within 24 hours. No commitment required.</p>
+    </form>
+  );
+}
+
+======================================================
+RELEVANT ACTION FILES
+======================================================
+
+---------- src/app/actions/demo-access.ts ----------
+'use server';
+
+import bcrypt from 'bcryptjs';
+import { asc, desc, eq, inArray, like } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { db } from '@/db';
+import {
+  demoRequests,
+  packages,
+  schoolSubscriptions,
+  schools,
+  sessions,
+  users,
+} from '@/db/schema';
+import { audit, requireUser } from '@/lib/auth';
+import { generateTemporaryPassword, usernameBaseFromName } from '@/lib/credentials';
+import { imageToDataUrl, ImageUploadError } from '@/lib/images';
+import { sendDemoInvitationEmail } from '@/lib/email';
+import {
+  cleanText,
+  isValidEmail,
+  isValidPhone,
+  normalizeEmail,
+  normalizePhone,
+} from '@/lib/validation';
+
+const DEMO_DAYS = 7;
+const DAY_MS = 86_400_000;
+
+export type CreateDemoAccessState = {
+  status: 'idle' | 'success' | 'error';
+  message?: string;
+  username?: string;
+  temporaryPassword?: string;
+  expiresAt?: string;
+  schoolId?: string;
+  schoolName?: string;
+  recipientEmail?: string;
+  emailStatus?: 'sent' | 'not_configured' | 'failed' | 'skipped';
+  emailMessage?: string;
+};
+
+export type SendDemoInvitationState = {
+  status: 'idle' | 'success' | 'error';
+  message?: string;
+  schoolName?: string;
+  username?: string;
+  temporaryPassword?: string;
+  expiresAt?: string;
+  recipientEmail?: string;
+  emailStatus?: 'sent' | 'not_configured' | 'failed';
+  emailMessage?: string;
+};
+
+function demoMarker(requestId: string) {
+  return `[DEMO_REQUEST:${requestId}]`;
+}
+
+function schoolInitials(name: string) {
+  const ignored = new Set(['THE', 'OF', 'AND', '&']);
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^A-Za-z0-9]/g, ''))
+    .filter(Boolean);
+
+  const useful = words.filter((word) => !ignored.has(word.toUpperCase()));
+  const source = useful.length ? useful : words;
+  const initials = source.slice(0, 3).map((word) => word[0]).join('').toUpperCase();
+  return initials || 'SCH';
+}
+
+async function availableSchoolCode(name: string, requestedCode?: string) {
+  const rawBase = (requestedCode || schoolInitials(name))
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 16) || 'SCH';
+
+  for (let n = 1; n <= 9999; n += 1) {
+    const suffix = n === 1 ? '' : String(n);
+    const candidate = `${rawBase.slice(0, 20 - suffix.length)}${suffix}`;
+    const existing = await db
+      .select({ id: schools.id })
+      .from(schools)
+      .where(eq(schools.code, candidate))
+      .limit(1);
+    if (!existing[0]) return candidate;
+  }
+
+  throw new Error('Unable to generate a unique school code.');
+}
+
+async function availableUsername(name: string) {
+  const base = usernameBaseFromName(name);
+  for (let n = 1; n <= 9999; n += 1) {
+    const candidate = n === 1 ? base : `${base}${n}`;
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, candidate))
+      .limit(1);
+    if (!existing[0]) return candidate;
+  }
+  throw new Error('Unable to generate a unique username.');
+}
+
+function currentAcademicYear() {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  return now.getUTCMonth() >= 8 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
+}
+
+async function findDemoSubscription(requestId: string) {
+  return (
+    await db
+      .select()
+      .from(schoolSubscriptions)
+      .where(like(schoolSubscriptions.notes, `%${demoMarker(requestId)}%`))
+      .orderBy(desc(schoolSubscriptions.createdAt))
+      .limit(1)
+  )[0];
+}
+
+export async function createDemoAccessAction(
+  _previous: CreateDemoAccessState,
+  formData: FormData,
+): Promise<CreateDemoAccessState> {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') {
+    return { status: 'error', message: 'Only the Super Admin can create demo access.' };
+  }
+
+  const requestId = cleanText(formData.get('requestId'), 100);
+  const schoolName = cleanText(formData.get('schoolName'), 160);
+  const requestedCode = cleanText(formData.get('code'), 20);
+  const adminName = cleanText(formData.get('adminName'), 120);
+  const adminPhone = normalizePhone(formData.get('adminPhone'));
+  const adminEmail = normalizeEmail(formData.get('adminEmail'));
+  const packageId = cleanText(formData.get('packageId'), 100);
+  const sendInvitation = formData.get('sendInvitation') === 'on';
+
+  if (!requestId) return { status: 'error', message: 'The demo request could not be identified.' };
+  if (!schoolName) return { status: 'error', message: 'Enter the school name.' };
+  if (!adminName || !isValidPhone(adminPhone) || !isValidEmail(adminEmail)) {
+    return { status: 'error', message: 'Enter the administrator name, valid phone number and email.' };
+  }
+  if (!packageId) return { status: 'error', message: 'Select the package to demonstrate.' };
+
+  const [request, selectedPackage, existingDemo] = await Promise.all([
+    db.select().from(demoRequests).where(eq(demoRequests.id, requestId)).limit(1),
+    db.select().from(packages).where(eq(packages.id, packageId)).limit(1),
+    findDemoSubscription(requestId),
+  ]);
+
+  if (!request[0]) return { status: 'error', message: 'The demo request no longer exists.' };
+  if (!selectedPackage[0] || !selectedPackage[0].isActive) {
+    return { status: 'error', message: 'Select an active package.' };
+  }
+  if (existingDemo) {
+    return { status: 'error', message: 'Demo access has already been created for this request.' };
+  }
+
+  let logoUrl: string | null = null;
+  let adminPhotoUrl: string | null = null;
+  try {
+    logoUrl = await imageToDataUrl(formData.get('logo'), {
+      required: false,
+      label: 'School logo',
+    });
+    adminPhotoUrl = await imageToDataUrl(formData.get('adminPhoto'), {
+      required: false,
+      label: 'Administrator photo',
+    });
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error instanceof ImageUploadError ? error.message : 'The uploaded image could not be processed.',
+    };
+  }
+
+  const code = await availableSchoolCode(schoolName, requestedCode);
+  const username = await availableUsername(adminName);
+  const temporaryPassword = generateTemporaryPassword(8);
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+  const startsAt = new Date();
+  const expiresAt = new Date(startsAt.getTime() + DEMO_DAYS * DAY_MS);
+  const marker = demoMarker(requestId);
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [school] = await tx
+        .insert(schools)
+        .values({
+          name: schoolName,
+          code,
+          logoUrl,
+          phone: request[0].phone || null,
+          email: request[0].email || null,
+          currency: 'GHS',
+          timezone: 'Africa/Accra',
+          isActive: true,
+        })
+        .returning({ id: schools.id });
+
+      await tx.insert(users).values({
+        schoolId: school.id,
+        name: adminName,
+        username,
+        email: adminEmail,
+        phone: adminPhone,
+        photoUrl: adminPhotoUrl,
+        passwordHash,
+        role: 'SCHOOL_ADMIN',
+        status: 'ACTIVE',
+        mustChangePassword: false,
+        temporaryPasswordExpiresAt: expiresAt,
+      });
+
+      const [subscription] = await tx
+        .insert(schoolSubscriptions)
+        .values({
+          schoolId: school.id,
+          packageId,
+          academicYear: currentAcademicYear(),
+          term: 'DEMO',
+          startDate: startsAt,
+          endDate: expiresAt,
+          learnerCount: request[0].learnerCount,
+          baseAmount: '0',
+          addonsAmount: '0',
+          totalAmount: '0',
+          paidAmount: '0',
+          status: 'ACTIVE',
+          notes: `${marker} Seven-day web demo. Demo records must remain separate from production records.`,
+          createdById: actor.id,
+        })
+        .returning({ id: schoolSubscriptions.id });
+
+      await tx
+        .update(demoRequests)
+        .set({ status: 'APPROVED', updatedAt: new Date() })
+        .where(eq(demoRequests.id, requestId));
+
+      return { schoolId: school.id, subscriptionId: subscription.id };
+    });
+
+    await audit({
+      userId: actor.id,
+      schoolId: result.schoolId,
+      action: 'DEMO_ACCESS_CREATED',
+      entityType: 'DemoRequest',
+      entityId: requestId,
+      newValue: {
+        packageId,
+        durationDays: DEMO_DAYS,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
+
+    let emailStatus: CreateDemoAccessState['emailStatus'] = 'skipped';
+    let emailMessage = 'The invitation was not emailed. Copy the login details and send them privately.';
+
+    if (sendInvitation) {
+      const delivery = await sendDemoInvitationEmail({
+        requestId,
+        schoolName,
+        contactName: adminName,
+        recipientEmail: adminEmail,
+        username,
+        temporaryPassword,
+        expiresAt,
+      });
+
+      emailStatus = delivery.status;
+      emailMessage = delivery.status === 'sent'
+        ? `Invitation sent to ${adminEmail}.`
+        : delivery.message;
+
+      if (delivery.status === 'sent') {
+        const sentAt = new Date();
+        const note = `Demo invitation sent to ${adminEmail} at ${sentAt.toISOString()} [EMAIL_ID:${delivery.id}]`;
+        await db
+          .update(demoRequests)
+          .set({
+            notes: [request[0].notes, note].filter(Boolean).join('\n'),
+            updatedAt: sentAt,
+          })
+          .where(eq(demoRequests.id, requestId));
+
+        await audit({
+          userId: actor.id,
+          schoolId: result.schoolId,
+          action: 'DEMO_INVITATION_SENT',
+          entityType: 'DemoRequest',
+          entityId: requestId,
+          newValue: { recipientEmail: adminEmail, provider: 'RESEND', emailId: delivery.id },
+        });
+      } else {
+        await audit({
+          userId: actor.id,
+          schoolId: result.schoolId,
+          action: 'DEMO_INVITATION_NOT_SENT',
+          entityType: 'DemoRequest',
+          entityId: requestId,
+          newValue: { recipientEmail: adminEmail, reason: emailMessage },
+        });
+      }
+    }
+
+    revalidatePath('/demo-requests');
+    revalidatePath(`/demo-requests/${requestId}/create`);
+
+    return {
+      status: 'success',
+      message: `${schoolName} now has seven-day web demo access.`,
+      username,
+      temporaryPassword,
+      expiresAt: expiresAt.toISOString(),
+      schoolId: result.schoolId,
+      schoolName,
+      recipientEmail: adminEmail,
+      emailStatus,
+      emailMessage,
+    };
+  } catch (error: any) {
+    if (error?.code === '23505') {
+      return { status: 'error', message: 'The generated school code or username already exists. Try again.' };
+    }
+    console.error('createDemoAccessAction failed', error);
+    return { status: 'error', message: 'The demo could not be created. No partial record was saved.' };
+  }
+}
+
+
+export async function sendNewDemoInvitationAction(
+  _previous: SendDemoInvitationState,
+  formData: FormData,
+): Promise<SendDemoInvitationState> {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') {
+    return { status: 'error', message: 'Only the Super Admin can send demo invitations.' };
+  }
+
+  const requestId = cleanText(formData.get('requestId'), 100);
+  const recipientEmail = normalizeEmail(formData.get('recipientEmail'));
+  if (!requestId) return { status: 'error', message: 'The demo request could not be identified.' };
+  if (!isValidEmail(recipientEmail)) return { status: 'error', message: 'Enter a valid invitation email address.' };
+
+  const [request, subscription] = await Promise.all([
+    db.select().from(demoRequests).where(eq(demoRequests.id, requestId)).limit(1),
+    findDemoSubscription(requestId),
+  ]);
+
+  if (!request[0] || !subscription) {
+    return { status: 'error', message: 'The demo access record could not be found.' };
+  }
+
+  const [school, admin] = await Promise.all([
+    db.select().from(schools).where(eq(schools.id, subscription.schoolId)).limit(1),
+    db
+      .select()
+      .from(users)
+      .where(eq(users.schoolId, subscription.schoolId))
+      .orderBy(asc(users.createdAt))
+      .limit(1),
+  ]);
+
+  if (!school[0] || !admin[0]) {
+    return { status: 'error', message: 'The demo school or administrator account could not be found.' };
+  }
+
+  const now = new Date();
+  if (!school[0].isActive || subscription.status !== 'ACTIVE' || subscription.endDate <= now) {
+    return { status: 'error', message: 'Extend or reactivate the demo before sending a new invitation.' };
+  }
+
+  const temporaryPassword = generateTemporaryPassword(8);
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          email: recipientEmail,
+          passwordHash,
+          status: 'ACTIVE',
+          mustChangePassword: false,
+          temporaryPasswordExpiresAt: subscription.endDate,
+          failedLoginCount: 0,
+          lockedUntil: null,
+          updatedAt: now,
+        })
+        .where(eq(users.id, admin[0].id));
+
+      await tx.delete(sessions).where(eq(sessions.userId, admin[0].id));
+    });
+  } catch (error) {
+    console.error('sendNewDemoInvitationAction password reset failed', error);
+    return { status: 'error', message: 'The invitation could not be prepared. The existing login remains unchanged.' };
+  }
+
+  const delivery = await sendDemoInvitationEmail({
+    requestId,
+    deliveryKey: `${requestId}-resend-${now.getTime()}`,
+    schoolName: school[0].name,
+    contactName: request[0].contactName,
+    recipientEmail,
+    username: admin[0].username,
+    temporaryPassword,
+    expiresAt: subscription.endDate,
+  });
+
+  const emailMessage = delivery.status === 'sent'
+    ? `Invitation sent to ${recipientEmail}.`
+    : delivery.message;
+
+  try {
+    const note = delivery.status === 'sent'
+      ? `Demo invitation resent to ${recipientEmail} at ${now.toISOString()} [EMAIL_ID:${delivery.id}]`
+      : `Demo invitation password reset at ${now.toISOString()}, but email was not sent to ${recipientEmail}: ${emailMessage}`;
+
+    await db
+      .update(demoRequests)
+      .set({
+        notes: [request[0].notes, note].filter(Boolean).join('\n'),
+        updatedAt: now,
+      })
+      .where(eq(demoRequests.id, requestId));
+
+    await audit({
+      userId: actor.id,
+      schoolId: subscription.schoolId,
+      action: delivery.status === 'sent' ? 'DEMO_INVITATION_RESENT' : 'DEMO_INVITATION_RESET_NOT_SENT',
+      entityType: 'DemoRequest',
+      entityId: requestId,
+      newValue: {
+        recipientEmail,
+        emailStatus: delivery.status,
+        ...(delivery.status === 'sent' ? { emailId: delivery.id } : { reason: emailMessage }),
+      },
+    });
+  } catch (error) {
+    console.error('sendNewDemoInvitationAction audit update failed', error);
+  }
+
+  revalidatePath('/demo-requests');
+  revalidatePath(`/demo-requests/${requestId}/create`);
+
+  return {
+    status: 'success',
+    message: 'A new temporary password was generated. The previous password no longer works.',
+    schoolName: school[0].name,
+    username: admin[0].username,
+    temporaryPassword,
+    expiresAt: subscription.endDate.toISOString(),
+    recipientEmail,
+    emailStatus: delivery.status,
+    emailMessage,
+  };
+}
+
+export async function extendDemoAccessAction(formData: FormData) {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') return;
+
+  const requestId = cleanText(formData.get('requestId'), 100);
+  if (!requestId) return;
+
+  const subscription = await findDemoSubscription(requestId);
+  if (!subscription) return;
+
+  const schoolUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.schoolId, subscription.schoolId));
+
+  const base = subscription.endDate > new Date() ? subscription.endDate : new Date();
+  const newExpiry = new Date(base.getTime() + DEMO_DAYS * DAY_MS);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schoolSubscriptions)
+      .set({ endDate: newExpiry, status: 'ACTIVE', updatedAt: new Date() })
+      .where(eq(schoolSubscriptions.id, subscription.id));
+
+    await tx
+      .update(schools)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(schools.id, subscription.schoolId));
+
+    if (schoolUsers.length) {
+      await tx
+        .update(users)
+        .set({ temporaryPasswordExpiresAt: newExpiry, status: 'ACTIVE', updatedAt: new Date() })
+        .where(inArray(users.id, schoolUsers.map((user) => user.id)));
+    }
+  });
+
+  await audit({
+    userId: actor.id,
+    schoolId: subscription.schoolId,
+    action: 'DEMO_ACCESS_EXTENDED',
+    entityType: 'DemoRequest',
+    entityId: requestId,
+    newValue: { expiresAt: newExpiry.toISOString(), durationDaysAdded: DEMO_DAYS },
+  });
+
+  revalidatePath('/demo-requests');
+  revalidatePath(`/demo-requests/${requestId}/create`);
+}
+
+export async function revokeDemoAccessAction(formData: FormData) {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') return;
+
+  const requestId = cleanText(formData.get('requestId'), 100);
+  if (!requestId) return;
+
+  const subscription = await findDemoSubscription(requestId);
+  if (!subscription) return;
+
+  const schoolUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.schoolId, subscription.schoolId));
+  const userIds = schoolUsers.map((user) => user.id);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schoolSubscriptions)
+      .set({ status: 'SUSPENDED', updatedAt: new Date() })
+      .where(eq(schoolSubscriptions.id, subscription.id));
+
+    await tx
+      .update(schools)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(schools.id, subscription.schoolId));
+
+    if (userIds.length) {
+      await tx.delete(sessions).where(inArray(sessions.userId, userIds));
+    }
+  });
+
+  await audit({
+    userId: actor.id,
+    schoolId: subscription.schoolId,
+    action: 'DEMO_ACCESS_REVOKED',
+    entityType: 'DemoRequest',
+    entityId: requestId,
+  });
+
+  revalidatePath('/demo-requests');
+  revalidatePath(`/demo-requests/${requestId}/create`);
+}
+
+---------- src/app/actions/demo-requests.ts ----------
+'use server';
+
+import { and, eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { db } from '@/db';
+import { demoRequests } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+import { cleanText, isValidEmail, isValidPhone, normalizeEmail, normalizePhone } from '@/lib/validation';
+
+// ── Public: submit a demo request ────────────────────────────────────────────
+export type DemoRequestState = { status: 'idle' | 'success' | 'error'; message?: string };
+
+export async function submitDemoRequestAction(
+  _prev: DemoRequestState,
+  formData: FormData,
+): Promise<DemoRequestState> {
+  const schoolName   = cleanText(formData.get('schoolName'), 200);
+  const contactName  = cleanText(formData.get('contactName'), 120);
+  const email        = normalizeEmail(formData.get('email'));
+  const phone        = normalizePhone(formData.get('phone'));
+  const learnerCount = parseInt(String(formData.get('learnerCount') || ''), 10) || null;
+  const staffCount   = parseInt(String(formData.get('staffCount') || ''), 10) || null;
+  const message      = cleanText(formData.get('message'), 1000) || null;
+
+  if (!schoolName) return { status: 'error', message: 'Enter your school name.' };
+  if (!contactName) return { status: 'error', message: 'Enter the contact person\'s name.' };
+  if (!isValidEmail(email)) return { status: 'error', message: 'Enter a valid email address.' };
+  if (!isValidPhone(phone)) return { status: 'error', message: 'Enter a valid phone number.' };
+
+  await db.insert(demoRequests).values({
+    schoolName,
+    contactName,
+    email,
+    phone,
+    learnerCount,
+    staffCount,
+    message,
+    status: 'PENDING',
+  });
+
+  return { status: 'success', message: 'Request received! We will be in touch within 24 hours.' };
+}
+
+// ── Super admin: update request status / notes ────────────────────────────────
+export async function updateDemoRequestAction(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'SUPER_ADMIN') return;
+
+  const id     = String(formData.get('id'));
+  const status = String(formData.get('status'));
+  const notes  = cleanText(formData.get('notes'), 1000) || null;
+
+  if (!['PENDING', 'APPROVED', 'DECLINED'].includes(status)) return;
+
+  await db.update(demoRequests)
+    .set({ status, notes, updatedAt: new Date() })
+    .where(eq(demoRequests.id, id));
+
+  revalidatePath('/demo-requests');
+}
+
+// ── Super admin: delete a request ────────────────────────────────────────────
+export async function deleteDemoRequestAction(formData: FormData) {
+  const user = await requireUser();
+  if (user.role !== 'SUPER_ADMIN') return;
+  const id = String(formData.get('id'));
+  await db.delete(demoRequests).where(eq(demoRequests.id, id));
+  revalidatePath('/demo-requests');
+}
+
+---------- src/app/actions/subscriptions.ts ----------
+'use server';
+
+import bcrypt from 'bcryptjs';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { db } from '@/db';
+import {
+  packageAddons, packages, schoolManagementControls, schoolSubscriptions, schools,
+  subscriptionAddons, subscriptionPayments, users,
+} from '@/db/schema';
+import { audit, requireUser } from '@/lib/auth';
+import { generateTemporaryPassword, usernameBaseFromName } from '@/lib/credentials';
+import { imageToDataUrl, ImageUploadError } from '@/lib/images';
+import { cleanText, isValidEmail, isValidPhone, normalizeEmail, normalizePhone } from '@/lib/validation';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const TEMPORARY_PASSWORD_HOURS = 72;
+
+async function availableUsername(name: string) {
+  const base = usernameBaseFromName(name);
+  for (let n = 1; n <= 9999; n++) {
+    const candidate = n === 1 ? base : `${base}${n}`;
+    const exists = (await db.select({ id: users.id }).from(users).where(eq(users.username, candidate)).limit(1))[0];
+    if (!exists) return candidate;
+  }
+  throw new Error('Unable to generate a unique username');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enrol school (create + package + subscription + payment + activate)
+// ─────────────────────────────────────────────────────────────────────────────
+export type EnrolSchoolState = {
+  status: 'idle' | 'success' | 'error';
+  message?: string;
+  username?: string;
+  temporaryPassword?: string;
+  schoolId?: string;
+};
+
+export async function enrolSchoolAction(
+  _prev: EnrolSchoolState,
+  formData: FormData,
+): Promise<EnrolSchoolState> {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') return { status: 'error', message: 'Only the Super Admin can enroll schools.' };
+
+  // School fields
+  const name        = cleanText(formData.get('name'), 160);
+  const code        = cleanText(formData.get('code'), 20)?.toUpperCase();
+  const address     = cleanText(formData.get('address'), 300) || null;
+  const schoolPhone = normalizePhone(formData.get('phone'));
+  const schoolEmail = normalizeEmail(formData.get('email'));
+
+  // Admin fields
+  const adminName  = cleanText(formData.get('adminName'), 120);
+  const adminPhone = normalizePhone(formData.get('adminPhone'));
+  const adminEmail = normalizeEmail(formData.get('adminEmail'));
+  const adminRole  = (formData.get('adminRole') as string) || 'SCHOOL_ADMIN';
+
+  const authoriseFirstAdminForStaffAttendance =
+    formData.get('authoriseFirstAdminForStaffAttendance') === 'on';
+
+  // Package & subscription
+  const packageId    = cleanText(formData.get('packageId'), 36);
+  const academicYear = cleanText(formData.get('academicYear'), 20);
+  const term         = cleanText(formData.get('term'), 20);
+  const startDate    = formData.get('startDate') ? new Date(String(formData.get('startDate'))) : new Date();
+  const endDate      = formData.get('endDate')   ? new Date(String(formData.get('endDate')))   : new Date(Date.now() + 90 * 86400000);
+  const addonIds     = formData.getAll('addonIds').map(String).filter(Boolean);
+  const subNotes     = cleanText(formData.get('subNotes'), 500) || null;
+
+  // Payment
+  const paymentAmount = parseFloat(String(formData.get('paymentAmount') || '0')) || 0;
+  const paymentMethod = cleanText(formData.get('paymentMethod'), 40) || 'CASH';
+  const paymentRef    = cleanText(formData.get('paymentReference'), 120) || null;
+
+  // Validate required fields
+  if (!name || !code || code.length < 2) return { status: 'error', message: 'Enter a valid school name and code.' };
+  if (!adminName || !isValidPhone(adminPhone) || !isValidEmail(adminEmail)) return { status: 'error', message: 'Enter the administrator name, a valid phone number and email.' };
+  if (!packageId) return { status: 'error', message: 'Select a package.' };
+  if (!academicYear || !term) return { status: 'error', message: 'Set the academic year and term.' };
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return { status: 'error', message: 'Enter valid start and end dates.' };
+
+  // Fetch package to get price
+  const pkg = (await db.select().from(packages).where(eq(packages.id, packageId)).limit(1))[0];
+  if (!pkg) return { status: 'error', message: 'Selected package not found.' };
+
+  // Learner count (required for per-learner packages)
+  const learnerCount = parseInt(String(formData.get('learnerCount') || '0')) || null;
+  const pricePerLearner = pkg.pricePerLearner ? parseFloat(String(pkg.pricePerLearner)) : null;
+  if (pricePerLearner !== null && (!learnerCount || learnerCount < 1)) {
+    return { status: 'error', message: 'Enter the number of learners to calculate the subscription fee.' };
+  }
+
+  // Fetch add-on prices
+  let addonsTotal = 0;
+  const addonRows = addonIds.length
+    ? await db.select().from(packageAddons).where(
+        sql`${packageAddons.id} = ANY(${addonIds})`
+      )
+    : [];
+  for (const a of addonRows) addonsTotal += parseFloat(String(a.pricePerTerm));
+
+  const baseAmount  = pricePerLearner !== null
+    ? pricePerLearner * learnerCount!
+    : parseFloat(String(pkg.pricePerTerm));
+  const totalAmount = baseAmount + addonsTotal;
+  const activateNow = paymentAmount >= totalAmount;
+
+  // Images
+  let logoUrl: string | null;
+  let adminPhotoUrl: string | null = null;
+  try {
+    logoUrl       = await imageToDataUrl(formData.get('logo'), { label: 'School logo' });
+    adminPhotoUrl = await imageToDataUrl(formData.get('adminPhoto'), { label: 'Administrator photo' });
+  } catch (e) {
+    return { status: 'error', message: e instanceof ImageUploadError ? e.message : 'Image upload failed.' };
+  }
+
+  const username              = await availableUsername(adminName);
+  const temporaryPassword     = generateTemporaryPassword(8);
+  const passwordHash          = await bcrypt.hash(temporaryPassword, 12);
+  const tempExpiry            = new Date(Date.now() + TEMPORARY_PASSWORD_HOURS * 3600000);
+
+  try {
+    const { schoolId, subId } = await db.transaction(async (tx) => {
+      // 1. Create school
+      const [school] = await tx.insert(schools).values({
+        name, code, logoUrl, address,
+        phone: schoolPhone || null,
+        email: schoolEmail || null,
+        isActive: activateNow,
+      }).returning({ id: schools.id });
+
+      // 2. Create admin user
+      const [adminUser] = await tx.insert(users).values({
+        schoolId: school.id, name: adminName, username,
+        email: adminEmail, phone: adminPhone,
+        photoUrl: adminPhotoUrl, passwordHash,
+        role: adminRole, status: 'ACTIVE',
+        mustChangePassword: true,
+        temporaryPasswordExpiresAt: tempExpiry,
+      }).returning({ id: users.id });
+
+      // Security-role users are always authorised. This optional setting
+      // designates the first administrator as the additional attendance officer.
+      await tx.insert(schoolManagementControls).values({
+        schoolId: school.id,
+        staffAttendanceOfficerId:
+          authoriseFirstAdminForStaffAttendance
+            ? adminUser.id
+            : null,
+        updatedById: actor.id,
+      });
+
+      // 3. Create subscription
+      const [sub] = await tx.insert(schoolSubscriptions).values({
+        schoolId: school.id, packageId,
+        academicYear, term,
+        startDate, endDate,
+        learnerCount,
+        baseAmount: String(baseAmount),
+        addonsAmount: String(addonsTotal),
+        totalAmount: String(totalAmount),
+        paidAmount: String(paymentAmount),
+        status: activateNow ? 'ACTIVE' : 'PENDING',
+        notes: subNotes,
+        createdById: actor.id,
+      }).returning({ id: schoolSubscriptions.id });
+
+      // 4. Link add-ons
+      if (addonRows.length) {
+        await tx.insert(subscriptionAddons).values(
+          addonRows.map(a => ({
+            subscriptionId: sub.id,
+            addonId: a.id,
+            priceAtTime: String(a.pricePerTerm),
+          }))
+        );
+      }
+
+      // 5. Record payment (if any)
+      if (paymentAmount > 0) {
+        await tx.insert(subscriptionPayments).values({
+          subscriptionId: sub.id,
+          schoolId: school.id,
+          amount: String(paymentAmount),
+          method: paymentMethod,
+          reference: paymentRef,
+          recordedById: actor.id,
+        });
+      }
+
+      return { schoolId: school.id, subId: sub.id };
+    });
+
+    await audit({ userId: actor.id, schoolId, action: 'SCHOOL_ENROLLED', entityType: 'school', entityId: schoolId, newValue: { package: pkg.name, term, activateNow } });
+    revalidatePath('/schools');
+
+    return {
+      status: 'success',
+      message: activateNow
+        ? `${name} has been enrolled and activated.`
+        : `${name} created. Activate by recording a payment against the subscription.`,
+      username,
+      temporaryPassword,
+      schoolId,
+    };
+  } catch (e: any) {
+    if (e?.code === '23505') return { status: 'error', message: 'A school with that code already exists.' };
+    return { status: 'error', message: 'Failed to enroll school. Please try again.' };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add subscription payment
+// ─────────────────────────────────────────────────────────────────────────────
+export async function recordSubscriptionPaymentAction(formData: FormData) {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') return;
+
+  const subscriptionId = String(formData.get('subscriptionId'));
+  const amount         = parseFloat(String(formData.get('amount') || '0'));
+  const method         = cleanText(formData.get('method'), 40) || 'CASH';
+  const reference      = cleanText(formData.get('reference'), 120) || null;
+
+  if (!subscriptionId || amount <= 0) return;
+
+  const [sub] = await db.select().from(schoolSubscriptions).where(eq(schoolSubscriptions.id, subscriptionId)).limit(1);
+  if (!sub) return;
+
+  await db.transaction(async (tx) => {
+    await tx.insert(subscriptionPayments).values({
+      subscriptionId, schoolId: sub.schoolId,
+      amount: String(amount), method, reference,
+      recordedById: actor.id,
+    });
+
+    const newPaid   = parseFloat(String(sub.paidAmount)) + amount;
+    const newStatus = newPaid >= parseFloat(String(sub.totalAmount)) ? 'ACTIVE' : sub.status;
+
+    await tx.update(schoolSubscriptions)
+      .set({ paidAmount: String(newPaid), status: newStatus, updatedAt: new Date() })
+      .where(eq(schoolSubscriptions.id, subscriptionId));
+
+    // Activate the school if fully paid
+    if (newStatus === 'ACTIVE') {
+      await tx.update(schools)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(eq(schools.id, sub.schoolId));
+    }
+  });
+
+  revalidatePath('/schools');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Package management
+// ─────────────────────────────────────────────────────────────────────────────
+export async function createPackageAction(formData: FormData) {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') return;
+
+  const name        = cleanText(formData.get('name'), 80);
+  const description = cleanText(formData.get('description'), 400) || null;
+  const price       = parseFloat(String(formData.get('pricePerTerm') || '0'));
+  const maxLearners = parseInt(String(formData.get('maxLearners') || '')) || null;
+  const maxStaff    = parseInt(String(formData.get('maxStaff') || ''))    || null;
+  const rawFeatures = cleanText(formData.get('features'), 2000) || '';
+  const features    = rawFeatures.split('\n').map(s => s.trim()).filter(Boolean);
+
+  if (!name || isNaN(price)) return;
+
+  await db.insert(packages).values({
+    name, description, pricePerTerm: String(price),
+    maxLearners, maxStaff, features,
+  });
+  revalidatePath('/packages');
+}
+
+export async function togglePackageAction(formData: FormData) {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') return;
+  const id = String(formData.get('id'));
+  const current = (await db.select({ isActive: packages.isActive }).from(packages).where(eq(packages.id, id)).limit(1))[0];
+  if (!current) return;
+  await db.update(packages).set({ isActive: !current.isActive, updatedAt: new Date() }).where(eq(packages.id, id));
+  revalidatePath('/packages');
+}
+
+======================================================
+CURRENT PACKAGE AND DEMO PAGES
+======================================================
+
+---------- src/app/(portal)/packages/page.tsx ----------
+import { asc } from 'drizzle-orm';
+import { Package, PlusCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
+import { db } from '@/db';
+import { packageAddons, packages } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+import { createPackageAction, togglePackageAction } from '@/app/actions/subscriptions';
+
+export const dynamic = 'force-dynamic';
+
+function fmt(n: string | number) {
+  return `GHS ${parseFloat(String(n)).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`;
+}
+
+export default async function PackagesPage() {
+  const user = await requireUser();
+  if (user.role !== 'SUPER_ADMIN') {
+    return <div className="paper-card p-8 text-center text-slate-500">Access denied.</div>;
+  }
+
+  const [pkgs, addons] = await Promise.all([
+    db.select().from(packages).orderBy(asc(packages.sortOrder), asc(packages.name)),
+    db.select().from(packageAddons).orderBy(asc(packageAddons.sortOrder), asc(packageAddons.name)),
+  ]);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Platform"
+        title="Packages & add-ons"
+        description="Define what each subscription tier includes. These packages appear in the school enrollment wizard."
+      />
+
+      <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
+        {/* ── Package list ── */}
+        <div className="space-y-4">
+          <h2 className="font-black text-slate-800">Subscription packages</h2>
+          {pkgs.map(pkg => (
+            <div key={pkg.id} className="paper-card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-chalk-50 text-chalk-700">
+                      <Package size={18}/>
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900">{pkg.name}</h3>
+                      {pkg.description && <p className="text-xs text-slate-500">{pkg.description}</p>}
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div>
+                      {pkg.pricePerLearner
+                        ? <>
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Price / learner</p>
+                            <p className="mt-0.5 text-lg font-black text-chalk-700">GHS {parseFloat(String(pkg.pricePerLearner)).toFixed(2)}</p>
+                          </>
+                        : <>
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Price / term</p>
+                            <p className="mt-0.5 text-lg font-black text-chalk-700">{fmt(pkg.pricePerTerm)}</p>
+                          </>
+                      }
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Max learners</p>
+                      <p className="mt-0.5 font-bold text-slate-800">{pkg.maxLearners ?? 'Unlimited'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Max staff</p>
+                      <p className="mt-0.5 font-bold text-slate-800">{pkg.maxStaff ?? 'Unlimited'}</p>
+                    </div>
+                  </div>
+                  {Array.isArray(pkg.features) && pkg.features.length > 0 && (
+                    <ul className="mt-4 flex flex-wrap gap-2">
+                      {(pkg.features as string[]).map(f => (
+                        <li key={f} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">{f}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={`status-pill ${pkg.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
+                    {pkg.isActive ? 'ACTIVE' : 'HIDDEN'}
+                  </span>
+                  <form action={togglePackageAction}>
+                    <input type="hidden" name="id" value={pkg.id}/>
+                    <button className="btn-secondary min-h-9 px-3 py-1.5 text-xs gap-1.5">
+                      {pkg.isActive ? <ToggleLeft size={14}/> : <ToggleRight size={14}/>}
+                      {pkg.isActive ? 'Hide' : 'Show'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Create new package */}
+          <details className="paper-card">
+            <summary className="flex cursor-pointer items-center gap-2 p-5 font-black text-slate-700 hover:text-slate-900">
+              <PlusCircle size={18} className="text-chalk-700"/> Add new package
+            </summary>
+            <form action={createPackageAction} className="border-t border-slate-100 p-5 space-y-3">
+              <input className="input" name="name" placeholder="Package name *" required/>
+              <input className="input" name="description" placeholder="Short description"/>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="label">Price / term (GHS) *</label>
+                  <input className="input" name="pricePerTerm" type="number" min="0" step="0.01" required/>
+                </div>
+                <div>
+                  <label className="label">Max learners</label>
+                  <input className="input" name="maxLearners" type="number" min="1" placeholder="Unlimited"/>
+                </div>
+                <div>
+                  <label className="label">Max staff</label>
+                  <input className="input" name="maxStaff" type="number" min="1" placeholder="Unlimited"/>
+                </div>
+              </div>
+              <div>
+                <label className="label">Features — one per line</label>
+                <textarea className="input resize-none" name="features" rows={5} placeholder={"Admissions & learner records\nDaily attendance\nFee collection\nBasic reports"}/>
+              </div>
+              <button className="btn-primary w-full"><PlusCircle size={16}/> Create package</button>
+            </form>
+          </details>
+        </div>
+
+        {/* ── Add-ons list ── */}
+        <div>
+          <h2 className="mb-4 font-black text-slate-800">Add-ons</h2>
+          <div className="paper-card divide-y divide-slate-100">
+            {addons.map(a => (
+              <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-4">
+                <div>
+                  <p className="font-black text-slate-900">{a.name}</p>
+                  {a.description && <p className="text-xs text-slate-500">{a.description}</p>}
+                </div>
+                <p className="shrink-0 text-sm font-black text-chalk-700">{fmt(a.pricePerTerm)}</p>
+              </div>
+            ))}
+            {addons.length === 0 && <p className="p-5 text-sm text-slate-400">No add-ons yet.</p>}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+---------- src/app/(portal)/demo-requests/page.tsx ----------
+import Link from 'next/link';
+import { desc } from 'drizzle-orm';
+import { Building2, CheckCircle2, Clock, KeyRound, Mail, Phone, School, Users, XCircle } from 'lucide-react';
+import { CopyDemoRequestDetailsButton } from '@/components/CopyDemoRequestDetailsButton';
+import { DeleteDemoRequestButton } from '@/components/DeleteDemoRequestButton';
+import { PageHeader } from '@/components/PageHeader';
+import { SchoolBadge } from '@/components/SchoolBadge';
+import { db } from '@/db';
+import { demoRequests } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+import { updateDemoRequestAction } from '@/app/actions/demo-requests';
+
+export const dynamic = 'force-dynamic';
+
+const statusStyle: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-800',
+  APPROVED: 'bg-emerald-100 text-emerald-800',
+  DECLINED: 'bg-rose-100 text-rose-800',
+};
+
+const statusIcon: Record<string, typeof Clock> = {
+  PENDING: Clock,
+  APPROVED: CheckCircle2,
+  DECLINED: XCircle,
+};
+
+function schoolEnrolmentHref(request: {
+  schoolName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+}) {
+  const params = new URLSearchParams({
+    name: request.schoolName,
+    email: request.email,
+    adminName: request.contactName,
+    adminPhone: request.phone,
+    adminEmail: request.email,
+  });
+
+  return `/schools/enrol?${params.toString()}`;
+}
+
+export default async function DemoRequestsPage() {
+  const user = await requireUser();
+  if (user.role !== 'SUPER_ADMIN') {
+    return <div className="paper-card p-8 text-center text-slate-500">Access denied.</div>;
+  }
+
+  const requests = await db.select().from(demoRequests).orderBy(desc(demoRequests.createdAt));
+  const pending = requests.filter((request) => request.status === 'PENDING').length;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="School onboarding"
+        title="Demo requests"
+        description="Review each request, create a separate 7-day demo, or start paid production enrolment only when the school subscribes."
+        action={
+          pending > 0 ? (
+            <span className="rounded-xl bg-amber-100 px-4 py-2 text-sm font-black text-amber-800">
+              {pending} pending
+            </span>
+          ) : (
+            <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-500">
+              All reviewed
+            </span>
+          )
+        }
+      />
+
+      {requests.length === 0 ? (
+        <div className="paper-card p-12 text-center">
+          <Building2 className="mx-auto text-slate-300" size={40} />
+          <h3 className="mt-4 font-black text-slate-700">No demo requests yet</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            When a school fills out the request form on the website, it will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map((request) => {
+            const Icon = statusIcon[request.status] ?? Clock;
+            return (
+              <div key={request.id} className="paper-card p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <SchoolBadge name={request.schoolName} size={44} className="rounded-xl" />
+                      <div className="min-w-0">
+                        <h2 className="break-words font-black text-slate-900">{request.schoolName}</h2>
+                        <p className="text-xs text-slate-500">
+                          Submitted{' '}
+                          {request.createdAt.toLocaleString('en-GH', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${statusStyle[request.status]}`}
+                  >
+                    <Icon size={13} /> {request.status}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Contact person</p>
+                    <p className="mt-1 break-words font-bold text-slate-800">{request.contactName}</p>
+                  </div>
+
+                  <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Email address</p>
+                    <a
+                      href={`mailto:${request.email}`}
+                      className="mt-1 flex min-w-0 items-start gap-2 font-bold text-chalk-700 hover:underline"
+                    >
+                      <Mail className="mt-0.5 shrink-0" size={15} />
+                      <span className="min-w-0 break-all">{request.email}</span>
+                    </a>
+                  </div>
+
+                  <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Phone number</p>
+                    <a
+                      href={`tel:${request.phone}`}
+                      className="mt-1 flex min-w-0 items-start gap-2 font-bold text-chalk-700 hover:underline"
+                    >
+                      <Phone className="mt-0.5 shrink-0" size={15} />
+                      <span className="min-w-0 break-all">{request.phone}</span>
+                    </a>
+                  </div>
+
+                  <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">School size</p>
+                    <p className="mt-1 flex items-center gap-2 font-bold text-slate-800">
+                      <Users className="shrink-0 text-slate-400" size={15} />
+                      <span>
+                        {request.learnerCount ? `${request.learnerCount} learners` : 'Learners not provided'}
+                        {' · '}
+                        {request.staffCount ? `${request.staffCount} staff` : 'Staff not provided'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {request.message && (
+                  <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                    <span className="font-bold text-slate-400">Message: </span>
+                    {request.message}
+                  </div>
+                )}
+
+                <div className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+                  <form
+                    action={updateDemoRequestAction}
+                    className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_10rem_auto]"
+                  >
+                    <input type="hidden" name="id" value={request.id} />
+                    <input
+                      name="notes"
+                      defaultValue={request.notes ?? ''}
+                      placeholder="Internal notes about this prospect…"
+                      className="input min-w-0 py-2 text-sm"
+                    />
+                    <select name="status" defaultValue={request.status} className="input py-2 text-sm">
+                      <option value="PENDING">Pending</option>
+                      <option value="APPROVED">Approved</option>
+                      <option value="DECLINED">Declined</option>
+                    </select>
+                    <button className="btn-secondary py-2 text-sm whitespace-nowrap">Save notes</button>
+                  </form>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-slate-500">
+                      Demo access and paid production enrolment are separate. Demo records never become production records automatically.
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CopyDemoRequestDetailsButton
+                        schoolName={request.schoolName}
+                        contactName={request.contactName}
+                        email={request.email}
+                        phone={request.phone}
+                        learnerCount={request.learnerCount}
+                        staffCount={request.staffCount}
+                      />
+
+                      <Link
+                        href={`/demo-requests/${request.id}/create`}
+                        className="btn-primary py-2 text-sm whitespace-nowrap"
+                      >
+                        <KeyRound size={15} /> Create 7-day demo
+                      </Link>
+
+                      <Link
+                        href={schoolEnrolmentHref(request)}
+                        className="btn-secondary py-2 text-sm whitespace-nowrap"
+                      >
+                        <School size={15} /> Convert to paid school
+                      </Link>
+
+                      <DeleteDemoRequestButton id={request.id} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-8 rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+        <p className="font-black text-slate-700">To create a school directly (in-person meeting)</p>
+        <p className="mt-1">
+          Go to{' '}
+          <Link href="/schools/enrol" className="font-bold text-chalk-700 hover:underline">
+            Schools → Enrol a school
+          </Link>
+          . This is the paid production workflow and is separate from demo access.
+        </p>
+      </div>
+    </>
+  );
+}
+
+---------- src/app/(portal)/demo-requests/[id]/create/page.tsx ----------
+import Link from 'next/link';
+import { asc, desc, eq, like } from 'drizzle-orm';
+import { ArrowLeft } from 'lucide-react';
+import { notFound } from 'next/navigation';
+import { DemoAccessWizard } from '@/components/DemoAccessWizard';
+import { PageHeader } from '@/components/PageHeader';
+import { db } from '@/db';
+import { demoRequests, packages, schoolSubscriptions, schools, users } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+import { emailDeliveryConfigured } from '@/lib/email';
+
+export const dynamic = 'force-dynamic';
+
+export default async function CreateDemoAccessPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const actor = await requireUser();
+  if (actor.role !== 'SUPER_ADMIN') {
+    return <div className="paper-card p-8 text-center text-slate-500">Access denied.</div>;
+  }
+
+  const { id } = await params;
+  const request = (
+    await db.select().from(demoRequests).where(eq(demoRequests.id, id)).limit(1)
+  )[0];
+
+  if (!request) notFound();
+
+  const activePackages = await db
+    .select({
+      id: packages.id,
+      name: packages.name,
+      description: packages.description,
+    })
+    .from(packages)
+    .where(eq(packages.isActive, true))
+    .orderBy(asc(packages.sortOrder));
+
+  const marker = `[DEMO_REQUEST:${id}]`;
+  const existingSubscription = (
+    await db
+      .select()
+      .from(schoolSubscriptions)
+      .where(like(schoolSubscriptions.notes, `%${marker}%`))
+      .orderBy(desc(schoolSubscriptions.createdAt))
+      .limit(1)
+  )[0];
+
+  let existing: {
+    schoolId: string;
+    schoolName: string;
+    username: string | null;
+    expiresAt: string;
+    status: string;
+    schoolActive: boolean;
+  } | null = null;
+
+  if (existingSubscription) {
+    const [school, admin] = await Promise.all([
+      db.select().from(schools).where(eq(schools.id, existingSubscription.schoolId)).limit(1),
+      db
+        .select({ username: users.username })
+        .from(users)
+        .where(eq(users.schoolId, existingSubscription.schoolId))
+        .orderBy(asc(users.createdAt))
+        .limit(1),
+    ]);
+
+    if (school[0]) {
+      existing = {
+        schoolId: school[0].id,
+        schoolName: school[0].name,
+        username: admin[0]?.username ?? null,
+        expiresAt: existingSubscription.endDate.toISOString(),
+        status: existingSubscription.status,
+        schoolActive: school[0].isActive,
+      };
+    }
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Demo management"
+        title="Create 7-day demo access"
+        description="Create temporary web access only. This does not enrol a paid production school."
+        action={
+          <Link href="/demo-requests" className="btn-secondary flex items-center gap-2 text-sm">
+            <ArrowLeft size={16} /> Back to demo requests
+          </Link>
+        }
+      />
+
+      <div className="mx-auto max-w-3xl">
+        <DemoAccessWizard
+          request={{
+            id: request.id,
+            schoolName: request.schoolName,
+            contactName: request.contactName,
+            email: request.email,
+            phone: request.phone,
+            learnerCount: request.learnerCount,
+            staffCount: request.staffCount,
+          }}
+          packages={activePackages}
+          existing={existing}
+          emailConfigured={emailDeliveryConfigured()}
+        />
+      </div>
+    </>
+  );
+}
+
+---------- src/app/(portal)/schools/enrol/page.tsx ----------
+import Link from 'next/link';
+import { asc, eq } from 'drizzle-orm';
+import { ArrowLeft } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
+import {
+  SchoolEnrolmentWizard,
+  type SchoolEnrolmentPrefill,
+} from '@/components/SchoolEnrolmentWizard';
+import { db } from '@/db';
+import { packageAddons, packages } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
+type EnrolSearchParams = {
+  name?: string;
+  code?: string;
+  phone?: string;
+  email?: string;
+  adminName?: string;
+  adminPhone?: string;
+  adminEmail?: string;
+};
+
+function clean(value: string | undefined, maxLength: number) {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+export default async function EnrolSchoolPage({
+  searchParams,
+}: {
+  searchParams: Promise<EnrolSearchParams>;
+}) {
+  const user = await requireUser();
+
+  if (user.role !== 'SUPER_ADMIN') {
+    return <div className="paper-card p-8 text-center text-slate-500">Access denied.</div>;
+  }
+
+  const params = await searchParams;
+
+  const prefill: SchoolEnrolmentPrefill = {
+    name: clean(params.name, 160),
+    code: clean(params.code, 20),
+    phone: clean(params.phone, 40),
+    email: clean(params.email, 160),
+    adminName: clean(params.adminName, 120),
+    adminPhone: clean(params.adminPhone, 40),
+    adminEmail: clean(params.adminEmail, 160),
+  };
+
+  const [pkgs, addons] = await Promise.all([
+    db
+      .select()
+      .from(packages)
+      .where(eq(packages.isActive, true))
+      .orderBy(asc(packages.sortOrder)),
+    db
+      .select()
+      .from(packageAddons)
+      .where(eq(packageAddons.isActive, true))
+      .orderBy(asc(packageAddons.sortOrder)),
+  ]);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Platform administration"
+        title="Enrol a school"
+        description="Create a paid production school, its first administrator, package, subscription and payment record."
+        action={
+          <Link href="/schools" className="btn-secondary flex items-center gap-2 text-sm">
+            <ArrowLeft size={16} /> Back to schools
+          </Link>
+        }
+      />
+
+      <div className="mx-auto max-w-3xl">
+        <SchoolEnrolmentWizard
+          pkgs={pkgs as any}
+          addons={addons as any}
+          prefill={prefill}
+        />
+      </div>
+    </>
+  );
+}
+
+======================================================
+ENTITLEMENT AND SUBSCRIPTION LIBRARIES
+======================================================
+
+======================================================
+DATABASE SCHEMA MATCHES
+======================================================
+330-  capacity: integer('capacity').notNull(), driverName: text('driver_name'), driverPhone: text('driver_phone'), attendantName: text('attendant_name'), isActive: boolean('is_active').notNull().default(true),
+331-  createdAt: created(), updatedAt: updated()
+332-}, (t) => [uniqueIndex('vehicle_registration_uq').on(t.schoolId, t.registrationNo)]);
+333-
+334-export const transportRoutes = pgTable('transport_routes', {
+335-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), vehicleId: text('vehicle_id').references(() => vehicles.id, { onDelete: 'set null' }),
+336-  name: text('name').notNull(), morningStartTime: text('morning_start_time'), afternoonStartTime: text('afternoon_start_time'), isActive: boolean('is_active').notNull().default(true),
+337-  createdAt: created(), updatedAt: updated()
+338-}, (t) => [uniqueIndex('transport_route_name_uq').on(t.schoolId, t.name)]);
+339-
+340-export const transportStops = pgTable('transport_stops', {
+341-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), routeId: text('route_id').notNull().references(() => transportRoutes.id, { onDelete: 'cascade' }),
+342-  name: text('name').notNull(), sequence: integer('sequence').notNull(), pickupTime: text('pickup_time'), dropOffTime: text('drop_off_time'), createdAt: created()
+343-}, (t) => [uniqueIndex('transport_stop_sequence_uq').on(t.routeId, t.sequence)]);
+344-
+345-export const transportAssignments = pgTable('transport_assignments', {
+346-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+347-  routeId: text('route_id').notNull().references(() => transportRoutes.id, { onDelete: 'cascade' }), stopId: text('stop_id').references(() => transportStops.id, { onDelete: 'set null' }),
+348-  vehicleId: text('vehicle_id').references(() => vehicles.id, { onDelete: 'set null' }), isActive: boolean('is_active').notNull().default(true), createdAt: created(), updatedAt: updated()
+349-}, (t) => [uniqueIndex('transport_assignment_uq').on(t.learnerId, t.routeId)]);
+350-
+351-export const transportScans = pgTable('transport_scans', {
+352-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+353-  routeId: text('route_id').references(() => transportRoutes.id), stopId: text('stop_id').references(() => transportStops.id), vehicleId: text('vehicle_id').references(() => vehicles.id),
+354-  recordedById: text('recorded_by_id').notNull().references(() => users.id), type: text('type').notNull(), scannedAt: timestamp('scanned_at', { withTimezone: true }).notNull().defaultNow(),
+355:  notificationStatus: text('notification_status').notNull().default('QUEUED')
+356-}, (t) => [index('transport_scan_time_idx').on(t.schoolId, t.scannedAt, t.type)]);
+357-
+358-export const schoolEvents = pgTable('school_events', {
+359-  id: id(),
+360-  schoolId: text('school_id')
+361-    .notNull()
+362-    .references(() => schools.id, { onDelete: 'cascade' }),
+363-  createdById: text('created_by_id')
+364-    .notNull()
+365-    .references(() => users.id, { onDelete: 'restrict' }),
+366-  publishedById: text('published_by_id')
+367-    .references(() => users.id, { onDelete: 'set null' }),
+368-  title: text('title').notNull(),
+369-  description: text('description'),
+370-  eventType: text('event_type').notNull().default('SCHOOL_EVENT'),
+371-  audience: text('audience').notNull().default('ALL'),
+372-  venue: text('venue'),
+373-  startsAt: timestamp('starts_at', {
+374-    withTimezone: true
+375-  }).notNull(),
+376-  endsAt: timestamp('ends_at', {
+377-    withTimezone: true
+378-  }),
+379-  status: text('status').notNull().default('DRAFT'),
+380-  publishedAt: timestamp('published_at', {
+381-    withTimezone: true
+382-  }),
+383-  cancelledAt: timestamp('cancelled_at', {
+384-    withTimezone: true
+385-  }),
+386-  createdAt: created(),
+387-  updatedAt: updated()
+388-}, (t) => [
+389-  index('school_event_school_start_idx')
+390-    .on(t.schoolId, t.startsAt),
+391-  index('school_event_audience_status_idx')
+392-    .on(t.schoolId, t.audience, t.status)
+393-]);
+394-
+395-export const messages = pgTable('messages', {
+396-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), senderId: text('sender_id').notNull().references(() => users.id),
+397-  channel: text('channel').notNull(), audience: text('audience').notNull(), recipient: text('recipient'), subject: text('subject'), body: text('body').notNull(),
+398-  status: text('status').notNull().default('QUEUED'), providerId: text('provider_id'), failureReason: text('failure_reason'), cost: numeric('cost', { precision: 12, scale: 4, mode: 'number' }),
+399-  sentAt: timestamp('sent_at', { withTimezone: true }), deliveredAt: timestamp('delivered_at', { withTimezone: true }), createdAt: created()
+400-}, (t) => [index('message_status_idx').on(t.schoolId, t.createdAt, t.status)]);
+401-
+402:export const notifications = pgTable('notifications', {
+403-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+404-  type: text('type').notNull(), title: text('title').notNull(), body: text('body').notNull(), link: text('link'), readAt: timestamp('read_at', { withTimezone: true }), createdAt: created()
+405-}, (t) => [index('notification_user_idx').on(t.userId, t.readAt, t.createdAt)]);
+406-
+407-
+408-
+409-export const schoolManagementControls = pgTable('school_management_controls', {
+410-  schoolId: text('school_id').primaryKey().references(() => schools.id, { onDelete: 'cascade' }),
+411-
+412-  // Premium makes a school eligible, but SUPER_ADMIN must explicitly unlock this.
+413-  userAdmissionEnabled: boolean('user_admission_enabled').notNull().default(false),
+414-
+415-  allowSchoolAdminLearners: boolean('allow_school_admin_learners').notNull().default(false),
+416-  allowSchoolAdminStaff: boolean('allow_school_admin_staff').notNull().default(false),
+417-
+418-  allowProprietorLearners: boolean('allow_proprietor_learners').notNull().default(false),
+419-  allowProprietorStaff: boolean('allow_proprietor_staff').notNull().default(false),
+420-
+421-  staffAttendanceOfficerId: text('staff_attendance_officer_id')
+422-    .references(() => users.id, { onDelete: 'set null' }),
+423-
+424-  updatedById: text('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
+425-  unlockedAt: timestamp('unlocked_at', { withTimezone: true }),
+426-  createdAt: created(),
+427-  updatedAt: updated()
+428-});
+429-
+430-export const supportTickets = pgTable('support_tickets', {
+431-  id: id(), schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }), createdById: text('created_by_id').notNull().references(() => users.id),
+432-  subject: text('subject').notNull(), description: text('description').notNull(), priority: text('priority').notNull().default('NORMAL'), status: text('status').notNull().default('OPEN'),
+433-  resolution: text('resolution'), createdAt: created(), updatedAt: updated()
+434-}, (t) => [index('ticket_status_idx').on(t.schoolId, t.status, t.priority)]);
+435-
+436-
+437:// ── Platform packages & subscriptions ────────────────────────────────────────
+438:export const packages = pgTable('packages', {
+439-  id: id(),
+440-  name: text('name').notNull(),
+441-  description: text('description'),
+442-  pricePerTerm: numeric('price_per_term', { precision: 12, scale: 2 }).notNull().default('0'),
+443-  pricePerLearner: numeric('price_per_learner', { precision: 12, scale: 2 }),  // null = flat pricing
+444-  maxLearners: integer('max_learners'),      // null = unlimited
+445-  maxStaff: integer('max_staff'),            // null = unlimited
+446-  features: jsonb('features').notNull().default([]), // string[]
+447-  isActive: boolean('is_active').notNull().default(true),
+448-  sortOrder: integer('sort_order').notNull().default(0),
+449-  createdAt: created(), updatedAt: updated()
+450-});
+451-
+452-export const packageAddons = pgTable('package_addons', {
+453-  id: id(),
+454-  name: text('name').notNull(),
+455-  description: text('description'),
+456-  pricePerTerm: numeric('price_per_term', { precision: 12, scale: 2 }).notNull().default('0'),
+457-  isActive: boolean('is_active').notNull().default(true),
+458-  sortOrder: integer('sort_order').notNull().default(0),
+459-  createdAt: created(), updatedAt: updated()
+460-});
+461-
+462:export const schoolSubscriptions = pgTable('school_subscriptions', {
+463-  id: id(),
+464-  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+465:  packageId: text('package_id').notNull().references(() => packages.id),
+466-  academicYear: text('academic_year').notNull(),    // e.g. "2024/2025"
+467-  term: text('term').notNull(),                     // TERM_1 | TERM_2 | TERM_3
+468-  startDate: timestamp('start_date', { withTimezone: true }).notNull(),
+469-  endDate: timestamp('end_date', { withTimezone: true }).notNull(),
+470-  learnerCount: integer('learner_count'),            // null = flat-rate package
+471-  baseAmount: numeric('base_amount', { precision: 12, scale: 2 }).notNull(),
+472-  addonsAmount: numeric('addons_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+473-  totalAmount: numeric('total_amount', { precision: 12, scale: 2 }).notNull(),
+474-  paidAmount: numeric('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+475-  status: text('status').notNull().default('PENDING'), // PENDING | ACTIVE | GRACE | SUSPENDED | EXPIRED
+476-  notes: text('notes'),
+477-  createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+478-  createdAt: created(), updatedAt: updated()
+479-}, (t) => [index('sub_school_idx').on(t.schoolId, t.term, t.academicYear)]);
+480-
+481:export const subscriptionAddons = pgTable('subscription_addons', {
+482:  subscriptionId: text('subscription_id').notNull().references(() => schoolSubscriptions.id, { onDelete: 'cascade' }),
+483-  addonId: text('addon_id').notNull().references(() => packageAddons.id, { onDelete: 'cascade' }),
+484-  priceAtTime: numeric('price_at_time', { precision: 12, scale: 2 }).notNull(),
+485-  createdAt: created()
+486-}, (t) => [uniqueIndex('sub_addon_uq').on(t.subscriptionId, t.addonId)]);
+487-
+488-export const subscriptionPayments = pgTable('subscription_payments', {
+489-  id: id(),
+490:  subscriptionId: text('subscription_id').notNull().references(() => schoolSubscriptions.id, { onDelete: 'cascade' }),
+491-  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+492-  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+493-  method: text('method').notNull(), // CASH | MOBILE_MONEY | BANK_TRANSFER | CHEQUE
+494-  reference: text('reference'),
+495-  notes: text('notes'),
+496-  recordedById: text('recorded_by_id').references(() => users.id, { onDelete: 'set null' }),
+497-  createdAt: created()
+498-});
+499-
+500:export const demoRequests = pgTable('demo_requests', {
+501-  id: id(),
+502-  schoolName: text('school_name').notNull(),
+503-  contactName: text('contact_name').notNull(),
+504-  email: text('email').notNull(),
+505-  phone: text('phone').notNull(),
+506-  learnerCount: integer('learner_count'),
+507-  staffCount: integer('staff_count'),
+508-  message: text('message'),
+509-  status: text('status').notNull().default('PENDING'), // PENDING | APPROVED | DECLINED
+510-  notes: text('notes'),
+511-  createdAt: created(),
+512-  updatedAt: updated()
+513-});
+514-
+515-export const mobileDevices = pgTable('mobile_devices', {
+516-  id: id(),
+517-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+518-  schoolId: text('school_id').references(() => schools.id, { onDelete: 'cascade' }),
+519-  deviceIdentifier: text('device_identifier').notNull(),
+520-  deviceName: text('device_name'),
+521-  platform: text('platform').notNull(),
+522-  appVersion: text('app_version'),
+523-  pushToken: text('push_token'),
+524:  notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+525-  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+526-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+527-  createdAt: created(),
+528-  updatedAt: updated()
+529-}, (t) => [
+530-  uniqueIndex('mobile_device_user_identifier_uq').on(t.userId, t.deviceIdentifier),
+531-  index('mobile_device_user_idx').on(t.userId, t.revokedAt),
+532-  index('mobile_device_push_token_idx').on(t.pushToken)
+533-]);
+534-
+535-export const mobileSessions = pgTable('mobile_sessions', {
+536-  id: id(),
+537-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+538-  deviceId: text('device_id').notNull().references(() => mobileDevices.id, { onDelete: 'cascade' }),
+539-  accessTokenHash: text('access_token_hash').notNull().unique(),
+540-  refreshTokenHash: text('refresh_token_hash').notNull().unique(),
+541-  accessExpiresAt: timestamp('access_expires_at', { withTimezone: true }).notNull(),
+542-  refreshExpiresAt: timestamp('refresh_expires_at', { withTimezone: true }).notNull(),
+543-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+544-  lastRotatedAt: timestamp('last_rotated_at', { withTimezone: true }).notNull().defaultNow(),
+545-  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+546-  ipAddress: text('ip_address'),
+547-  userAgent: text('user_agent'),
+548-  createdAt: created(),
+549-  updatedAt: updated()
+550-}, (t) => [
+551-  index('mobile_session_user_idx').on(t.userId, t.revokedAt),
+552-  index('mobile_session_device_idx').on(t.deviceId, t.revokedAt),
+553-  index('mobile_session_access_expiry_idx').on(t.accessExpiresAt),
+554-  index('mobile_session_refresh_expiry_idx').on(t.refreshExpiresAt)
+555-]);
+556-
+557-// ── Fee arrears follow-ups ────────────────────────────────────────────────────
+558-
+559-/** One row per follow-up activity recorded against a learner's outstanding fees. */
+560-export const feeFollowUps = pgTable('fee_follow_ups', {
+561-  id: id(),
+562-  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+563-  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+564-  /** PHONE | SMS | WHATSAPP | EMAIL | IN_PERSON */
+565-  contactMethod: text('contact_method').notNull(),
+566-  /** CONTACTED | PROMISED_PAYMENT | PARTIALLY_RESOLVED | UNREACHABLE | DISPUTED | REFERRED_TO_MANAGEMENT */
+567-  outcome: text('outcome').notNull(),
+568-  note: text('note'),
+569-  promisedPaymentDate: timestamp('promised_payment_date', { withTimezone: true }),
+570-  nextFollowUpDate: timestamp('next_follow_up_date', { withTimezone: true }),
+571-  recordedById: text('recorded_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+572-  createdAt: created()
+573-}, (t) => [
+574-  index('fee_follow_up_learner_idx').on(t.schoolId, t.learnerId, t.createdAt)
+575-]);
+576-
+577-// ── Promotion ──────────────────────────────────────────────────────────────────
+578-
+579-/** Per-school end-of-year promotion policy configured by Super Admin. */
+580-export const promotionPolicies = pgTable('promotion_policies', {
+581-  id: id(),
+582-  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+583-  minAnnualAverage: numeric('min_annual_average', { precision: 5, scale: 2, mode: 'number' }).notNull().default(50),
+584-  minSubjectsPassed: integer('min_subjects_passed').notNull().default(5),
+585-  /** JSON array of subject IDs that must be individually passed. */
+586-  compulsorySubjectIds: jsonb('compulsory_subject_ids').$type<string[]>(),
+587-  minAttendancePct: numeric('min_attendance_pct', { precision: 5, scale: 2, mode: 'number' }),
+588-  incompleteResultsBlock: boolean('incomplete_results_block').notNull().default(true),
+589-  createdAt: created(),
+590-  updatedAt: updated()
+591-}, (t) => [uniqueIndex('promotion_policy_school_uq').on(t.schoolId)]);
+592-
+593-/** One record per learner per academic year — captures system recommendation and final decision. */
+594-export const learnerPromotions = pgTable('learner_promotions', {
+595-  id: id(),
+596-  schoolId: text('school_id').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+597-  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+598-  academicYearId: text('academic_year_id').notNull().references(() => academicYears.id, { onDelete: 'cascade' }),
+599-  fromClassId: text('from_class_id').notNull().references(() => classes.id, { onDelete: 'restrict' }),
+600-  toClassId: text('to_class_id').references(() => classes.id, { onDelete: 'restrict' }),
+601-  systemRecommendation: text('system_recommendation').notNull(), // PromotionRecommendation
+602-  decision: text('decision'),                                    // PromotionDecision | null
+603-  reason: text('reason'),
+604-  decidedBy: text('decided_by').references(() => users.id, { onDelete: 'set null' }),
+605-  decidedAt: timestamp('decided_at', { withTimezone: true }),
+606-  approvedBy: text('approved_by').references(() => users.id, { onDelete: 'set null' }),
+607-  approvedAt: timestamp('approved_at', { withTimezone: true }),
+608-  appliedAt: timestamp('applied_at', { withTimezone: true }),
+609-  createdAt: created(),
+610-  updatedAt: updated()
+611-}, (t) => [
+612-  uniqueIndex('learner_promotion_year_uq').on(t.learnerId, t.academicYearId),
+613-  index('learner_promotion_school_year_idx').on(t.schoolId, t.academicYearId)
+614-]);
+615-
+616-export const auditLogs = pgTable('audit_logs', {
+617-  id: id(), schoolId: text('school_id').references(() => schools.id, { onDelete: 'set null' }), userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+618-  action: text('action').notNull(), entityType: text('entity_type').notNull(), entityId: text('entity_id'), oldValue: jsonb('old_value'), newValue: jsonb('new_value'),
+619-  ipAddress: text('ip_address'), userAgent: text('user_agent'), createdAt: created()
+620-}, (t) => [index('audit_school_time_idx').on(t.schoolId, t.createdAt)]);
+621-
+622-/**
+623- * Persisted idempotency store for the desktop offline outbox.
+624- * Replaces the in-process Map that was lost on every server restart.
+
+======================================================
+MIGRATION FILES
+======================================================
+drizzle/0000_careless_dust.sql
+drizzle/0001_serious_dagger.sql
+drizzle/0002_clean_next_avengers.sql
+drizzle/0003_tiny_gwen_stacy.sql
+drizzle/0004_thick_lady_mastermind.sql
+drizzle/0005_demo_requests.sql
+drizzle/0006_subscriptions.sql
+drizzle/0007_reset_superadmin.sql
+drizzle/0008_per_learner_pricing.sql
+drizzle/0009_desktop_outbox_idempotency.sql
+drizzle/0010_user_admission_management.sql
+drizzle/0011_familiar_newton_destine.sql
+drizzle/0011_familiar_newton_destine.sql.generated-backup
+drizzle/0012_wealthy_human_fly.sql
+drizzle/0013_silky_korvac.sql
+drizzle/0014_true_purifiers.sql
+drizzle/0015_fee_plan_rename.sql
+drizzle/0016_promotion.sql
+drizzle/0017_fee_follow_ups.sql
+drizzle/meta/0000_snapshot.json
+drizzle/meta/0001_snapshot.json
+drizzle/meta/0002_snapshot.json
+drizzle/meta/0003_snapshot.json
+drizzle/meta/0004_snapshot.json
+drizzle/meta/0011_snapshot.json
+drizzle/meta/0012_snapshot.json
+drizzle/meta/0013_snapshot.json
+drizzle/meta/0014_snapshot.json
+drizzle/meta/_journal.json
+drizzle/meta/_journal.json.before-user-admission-control
+
+======================================================
+PACKAGE REFERENCES
+======================================================
+src/app/(portal)/schools/page.tsx:95:    .innerJoin(packages, eq(schoolSubscriptions.packageId, packages.id))
+src/app/(portal)/schools/page.tsx:109:  const [pkgs, addons] = await Promise.all([
+src/app/(portal)/schools/page.tsx:136:          <SchoolEnrolmentWizard pkgs={pkgs as any} addons={addons as any} />
+src/app/(portal)/schools/page.tsx:239:                      {premiumEligible ? 'PREMIUM ELIGIBLE' : 'NOT ELIGIBLE'}
+src/app/(portal)/schools/enrol/page.tsx:52:  const [pkgs, addons] = await Promise.all([
+src/app/(portal)/schools/enrol/page.tsx:81:          addons={addons as any}
+src/app/(portal)/staff-attendance/page.tsx:73:  'SECURITY',
+src/app/(portal)/staff-attendance/page.tsx:154:    user.role === 'SECURITY' ||
+src/app/(portal)/transport/page.tsx:27:  const allowed = ['SUPER_ADMIN','SCHOOL_ADMIN','TRANSPORT','SECURITY'].includes(user.role);
+src/app/(portal)/users/page.tsx:40:    'SECURITY',
+src/app/(portal)/id-cards/page.tsx:12:const STAFF_ROLES = ['SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN','TEACHER','ACCOUNTS','TRANSPORT','SECURITY','RECEPTIONIST','LIBRARIAN','CANTEEN','PROPRIETOR'];
+src/app/(portal)/packages/page.tsx:21:  const [pkgs, addons] = await Promise.all([
+src/app/(portal)/packages/page.tsx:132:            {addons.map(a => (
+src/app/(portal)/packages/page.tsx:141:            {addons.length === 0 && <p className="p-5 text-sm text-slate-400">No add-ons yet.</p>}
+src/app/actions/messages.ts:11:const staffRoles = ['SCHOOL_ADMIN','PROPRIETOR','HEADTEACHER','ACADEMIC_ADMIN','TEACHER','ACCOUNTS','TRANSPORT','SECURITY','RECEPTIONIST','LIBRARIAN','CANTEEN'];
+src/app/actions/schools.ts:153:    .innerJoin(packages, eq(schoolSubscriptions.packageId, packages.id))
+src/app/actions/staffAttendance.ts:40:  'SECURITY',
+src/app/actions/staffAttendance.ts:112:  if (role === 'SECURITY') {
+src/app/actions/transport.ts:11:function allowed(role: string) { return ['SUPER_ADMIN','SCHOOL_ADMIN','TRANSPORT','SECURITY'].includes(role); }
+src/app/actions/users.ts:52:  'SECURITY',
+src/app/actions/subscriptions.ts:66:  const packageId    = cleanText(formData.get('packageId'), 36);
+src/app/actions/subscriptions.ts:71:  const addonIds     = formData.getAll('addonIds').map(String).filter(Boolean);
+src/app/actions/subscriptions.ts:82:  if (!packageId) return { status: 'error', message: 'Select a package.' };
+src/app/actions/subscriptions.ts:87:  const pkg = (await db.select().from(packages).where(eq(packages.id, packageId)).limit(1))[0];
+src/app/actions/subscriptions.ts:98:  let addonsTotal = 0;
+src/app/actions/subscriptions.ts:99:  const addonRows = addonIds.length
+src/app/actions/subscriptions.ts:101:        sql`${packageAddons.id} = ANY(${addonIds})`
+src/app/actions/subscriptions.ts:104:  for (const a of addonRows) addonsTotal += parseFloat(String(a.pricePerTerm));
+src/app/actions/subscriptions.ts:109:  const totalAmount = baseAmount + addonsTotal;
+src/app/actions/subscriptions.ts:160:        schoolId: school.id, packageId,
+src/app/actions/subscriptions.ts:165:        addonsAmount: String(addonsTotal),
+src/app/actions/subscriptions.ts:174:      if (addonRows.length) {
+src/app/actions/subscriptions.ts:176:          addonRows.map(a => ({
+src/app/actions/subscriptions.ts:178:            addonId: a.id,
+src/app/actions/demo-access.ts:139:  const packageId = cleanText(formData.get('packageId'), 100);
+src/app/actions/demo-access.ts:147:  if (!packageId) return { status: 'error', message: 'Select the package to demonstrate.' };
+src/app/actions/demo-access.ts:151:    db.select().from(packages).where(eq(packages.id, packageId)).limit(1),
+src/app/actions/demo-access.ts:223:          packageId,
+src/app/actions/demo-access.ts:230:          addonsAmount: '0',
+src/app/actions/demo-access.ts:254:        packageId,
+src/app/api/mobile/v1/staff-attendance/route.ts:45:  'SECURITY',
+src/app/api/mobile/v1/staff-attendance/route.ts:171:      role === 'SECURITY' ||
+src/app/api/desktop/v1/sync/initial/route.ts:21:  'SECURITY',
+src/app/api/desktop/v1/sync/incremental/route.ts:19:  'SECURITY',
+src/app/(print)/id-cards-print/page.tsx:13:  'TRANSPORT','SECURITY','RECEPTIONIST','LIBRARIAN','CANTEEN','PROPRIETOR',
+src/app/page.tsx:254:      {/* ── ROLE SECURITY ────────────────────────────────────────────────── */}
+src/components/SchoolEnrolmentWizard.tsx:39:  addons,
+src/components/SchoolEnrolmentWizard.tsx:43:  addons: Addon[];
+src/components/SchoolEnrolmentWizard.tsx:55:  const addonTotal     = addons.filter(a => selectedAddons.includes(a.id)).reduce((s, a) => s + parseFloat(a.pricePerTerm), 0);
+src/components/SchoolEnrolmentWizard.tsx:60:  const total          = basePrice + addonTotal;
+src/components/SchoolEnrolmentWizard.tsx:220:                    type="radio" name="packageId" value={p.id}
+src/components/SchoolEnrolmentWizard.tsx:266:            {addons.length > 0 && (
+src/components/SchoolEnrolmentWizard.tsx:270:                  {addons.map(a => (
+src/components/SchoolEnrolmentWizard.tsx:273:                        type="checkbox" name="addonIds" value={a.id}
+src/components/SchoolEnrolmentWizard.tsx:338:              {addonTotal > 0 && <div className="flex justify-between mt-1"><span className="text-slate-600">Add-ons</span><span className="font-bold">{fmt(addonTotal)}</span></div>}
+src/components/DemoAccessWizard.tsx:293:          <select className="input" name="packageId" defaultValue={packages[0]?.id} required>
+src/lib/desktop-api.ts:363:    .innerJoin(packages, eq(schoolSubscriptions.packageId, packages.id))
+src/lib/desktop-api.ts:405:  'ACCOUNTS','TRANSPORT','SECURITY','RECEPTIONIST','LIBRARIAN','CANTEEN',
+src/lib/user-admission.ts:28:    .innerJoin(packages, eq(schoolSubscriptions.packageId, packages.id))
+src/lib/types.ts:3:  'TEACHER', 'ACCOUNTS', 'TRANSPORT', 'SECURITY', 'RECEPTIONIST', 'LIBRARIAN',
+src/lib/mobile-api.ts:356:  'ACCOUNTS', 'TRANSPORT', 'SECURITY', 'RECEPTIONIST', 'LIBRARIAN', 'CANTEEN'
+src/lib/permissions.ts:12:  SECURITY: ['dashboard','attendance','staff-attendance','transport','helpdesk'],
+src/lib/permissions.ts:22:export function canRecordAttendance(role: UserRole) { return ['SUPER_ADMIN','SCHOOL_ADMIN','HEADTEACHER','ACADEMIC_ADMIN','TEACHER','SECURITY','RECEPTIONIST'].includes(role); }
+src/db/schema.ts:452:export const packageAddons = pgTable('package_addons', {
+src/db/schema.ts:465:  packageId: text('package_id').notNull().references(() => packages.id),
+src/db/schema.ts:472:  addonsAmount: numeric('addons_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+src/db/schema.ts:481:export const subscriptionAddons = pgTable('subscription_addons', {
+src/db/schema.ts:483:  addonId: text('addon_id').notNull().references(() => packageAddons.id, { onDelete: 'cascade' }),
+src/db/schema.ts:486:}, (t) => [uniqueIndex('sub_addon_uq').on(t.subscriptionId, t.addonId)]);

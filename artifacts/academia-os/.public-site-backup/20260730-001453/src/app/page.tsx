@@ -352,8 +352,6 @@ export default async function HomePage() {
           </div>
           <p className="text-xs text-white/40">Built for primary and secondary schools. © {new Date().getFullYear()} AcademiaOS.</p>
           <div className="flex gap-5">
-            <Link href="/features" className="text-xs font-bold text-white/60 hover:text-white">Features</Link>
-            <Link href="/pricing" className="text-xs font-bold text-white/60 hover:text-white">Packages</Link>
             <Link href="/login" className="text-xs font-bold text-white/60 hover:text-white">School sign in</Link>
             <a href="mailto:hello@academiaos.cc" className="text-xs font-bold text-white/60 hover:text-white">Contact</a>
           </div>
