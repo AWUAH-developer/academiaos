@@ -298,7 +298,47 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
       const res = await apiRequest('/session', 'GET', undefined, accessToken);
       if (!res.ok) return { ok: false, loggedIn: false, error: errOf(res) };
 
-      return { ok: true, loggedIn: true, ...data(res) };
+      const sessionData = data(res);
+      const sessionUser = (sessionData.user ?? {}) as ApiData;
+      const sessionSchool = (sessionUser.school ?? {}) as ApiData;
+      const currentLogo =
+        sessionSchool.logoUrl ??
+        sessionSchool.logo_url ??
+        sessionSchool.logo ??
+        sessionSchool.schoolLogoUrl;
+
+      if (!currentLogo) {
+        try {
+          const syncResponse = await apiRequest(
+            '/sync/initial',
+            'POST',
+            {},
+            accessToken,
+          );
+
+          if (syncResponse.ok) {
+            const initialData = data(syncResponse);
+            const syncedSchool = (initialData.school ?? {}) as ApiData;
+            const syncedLogo =
+              syncedSchool.logoUrl ??
+              syncedSchool.logo_url ??
+              syncedSchool.logo ??
+              syncedSchool.schoolLogoUrl ??
+              null;
+
+            sessionUser.school = {
+              ...syncedSchool,
+              ...sessionSchool,
+              logoUrl: syncedLogo,
+            };
+            sessionData.user = sessionUser;
+          }
+        } catch {
+          // Keep the valid session even if logo enrichment fails.
+        }
+      }
+
+      return { ok: true, loggedIn: true, ...sessionData };
     } catch {
       return { ok: false, loggedIn: false };
     }
@@ -464,18 +504,33 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
     }
 
     if (opts.search) {
-      const q = `%${opts.search}%`;
+      const exact = opts.search.trim();
+      const q = `%${exact}%`;
       sql += `
         AND (
           l.first_name LIKE ?
           OR l.last_name LIKE ?
           OR l.admission_no LIKE ?
+          OR l.badge_code LIKE ?
         )
       `;
-      args.push(q, q, q);
-    }
+      args.push(q, q, q, q);
 
-    sql += ` ORDER BY l.last_name, l.first_name LIMIT 500`;
+      sql += `
+        ORDER BY
+          CASE
+            WHEN lower(COALESCE(l.badge_code, '')) = lower(?) THEN 0
+            WHEN lower(COALESCE(l.admission_no, '')) = lower(?) THEN 1
+            ELSE 2
+          END,
+          l.last_name,
+          l.first_name
+        LIMIT 500
+      `;
+      args.push(exact, exact);
+    } else {
+      sql += ` ORDER BY l.last_name, l.first_name LIMIT 500`;
+    }
 
     return {
       ok: true,

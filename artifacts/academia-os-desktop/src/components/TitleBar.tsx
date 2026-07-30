@@ -71,14 +71,20 @@ export default function TitleBar({
     setLogoSrc(null);
     setLogoFailed(false);
 
-    if (!resolvedLogoUrl) return () => { active = false; };
+    if (!resolvedLogoUrl) {
+      return () => {
+        active = false;
+      };
+    }
 
     if (resolvedLogoUrl.startsWith('data:image/')) {
       setLogoSrc(resolvedLogoUrl);
-      return () => { active = false; };
+      return () => {
+        active = false;
+      };
     }
 
-    media.loadImage(resolvedLogoUrl)
+    void media.loadImage(resolvedLogoUrl)
       .then((result) => {
         if (!active) return;
         setLogoSrc(result.ok ? result.dataUrl : resolvedLogoUrl);
@@ -87,8 +93,10 @@ export default function TitleBar({
         if (active) setLogoSrc(resolvedLogoUrl);
       });
 
-    return () => { active = false; };
-  }, [resolvedLogoUrl, schoolName]);
+    return () => {
+      active = false;
+    };
+  }, [resolvedLogoUrl]);
 
   const showLogo = Boolean(logoSrc && !logoFailed);
 
@@ -111,72 +119,85 @@ export default function TitleBar({
         padding: '0 16px 0 80px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <img
-          src="./brand-logo.jpg"
-          alt="AcademiaOS logo"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 7,
-            objectFit: 'cover',
-            background: '#fff',
-          }}
-        />
-
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minWidth: 0,
+        }}
+      >
         <span
-          style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.04em' }}
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '.04em',
+            flexShrink: 0,
+          }}
           aria-label="AcademiaOS"
         >
           <span style={{ color: '#fff8ea' }}>Academia</span>
           <span style={{ color: '#f4c542' }}>OS</span>
         </span>
 
-        <span style={{ fontSize: 9, opacity: 0.55 }}>
-          v1.0.10
-        </span>
-
         {schoolName && (
-          <>
-            <span style={{ opacity: 0.35 }}>·</span>
-
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginLeft: 14,
+              paddingLeft: 14,
+              borderLeft: '1px solid rgba(255,255,255,.22)',
+              minWidth: 0,
+            }}
+          >
             {showLogo ? (
               <img
                 src={logoSrc ?? undefined}
                 alt={`${schoolName} logo`}
                 onError={() => setLogoFailed(true)}
                 style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 7,
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
                   objectFit: 'contain',
                   background: '#fff',
                   padding: 2,
+                  flexShrink: 0,
                 }}
               />
             ) : (
               <span
-                title={`${schoolName} logo fallback`}
+                title={`${schoolName} logo unavailable`}
                 style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 7,
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
                   display: 'grid',
                   placeItems: 'center',
-                  background: '#1F5C46',
-                  color: '#F4C542',
+                  background: 'rgba(255,255,255,.12)',
+                  color: '#f4c542',
                   fontSize: 9,
                   fontWeight: 900,
+                  flexShrink: 0,
                 }}
               >
                 {schoolInitials(schoolName)}
               </span>
             )}
 
-            <span style={{ fontSize: 12, opacity: 0.75 }}>
+            <span
+              style={{
+                fontSize: 12,
+                opacity: 0.82,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {schoolName}
             </span>
-          </>
+          </div>
         )}
       </div>
 
@@ -186,6 +207,7 @@ export default function TitleBar({
           alignItems: 'center',
           gap: 12,
           WebkitAppRegion: 'no-drag',
+          flexShrink: 0,
         }}
       >
         {userName && (
