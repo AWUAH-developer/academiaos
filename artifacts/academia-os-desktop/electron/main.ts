@@ -54,6 +54,7 @@ function createWindow(): BrowserWindow {
     minWidth:        960,
     minHeight:       600,
     title:           'AcademiaOS',
+    autoHideMenuBar: true,
     titleBarStyle:   'hiddenInset',
     backgroundColor: '#1f5b45',
     show:            false,
@@ -66,6 +67,8 @@ function createWindow(): BrowserWindow {
       allowRunningInsecureContent: false,
     },
   });
+
+  win.setMenuBarVisibility(false);
 
   // Content-Security-Policy
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

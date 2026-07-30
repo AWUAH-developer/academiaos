@@ -4,90 +4,128 @@ import { useAuth } from '../store/auth';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+
     if (!username.trim() || !password) return;
+
     setLoading(true);
     setError('');
-    const res = await login(username.trim().toLowerCase(), password);
+
+    const result = await login(
+      username.trim().toLowerCase(),
+      password,
+    );
+
     setLoading(false);
-    if (!res.ok) setError(res.error ?? 'Sign-in failed. Check your credentials.');
+
+    if (!result.ok) {
+      setError(
+        result.error ??
+          'Sign-in failed. Check your username and password.',
+      );
+    }
   }
 
   return (
-    <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(160deg, var(--chalk-dark) 0%, var(--chalk) 100%)',
-    }}>
-      {/* Card */}
-      <div style={{
-        background: '#fff', borderRadius: 16, padding: '40px 36px', width: 380,
-        boxShadow: '0 20px 60px rgba(0,0,0,.25)',
-      }}>
-        {/* Permanent logo icon. Only the word animates on the sign-in screen. */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img src="/brand-logo.jpg" alt="AcademiaOS logo" style={{ width: 58, height: 58, borderRadius: 16, objectFit: 'cover', marginBottom: 12 }}/>
-          <DevourLogo/>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-            School Command Centre
+    <main className="desktop-auth-page">
+      <div className="desktop-auth-shell">
+        <section className="desktop-auth-brand">
+          <div className="desktop-auth-brand-icon">
+            <img
+              src="./brand-logo.jpg"
+              alt="AcademiaOS"
+            />
           </div>
-        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label className="label">Username</label>
+          <div className="desktop-auth-brand-copy">
+            <DevourLogo />
+
+            <p>School Command Centre</p>
+          </div>
+        </section>
+
+        <section className="desktop-auth-introduction">
+          <p className="desktop-auth-kicker">
+            AcademiaOS Account
+          </p>
+
+          <h1>Sign in with username and password</h1>
+
+          <p className="desktop-auth-description">
+            Use the username and password assigned by your
+            school administrator. No Replit account is required.
+          </p>
+        </section>
+
+        {error && (
+          <div className="desktop-auth-error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <form
+          className="desktop-auth-form"
+          onSubmit={handleSubmit}
+        >
+          <div className="desktop-auth-field">
+            <label htmlFor="desktop-username">
+              Username
+            </label>
+
             <input
-              className="input"
+              id="desktop-username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(event) =>
+                setUsername(event.target.value)
+              }
               placeholder="Enter your username"
               autoComplete="username"
               autoFocus
               required
             />
           </div>
-          <div>
-            <label className="label">Password</label>
+
+          <div className="desktop-auth-field">
+            <label htmlFor="desktop-password">
+              Password
+            </label>
+
             <input
-              className="input"
+              id="desktop-password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
               placeholder="Enter your password"
               autoComplete="current-password"
               required
             />
           </div>
 
-          {error && (
-            <div style={{
-              background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6,
-              padding: '9px 12px', fontSize: 12, color: '#991b1b', fontWeight: 600,
-            }}>
-              {error}
-            </div>
-          )}
-
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ marginTop: 4, justifyContent: 'center', padding: '10px' }}>
-            {loading ? 'Signing in…' : 'Sign in'}
+          <button
+            className="desktop-auth-submit"
+            type="submit"
+            disabled={loading}
+          >
+            {loading
+              ? 'Signing in…'
+              : 'Sign in to AcademiaOS'}
           </button>
         </form>
 
-        <p style={{ marginTop: 20, fontSize: 11, color: 'var(--text-faint)', textAlign: 'center' }}>
-          Use your AcademiaOS school account credentials.
-        </p>
+        <footer className="desktop-auth-footer">
+          AcademiaOS · School Command Centre
+        </footer>
       </div>
-
-      <p style={{ marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,.35)' }}>
-        v{window.electronAPI?.getVersion?.() ?? '1.0.0'} · Windows
-      </p>
-    </div>
+    </main>
   );
 }
