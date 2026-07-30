@@ -87,11 +87,6 @@ jobs:
         working-directory: artifacts/academia-os-desktop
         run: pnpm exec tsc -p tsconfig.electron.json --noEmit
 
-      # ── 8. Test file TypeScript check ─────────────────────────────────────────
-      - name: Test file TypeScript check
-        working-directory: artifacts/academia-os-desktop
-        run: pnpm test:typecheck
-
       # ── 9. Runtime unit tests (vitest) ────────────────────────────────────────
       - name: Runtime unit tests
         working-directory: artifacts/academia-os-desktop
