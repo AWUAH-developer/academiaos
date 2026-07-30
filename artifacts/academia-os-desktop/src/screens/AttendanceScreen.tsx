@@ -147,7 +147,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
         }}
       >
         <div>
-          <h1>Attendance</h1>
+          <h1>Attendance & Barcode Scanner</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             Records save locally and sync when online · {learners.length} learners
           </p>
@@ -181,7 +181,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
 
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>
-          Barcode attendance scanner · v1.0.10
+          Barcode Attendance Scanner scanner · v1.0.10
         </div>
 
         <form
@@ -215,7 +215,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
               cursor: 'pointer',
             }}
           >
-            Mark Present
+            Scan Barcode & Mark Present
           </button>
         </form>
 
