@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { CheckCircle2 } from 'lucide-react';
-import { DevourLogo } from '@/components/DevourLogo';
+import { AcademiaOSAnimatedLogo } from '@/components/AcademiaOSAnimatedLogo';
 import { loginAction } from '@/app/actions/auth';
 import type { AuthUser } from '@/lib/auth';
 
@@ -39,14 +39,13 @@ export function LoginScreen({
             </div>
 
             <div className="min-w-0">
-              {/* Animated AcademiaOS eater wordmark */}
               <div
-                className="w-[230px] overflow-hidden sm:w-[285px]"
+                className="flex w-full max-w-[320px] items-center"
                 aria-label="AcademiaOS"
               >
-                <DevourLogo
-                  variant="light"
-                  className="text-[1.65rem] font-black sm:text-[2rem]"
+                <AcademiaOSAnimatedLogo
+                  className="w-full"
+                  style={{ maxHeight: '96px', width: 'auto' }}
                 />
               </div>
 

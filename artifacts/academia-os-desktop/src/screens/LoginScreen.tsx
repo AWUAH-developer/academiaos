@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import DevourLogo from '../components/DevourLogo';
+import { AcademiaOSAnimatedLogo } from '../components/AcademiaOSAnimatedLogo';
 import { useAuth } from '../store/auth';
 
 export default function LoginScreen() {
@@ -54,7 +54,9 @@ export default function LoginScreen() {
           </div>
 
           <div className="desktop-auth-brand-copy">
-            <DevourLogo />
+            <AcademiaOSAnimatedLogo
+              style={{ maxWidth: 320 }}
+            />
 
             <p>School Command Centre</p>
           </div>

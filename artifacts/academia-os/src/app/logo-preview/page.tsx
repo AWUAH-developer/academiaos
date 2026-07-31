@@ -1,6 +1,8 @@
-import { DevourLogo } from '@/components/DevourLogo';
+import { AcademiaOSAnimatedLogo } from '@/components/AcademiaOSAnimatedLogo';
 
-export const metadata = { title: 'AcademiaOS — Logo Preview' };
+export const metadata = {
+  title: 'AcademiaOS — Logo Preview',
+};
 
 export default function LogoPreviewPage() {
   return (
@@ -10,21 +12,17 @@ export default function LogoPreviewPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: '24px',
         background: '#ffffff',
-        padding: '40px 24px',
       }}
     >
-      {/* Fixed-size overflow-hidden wrapper so the animation never bleeds out */}
       <div
         style={{
-          display: 'inline-block',
-          overflow: 'hidden',
-          // Wide enough to contain the full wordmark + eater
-          minWidth: '14ch',
-          padding: '8px 16px',
+          width: 'min(960px, 100%)',
+          marginInline: 'auto',
         }}
       >
-        <DevourLogo className="text-5xl font-black" />
+        <AcademiaOSAnimatedLogo />
       </div>
     </main>
   );

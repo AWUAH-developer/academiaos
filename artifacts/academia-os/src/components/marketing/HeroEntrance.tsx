@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { DevourLogo } from '@/components/DevourLogo';
+import { AcademiaOSAnimatedLogo } from '@/components/AcademiaOSAnimatedLogo';
 
 export function AnimatedNav({ user }: { user: { name: string } | null }) {
   const navRef = useRef<HTMLElement>(null);
@@ -31,8 +31,11 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
           <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white p-1 shadow-lg shadow-black/20">
             <Image src="/icon.svg" alt="" width={48} height={48} priority className="h-full w-full object-contain" />
           </div>
-          <div className="hidden w-[205px] overflow-hidden sm:block">
-            <DevourLogo variant="light" className="text-[1.45rem] font-black" />
+          <div className="hidden h-11 w-[250px] items-center sm:flex">
+            <AcademiaOSAnimatedLogo
+              className="max-h-11 w-auto max-w-full"
+              style={{ maxHeight: '44px', width: 'auto' }}
+            />
           </div>
           <div className="whitespace-nowrap text-lg font-black tracking-tight sm:hidden" aria-hidden="true">
             <span className="text-[#fff8ea]">Academia</span><span className="text-[#f4c542]">OS</span>

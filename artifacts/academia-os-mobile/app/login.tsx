@@ -12,7 +12,7 @@ import { Button, Card, Field } from '@/components/ui';
 import { useAuth } from '@/auth/AuthContext';
 import type { MobileAccountType } from '@/api/types';
 import { colors, spacing } from '@/theme';
-import { DevourLogo } from '@/components/DevourLogo';
+import { AcademiaOSAnimatedLogo } from '@/components/AcademiaOSAnimatedLogo';
 
 const accountOptions: Array<{
   type: MobileAccountType;
@@ -109,7 +109,9 @@ export default function LoginScreen() {
           resizeMode="cover"
         />
 
-        <DevourLogo size={32} />
+        <AcademiaOSAnimatedLogo
+          style={{ maxWidth: 360 }}
+        />
 
         <Text style={styles.tag}>
           School, family and staff connected

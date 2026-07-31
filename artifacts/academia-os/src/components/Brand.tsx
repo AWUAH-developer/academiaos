@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { AcademiaOSAnimatedLogo } from '@/components/AcademiaOSAnimatedLogo';
 
 type BrandProps = {
   compact?: boolean;
@@ -13,16 +14,22 @@ const sizes = {
     icon: 'h-9 w-9 rounded-xl',
     text: 'text-lg',
     tagline: 'text-[8px]',
+    logoHeight: 36,
+    logoMaxWidth: 94,
   },
   md: {
     icon: 'h-11 w-11 rounded-2xl',
     text: 'text-xl',
     tagline: 'text-[10px]',
+    logoHeight: 44,
+    logoMaxWidth: 114,
   },
   lg: {
     icon: 'h-14 w-14 rounded-2xl',
     text: 'text-2xl',
     tagline: 'text-[11px]',
+    logoHeight: 56,
+    logoMaxWidth: 146,
   },
 };
 
@@ -34,7 +41,6 @@ export function Brand({
   className = '',
 }: BrandProps) {
   const selectedSize = sizes[size];
-  const academiaColor = variant === 'dark' ? '#171a3b' : '#fff8ea';
   const taglineColor = variant === 'dark' ? '#64748b' : '#fde68a';
 
   return (
@@ -54,13 +60,15 @@ export function Brand({
 
       {!compact && (
         <div className="min-w-0">
-          <div
-            className={`${selectedSize.text} whitespace-nowrap font-black tracking-tight`}
-            aria-label="AcademiaOS"
-          >
-            <span style={{ color: academiaColor }}>Academia</span>
-            <span style={{ color: '#f4c542' }}>OS</span>
-          </div>
+          <AcademiaOSAnimatedLogo
+            style={{
+              height: selectedSize.logoHeight,
+              width: 'auto',
+              maxWidth: selectedSize.logoMaxWidth,
+              marginLeft: 0,
+              marginRight: 0,
+            }}
+          />
 
           {showTagline && (
             <div
