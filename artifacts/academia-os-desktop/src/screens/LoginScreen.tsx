@@ -19,18 +19,26 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
 
-    const result = await login(
-      username.trim().toLowerCase(),
-      password,
-    );
-
-    setLoading(false);
-
-    if (!result.ok) {
-      setError(
-        result.error ??
-          'Sign-in failed. Check your username and password.',
+    try {
+      const result = await login(
+        username.trim().toLowerCase(),
+        password,
       );
+
+      if (!result.ok) {
+        setError(
+          result.error ??
+            'Sign-in failed. Check your username and password.',
+        );
+      }
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error
+          ? loginError.message
+          : 'Sign-in failed. Check your connection and try again.',
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -49,11 +57,15 @@ export default function LoginScreen() {
             <DevourLogo />
 
             <p>School Command Centre</p>
+
+            <span className="desktop-auth-trademark">
+              AcademiaOS™
+            </span>
           </div>
         </section>
 
         <section className="desktop-auth-introduction">
-          <h1>Sign in with username and password</h1>
+          <h1>Sign in to your school</h1>
 
           <p className="desktop-auth-description">
             Use the username and password assigned by your school
@@ -111,9 +123,17 @@ export default function LoginScreen() {
               <button
                 type="button"
                 className="desktop-auth-password-toggle"
-                onClick={() => setShowPassword((visible) => !visible)}
-                onMouseDown={(event) => event.preventDefault()}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() =>
+                  setShowPassword((visible) => !visible)
+                }
+                onMouseDown={(event) =>
+                  event.preventDefault()
+                }
+                aria-label={
+                  showPassword
+                    ? 'Hide password'
+                    : 'Show password'
+                }
                 aria-pressed={showPassword}
               >
                 {showPassword ? 'Hide' : 'Show'}
@@ -131,10 +151,6 @@ export default function LoginScreen() {
               : 'Sign in to AcademiaOS'}
           </button>
         </form>
-
-        <footer className="desktop-auth-footer">
-          AcademiaOS™ © 2026. All rights reserved.
-        </footer>
       </div>
     </main>
   );

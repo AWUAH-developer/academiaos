@@ -21,13 +21,17 @@ function schoolInitials(name: string) {
     .split(/\s+/)
     .map((word) => word.replace(/[^A-Za-z0-9]/g, ''))
     .filter(Boolean);
+
   const meaningful = words.filter(
     (word) => !ignored.has(word.toLowerCase()),
   );
+
   const source = meaningful.length ? meaningful : words;
 
   if (!source.length) return 'SCH';
-  if (source.length === 1) return source[0].slice(0, 3).toUpperCase();
+  if (source.length === 1) {
+    return source[0].slice(0, 3).toUpperCase();
+  }
 
   return source
     .slice(0, 3)
@@ -39,7 +43,10 @@ function schoolInitials(name: string) {
 function resolveLogoUrl(value?: string | null) {
   const logo = String(value ?? '').trim();
 
-  if (!logo || ['null', 'undefined', 'none'].includes(logo.toLowerCase())) {
+  if (
+    !logo ||
+    ['null', 'undefined', 'none'].includes(logo.toLowerCase())
+  ) {
     return null;
   }
 
@@ -63,13 +70,18 @@ export default function TitleBar({
     () => resolveLogoUrl(schoolLogoUrl),
     [schoolLogoUrl],
   );
-  const [logoSrc, setLogoSrc] = React.useState<string | null>(null);
-  const [logoFailed, setLogoFailed] = React.useState(false);
+
+  const [schoolLogoSrc, setSchoolLogoSrc] =
+    React.useState<string | null>(null);
+
+  const [schoolLogoFailed, setSchoolLogoFailed] =
+    React.useState(false);
 
   React.useEffect(() => {
     let active = true;
-    setLogoSrc(null);
-    setLogoFailed(false);
+
+    setSchoolLogoSrc(null);
+    setSchoolLogoFailed(false);
 
     if (!resolvedLogoUrl) {
       return () => {
@@ -78,19 +90,26 @@ export default function TitleBar({
     }
 
     if (resolvedLogoUrl.startsWith('data:image/')) {
-      setLogoSrc(resolvedLogoUrl);
+      setSchoolLogoSrc(resolvedLogoUrl);
+
       return () => {
         active = false;
       };
     }
 
-    void media.loadImage(resolvedLogoUrl)
+    void media
+      .loadImage(resolvedLogoUrl)
       .then((result) => {
         if (!active) return;
-        setLogoSrc(result.ok ? result.dataUrl : resolvedLogoUrl);
+
+        setSchoolLogoSrc(
+          result.ok ? result.dataUrl : resolvedLogoUrl,
+        );
       })
       .catch(() => {
-        if (active) setLogoSrc(resolvedLogoUrl);
+        if (active) {
+          setSchoolLogoSrc(resolvedLogoUrl);
+        }
       });
 
     return () => {
@@ -98,122 +117,54 @@ export default function TitleBar({
     };
   }, [resolvedLogoUrl]);
 
-  const showLogo = Boolean(logoSrc && !logoFailed);
+  const showSchoolLogo = Boolean(
+    schoolLogoSrc && !schoolLogoFailed,
+  );
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 'var(--titlebar-h)',
-        background: 'var(--chalk-dark)',
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        zIndex: 100,
-        WebkitAppRegion: 'drag',
-        userSelect: 'none',
-        padding: '0 16px 0 80px',
-      }}
-    >
-      {/* Left: AcademiaOS brand + school identity */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0,
-          minWidth: 0,
-        }}
-      >
-        {/* AcademiaOS brand: graduation-cap icon + wordmark */}
+    <header className="desktop-titlebar">
+      <div className="desktop-titlebar-left">
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexShrink: 0,
-          }}
+          className="desktop-titlebar-brand"
           aria-label="AcademiaOS"
         >
-          <span
-            style={{ fontSize: 22, lineHeight: 1, display: 'flex', alignItems: 'center' }}
+          <img
+            className="desktop-titlebar-app-logo"
+            src="./brand-logo.jpg"
+            alt=""
             aria-hidden="true"
-          >
-            🎓
-          </span>
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 800,
-              letterSpacing: '.03em',
-              lineHeight: 1,
-            }}
-          >
-            <span style={{ color: '#fff8ea' }}>Academia</span>
-            <span style={{ color: '#f4c542' }}>OS</span>
+          />
+
+          <span className="desktop-titlebar-wordmark">
+            <span className="desktop-titlebar-academia">
+              Academia
+            </span>
+            <span className="desktop-titlebar-os">OS</span>
+            <sup className="desktop-titlebar-trademark">™</sup>
           </span>
         </div>
 
-        {/* School identity: logo + name */}
         {schoolName && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginLeft: 18,
-              paddingLeft: 18,
-              borderLeft: '1px solid rgba(255,255,255,.22)',
-              minWidth: 0,
-            }}
-          >
-            {showLogo ? (
+          <div className="desktop-titlebar-school">
+            {showSchoolLogo ? (
               <img
-                src={logoSrc ?? undefined}
+                className="desktop-titlebar-school-logo"
+                src={schoolLogoSrc ?? undefined}
                 alt={`${schoolName} logo`}
-                onError={() => setLogoFailed(true)}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 8,
-                  objectFit: 'contain',
-                  background: '#fff',
-                  padding: 3,
-                  flexShrink: 0,
-                }}
+                onError={() => setSchoolLogoFailed(true)}
               />
             ) : (
               <span
+                className="desktop-titlebar-school-fallback"
                 title={`${schoolName} logo unavailable`}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 8,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'rgba(255,255,255,.12)',
-                  color: '#f4c542',
-                  fontSize: 13,
-                  fontWeight: 900,
-                  flexShrink: 0,
-                }}
               >
                 {schoolInitials(schoolName)}
               </span>
             )}
 
             <span
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: 260,
-              }}
+              className="desktop-titlebar-school-name"
+              title={schoolName}
             >
               {schoolName}
             </span>
@@ -221,36 +172,21 @@ export default function TitleBar({
         )}
       </div>
 
-      {/* Right: username + sign out */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          WebkitAppRegion: 'no-drag',
-          flexShrink: 0,
-        }}
-      >
+      <div className="desktop-titlebar-account">
         {userName && (
-          <span style={{ fontSize: 13, opacity: 0.65 }}>{userName}</span>
+          <span className="desktop-titlebar-user">
+            {userName}
+          </span>
         )}
 
         <button
+          type="button"
+          className="desktop-titlebar-logout"
           onClick={onLogout}
-          style={{
-            background: 'rgba(255,255,255,.12)',
-            border: 'none',
-            color: '#fff',
-            padding: '5px 12px',
-            borderRadius: 4,
-            fontSize: 12,
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
         >
           Sign out
         </button>
       </div>
-    </div>
+    </header>
   );
 }
