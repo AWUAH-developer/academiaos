@@ -87,6 +87,7 @@ export default function StaffScreen() {
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead>
               <tr>
@@ -121,6 +122,7 @@ export default function StaffScreen() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

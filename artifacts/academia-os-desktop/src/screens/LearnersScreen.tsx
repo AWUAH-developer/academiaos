@@ -48,6 +48,7 @@ export default function LearnersScreen() {
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead>
               <tr>
@@ -74,6 +75,7 @@ export default function LearnersScreen() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

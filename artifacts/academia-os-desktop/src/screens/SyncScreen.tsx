@@ -60,6 +60,7 @@ export default function SyncScreen({ syncStore }: Props) {
       {status.cursors.length > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
           <h2 style={{ marginBottom: 12 }}>Local cache</h2>
+          <div style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead><tr><th>Entity</th><th>Records</th><th>Last sync</th></tr></thead>
             <tbody>
@@ -72,6 +73,7 @@ export default function SyncScreen({ syncStore }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

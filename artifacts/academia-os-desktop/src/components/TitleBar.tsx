@@ -119,34 +119,53 @@ export default function TitleBar({
         padding: '0 16px 0 80px',
       }}
     >
+      {/* Left: AcademiaOS brand + school identity */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
+          gap: 0,
           minWidth: 0,
         }}
       >
-        <span
+        {/* AcademiaOS brand: graduation-cap icon + wordmark */}
+        <div
           style={{
-            fontSize: 13,
-            fontWeight: 800,
-            letterSpacing: '.04em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
             flexShrink: 0,
           }}
           aria-label="AcademiaOS"
         >
-          <span style={{ color: '#fff8ea' }}>Academia</span>
-          <span style={{ color: '#f4c542' }}>OS</span>
-        </span>
+          <span
+            style={{ fontSize: 22, lineHeight: 1, display: 'flex', alignItems: 'center' }}
+            aria-hidden="true"
+          >
+            🎓
+          </span>
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              letterSpacing: '.03em',
+              lineHeight: 1,
+            }}
+          >
+            <span style={{ color: '#fff8ea' }}>Academia</span>
+            <span style={{ color: '#f4c542' }}>OS</span>
+          </span>
+        </div>
 
+        {/* School identity: logo + name */}
         {schoolName && (
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              marginLeft: 14,
-              paddingLeft: 14,
+              gap: 10,
+              marginLeft: 18,
+              paddingLeft: 18,
               borderLeft: '1px solid rgba(255,255,255,.22)',
               minWidth: 0,
             }}
@@ -157,12 +176,12 @@ export default function TitleBar({
                 alt={`${schoolName} logo`}
                 onError={() => setLogoFailed(true)}
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
                   objectFit: 'contain',
                   background: '#fff',
-                  padding: 2,
+                  padding: 3,
                   flexShrink: 0,
                 }}
               />
@@ -170,14 +189,14 @@ export default function TitleBar({
               <span
                 title={`${schoolName} logo unavailable`}
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
                   display: 'grid',
                   placeItems: 'center',
                   background: 'rgba(255,255,255,.12)',
                   color: '#f4c542',
-                  fontSize: 9,
+                  fontSize: 13,
                   fontWeight: 900,
                   flexShrink: 0,
                 }}
@@ -188,11 +207,12 @@ export default function TitleBar({
 
             <span
               style={{
-                fontSize: 12,
-                opacity: 0.82,
+                fontSize: 18,
+                fontWeight: 600,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                maxWidth: 260,
               }}
             >
               {schoolName}
@@ -201,6 +221,7 @@ export default function TitleBar({
         )}
       </div>
 
+      {/* Right: username + sign out */}
       <div
         style={{
           display: 'flex',
@@ -211,7 +232,7 @@ export default function TitleBar({
         }}
       >
         {userName && (
-          <span style={{ fontSize: 12, opacity: 0.65 }}>{userName}</span>
+          <span style={{ fontSize: 13, opacity: 0.65 }}>{userName}</span>
         )}
 
         <button
@@ -220,9 +241,9 @@ export default function TitleBar({
             background: 'rgba(255,255,255,.12)',
             border: 'none',
             color: '#fff',
-            padding: '3px 10px',
+            padding: '5px 12px',
             borderRadius: 4,
-            fontSize: 11,
+            fontSize: 12,
             cursor: 'pointer',
             fontWeight: 600,
           }}

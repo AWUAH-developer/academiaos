@@ -239,6 +239,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
           <table className="table">
             <thead>
               <tr>
@@ -316,6 +317,7 @@ export default function AttendanceScreen({ syncStore }: Props) {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

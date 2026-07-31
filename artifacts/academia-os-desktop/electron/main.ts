@@ -51,7 +51,7 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width:           1280,
     height:          800,
-    minWidth:        960,
+    minWidth:        1024,
     minHeight:       600,
     title:           'AcademiaOS',
     autoHideMenuBar: true,
