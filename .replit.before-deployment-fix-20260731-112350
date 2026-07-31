@@ -3,8 +3,7 @@ modules = ["nodejs-24", "postgresql-16"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
-build = "pnpm --filter @workspace/academia-os build"
-run = "pnpm --filter @workspace/academia-os start"
+
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
