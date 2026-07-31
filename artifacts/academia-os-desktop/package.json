@@ -14,7 +14,7 @@
     "electron:dev": "pnpm run build:electron && electron .",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3-multiple-ciphers",
     "dist": "pnpm run build && electron-builder",
-    "dist:win": "pnpm run build && pnpm run rebuild:native && electron-builder --win",
+    "dist:win": "pnpm run build && pnpm run rebuild:native && electron-builder --win --publish never",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "test:typecheck": "tsc -p tsconfig.tests.json --noEmit",
     "test": "node node_modules/vitest/vitest.mjs run",
