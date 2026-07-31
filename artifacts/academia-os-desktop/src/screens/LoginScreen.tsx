@@ -57,10 +57,6 @@ export default function LoginScreen() {
             <DevourLogo />
 
             <p>School Command Centre</p>
-
-            <span className="desktop-auth-trademark">
-              AcademiaOS™
-            </span>
           </div>
         </section>
 
@@ -151,7 +147,11 @@ export default function LoginScreen() {
               : 'Sign in to AcademiaOS'}
           </button>
         </form>
-      </div>
+
+        <footer className="desktop-auth-footer">
+          AcademiaOS™ © 2026. All rights reserved.
+        </footer>
+</div>
     </main>
   );
 }

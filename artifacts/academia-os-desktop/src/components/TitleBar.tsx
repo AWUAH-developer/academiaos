@@ -14,33 +14,7 @@ interface Props {
   onLogout(): void;
 }
 
-function schoolInitials(name: string) {
-  const ignored = new Set(['and', 'of', 'the', '&']);
-  const words = String(name || '')
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.replace(/[^A-Za-z0-9]/g, ''))
-    .filter(Boolean);
-
-  const meaningful = words.filter(
-    (word) => !ignored.has(word.toLowerCase()),
-  );
-
-  const source = meaningful.length ? meaningful : words;
-
-  if (!source.length) return 'SCH';
-  if (source.length === 1) {
-    return source[0].slice(0, 3).toUpperCase();
-  }
-
-  return source
-    .slice(0, 3)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase();
-}
-
-function resolveLogoUrl(value?: string | null) {
+function resolveLogoUrl(value?: string | null): string | null {
   const logo = String(value ?? '').trim();
 
   if (
@@ -71,27 +45,22 @@ export default function TitleBar({
     [schoolLogoUrl],
   );
 
-  const [schoolLogoSrc, setSchoolLogoSrc] =
-    React.useState<string | null>(null);
-
-  const [schoolLogoFailed, setSchoolLogoFailed] =
-    React.useState(false);
+  const [logoSrc, setLogoSrc] = React.useState('./brand-logo.jpg');
+  const [logoFailed, setLogoFailed] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
-
-    setSchoolLogoSrc(null);
-    setSchoolLogoFailed(false);
+    setLogoFailed(false);
 
     if (!resolvedLogoUrl) {
+      setLogoSrc('./brand-logo.jpg');
       return () => {
         active = false;
       };
     }
 
     if (resolvedLogoUrl.startsWith('data:image/')) {
-      setSchoolLogoSrc(resolvedLogoUrl);
-
+      setLogoSrc(resolvedLogoUrl);
       return () => {
         active = false;
       };
@@ -102,14 +71,12 @@ export default function TitleBar({
       .then((result) => {
         if (!active) return;
 
-        setSchoolLogoSrc(
+        setLogoSrc(
           result.ok ? result.dataUrl : resolvedLogoUrl,
         );
       })
       .catch(() => {
-        if (active) {
-          setSchoolLogoSrc(resolvedLogoUrl);
-        }
+        if (active) setLogoSrc('./brand-logo.jpg');
       });
 
     return () => {
@@ -117,9 +84,14 @@ export default function TitleBar({
     };
   }, [resolvedLogoUrl]);
 
-  const showSchoolLogo = Boolean(
-    schoolLogoSrc && !schoolLogoFailed,
-  );
+  function handleLogoError() {
+    if (logoSrc !== './brand-logo.jpg') {
+      setLogoSrc('./brand-logo.jpg');
+      return;
+    }
+
+    setLogoFailed(true);
+  }
 
   return (
     <header className="desktop-titlebar">
@@ -128,39 +100,39 @@ export default function TitleBar({
           className="desktop-titlebar-brand"
           aria-label="AcademiaOS"
         >
-          <img
-            className="desktop-titlebar-app-logo"
-            src="./brand-logo.jpg"
-            alt=""
-            aria-hidden="true"
-          />
+          {logoFailed ? (
+            <span
+              className="desktop-titlebar-logo-fallback"
+              aria-hidden="true"
+            >
+              AOS
+            </span>
+          ) : (
+            <img
+              className="desktop-titlebar-logo"
+              src={logoSrc}
+              alt=""
+              aria-hidden="true"
+              onError={handleLogoError}
+            />
+          )}
 
           <span className="desktop-titlebar-wordmark">
             <span className="desktop-titlebar-academia">
               Academia
             </span>
             <span className="desktop-titlebar-os">OS</span>
-            <sup className="desktop-titlebar-trademark">™</sup>
           </span>
         </div>
 
         {schoolName && (
           <div className="desktop-titlebar-school">
-            {showSchoolLogo ? (
-              <img
-                className="desktop-titlebar-school-logo"
-                src={schoolLogoSrc ?? undefined}
-                alt={`${schoolName} logo`}
-                onError={() => setSchoolLogoFailed(true)}
-              />
-            ) : (
-              <span
-                className="desktop-titlebar-school-fallback"
-                title={`${schoolName} logo unavailable`}
-              >
-                {schoolInitials(schoolName)}
-              </span>
-            )}
+            <span
+              className="desktop-titlebar-school-badge"
+              title={schoolName}
+            >
+              PLA
+            </span>
 
             <span
               className="desktop-titlebar-school-name"
@@ -174,7 +146,10 @@ export default function TitleBar({
 
       <div className="desktop-titlebar-account">
         {userName && (
-          <span className="desktop-titlebar-user">
+          <span
+            className="desktop-titlebar-user"
+            title={userName}
+          >
             {userName}
           </span>
         )}
