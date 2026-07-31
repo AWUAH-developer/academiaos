@@ -51,6 +51,12 @@ function AppShell() {
   const syncStore = useSyncStore();
   const [screen, setScreen] = React.useState<Screen>('dashboard');
 
+  React.useEffect(() => {
+    if (authState.status === 'authenticated' && navigator.onLine) {
+      void syncStore.runSync();
+    }
+  }, [authState.status, syncStore.runSync]);
+
   if (authState.status === 'loading') return <SplashScreen />;
   if (authState.status === 'unauthenticated') return <LoginScreen />;
 

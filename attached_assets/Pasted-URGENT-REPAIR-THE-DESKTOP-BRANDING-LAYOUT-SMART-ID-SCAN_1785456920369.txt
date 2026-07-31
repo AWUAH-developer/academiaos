@@ -1,0 +1,530 @@
+URGENT: REPAIR THE DESKTOP BRANDING, LAYOUT, SMART ID SCANNER, AND ATTENDANCE SCANNER
+
+Do not create another task, plan, specification, or proposal.
+
+Modify the existing AcademiaOS desktop application directly. Do not publish the website automatically.
+
+The installed Windows desktop application currently has these confirmed problems:
+
+1. The AcademiaOS logo is missing inside the logged-in application.
+2. Paul Lawrence Academy still shows an initials placeholder or an extremely small school identity.
+3. The school name and header layout are cramped and badly proportioned.
+4. The general desktop layout is incorrectly scaled.
+5. The Scan ID page does not contain a functioning barcode or QR-code scanner.
+6. The attendance page does not contain a functioning barcode or QR-code scanner.
+7. Do not report success based only on a development preview. Verify the installed Windows application.
+
+==================================================
+PART 1: RESTORE THE ACADEMIAOS LOGO
+==================================================
+
+The logged-in desktop sidebar must display the approved AcademiaOS branding.
+
+EXPANDED SIDEBAR
+
+Show:
+
+[AcademiaOS graduation-cap icon] AcademiaOS
+
+Requirements:
+
+- use the same graduation-cap icon shown correctly on the login page
+- display the icon immediately to the left of the AcademiaOS wordmark
+- “Academia” must appear in white or warm cream on the dark sidebar
+- “OS” must remain yellow
+- vertically centre the icon and wordmark
+- use balanced spacing
+- do not display text-only branding
+- do not use the animated logo
+- do not crop or distort the logo
+- do not depend on a localhost or development-only path
+
+COLLAPSED SIDEBAR
+
+- show the AcademiaOS cap icon only
+- centre it properly
+- provide an accessible tooltip or label
+
+PACKAGED-ASSET REQUIREMENTS
+
+The AcademiaOS icon must be bundled locally inside the packaged desktop application.
+
+It must not depend on:
+
+- localhost
+- a Replit preview URL
+- a missing Next.js public path
+- a development filesystem path
+- an external network request
+
+Inspect Electron asset resolution after packaging and installation.
+
+==================================================
+PART 2: FIX THE SCHOOL IDENTITY HEADER
+==================================================
+
+Paul Lawrence Academy must not appear as a tiny label.
+
+Create a clear school identity area near the top of the application.
+
+The identity area must show:
+
+- the uploaded Paul Lawrence Academy logo
+- the full text “Paul Lawrence Academy”
+- optional active academic year or branch underneath where already available
+
+SCHOOL LOGO
+
+- load the logo belonging to the active school
+- use the real uploaded school logo
+- use initials only when no logo has been uploaded
+- use object-fit: contain
+- preserve the original aspect ratio
+- never crop or stretch the logo
+- use a visible size of approximately 44px to 56px in the sidebar or header
+- add balanced internal padding
+- keep the logo clear on dark backgrounds
+
+SCHOOL NAME
+
+- use a readable desktop font size, approximately 17px to 20px
+- use medium or semibold weight
+- do not shrink the full name into tiny text
+- do not place it inside an excessively narrow box
+- allow a two-line wrap only when genuinely necessary
+- provide enough width for “Paul Lawrence Academy”
+- align the school name vertically with the school logo
+
+The school identity area should look like:
+
+[School logo]  Paul Lawrence Academy
+               Active academic year or branch, where applicable
+
+Do not use “PLA” when the real school logo exists.
+
+==================================================
+PART 3: REPAIR THE DESKTOP LAYOUT
+==================================================
+
+Inspect the complete logged-in desktop layout.
+
+Correct:
+
+- sidebar width
+- top header height
+- school identity spacing
+- navigation-item spacing
+- main-content width
+- page padding
+- heading sizes
+- card sizes
+- table widths
+- form widths
+- overflow
+- responsive scaling
+
+DESKTOP SIDEBAR
+
+Suggested expanded width:
+
+- approximately 260px to 290px
+
+The sidebar must have enough space for:
+
+- AcademiaOS logo
+- Paul Lawrence Academy logo and name
+- complete navigation labels
+- icons
+- active-page indicators
+
+Do not compress the navigation text into a narrow column.
+
+MAIN CONTENT
+
+- use consistent page padding
+- prevent content from hiding beneath the sidebar
+- prevent headings from being cut off
+- prevent tables from overflowing invisibly
+- use horizontal scrolling for genuinely wide tables
+- keep cards and forms aligned
+- establish a reasonable minimum desktop window size
+- remain usable when the window is resized
+
+Do not fix the layout using browser zoom or global CSS scaling.
+
+Correct the actual component dimensions and responsive CSS.
+
+==================================================
+PART 4: CREATE ONE REAL REUSABLE SCANNER
+==================================================
+
+Create one reusable desktop scanning component and use it in:
+
+- Smart ID / Scan ID
+- Learner attendance
+- Staff attendance where the signed-in user is authorised
+- any existing ID verification screen
+
+The scanner must support:
+
+1. USB barcode scanners
+2. Bluetooth barcode scanners that act as keyboard input
+3. Built-in or connected camera scanning
+4. Manual code entry as a fallback
+
+Do not display a decorative “Scan” button without working scanner logic.
+
+==================================================
+PART 5: USB AND BLUETOOTH BARCODE SCANNING
+==================================================
+
+Many school barcode scanners act like keyboards.
+
+Implement keyboard-wedge scanning:
+
+- automatically capture rapid barcode input
+- accept Enter as the scan-completion character
+- maintain focus without forcing users to click the field before every scan
+- ignore ordinary slow keyboard typing
+- validate minimum and maximum code lengths
+- trim whitespace and line breaks
+- prevent duplicate processing
+- show a visible “Scanner ready” status
+- restore focus automatically after each result
+
+Prevent the same card from being processed repeatedly within a short duplicate-protection interval.
+
+Show clear states:
+
+- Scanner ready
+- Reading card
+- Learner found
+- Staff member found
+- Invalid card
+- Card not recognised
+- Already recorded
+- Permission denied
+- Connection error
+
+==================================================
+PART 6: CAMERA BARCODE AND QR SCANNING
+==================================================
+
+Add camera-based scanning for supported Windows cameras.
+
+Support common school ID formats, including:
+
+- QR Code
+- Code 128
+- Code 39
+- EAN formats where appropriate
+
+Requirements:
+
+- request camera permission clearly
+- allow selecting the available camera
+- show a live preview
+- show a scanning frame
+- stop repeated decoding after a successful scan
+- provide a restart-scanner action
+- display a useful message when no camera is available
+- do not disable USB-scanner support when camera access fails
+
+Use a maintained scanner library compatible with Electron and the packaged Windows application.
+
+Do not disable TLS or Chromium security protections.
+
+==================================================
+PART 7: SMART ID / SCAN ID WORKFLOW
+==================================================
+
+The Smart ID page must include a functioning scanner area.
+
+After scanning a valid learner or staff ID, display:
+
+- photograph
+- full name
+- identification number
+- admission number or staff number
+- class or staff role
+- school name
+- active or inactive status
+- ID-card validity
+- relevant guardian or emergency information only where authorised
+
+The scanner must resolve the encoded identifier through the production AcademiaOS server.
+
+Use an opaque unique card token or safe record identifier.
+
+Do not encode sensitive personal information directly inside the barcode or QR code.
+
+SMART ID RESULT ACTIONS
+
+Where appropriate, allow authorised users to:
+
+- view the full ID record
+- print or reprint the card
+- verify whether the card is active
+- report or deactivate a lost card
+- issue a replacement card through the existing authorised workflow
+
+Do not create duplicate learner or staff records from a scan.
+
+==================================================
+PART 8: ID CARD BARCODE AND QR GENERATION
+==================================================
+
+Confirm that every generated learner and staff ID card contains a machine-readable code.
+
+At least one supported code must be present:
+
+- Code 128 barcode, or
+- QR code
+
+Prefer supporting both where the card design has enough space.
+
+The encoded value must map securely to:
+
+- school
+- card record
+- learner or staff member
+- card status
+
+Do not encode:
+
+- password
+- session token
+- personal financial data
+- complete medical information
+- sensitive guardian details
+
+When a replacement card is issued:
+
+- deactivate the previous card token
+- create a new card token
+- ensure the old card cannot record attendance
+
+==================================================
+PART 9: LEARNER ATTENDANCE SCANNING
+==================================================
+
+Add the reusable scanner to the learner attendance page.
+
+After scanning a learner card:
+
+1. Validate the school.
+2. Validate that the learner is active.
+3. Validate the card is active.
+4. Confirm that the signed-in user has permission.
+5. Record attendance through the existing attendance action.
+6. Show a clear success or error result.
+7. Return the scanner to ready state.
+
+Display:
+
+- learner photograph
+- learner name
+- admission number
+- class
+- date
+- scan time
+- attendance status
+- person who recorded it
+
+Use the school’s configured attendance rules.
+
+Do not create a separate disconnected attendance table.
+
+Use the existing learner-attendance records and actions.
+
+Prevent:
+
+- duplicate arrival records
+- scanning a card belonging to another school
+- scanning a deactivated card
+- unauthorised attendance changes
+- recording future attendance
+- silently overwriting existing attendance
+
+Allow authorised correction through the existing audited correction workflow.
+
+==================================================
+PART 10: STAFF ATTENDANCE SCANNING
+==================================================
+
+Add the reusable scanner to staff attendance only where permitted by the existing staff-attendance policy.
+
+Existing rules must remain enforced:
+
+- staff cannot record their own attendance
+- Security is automatically authorised
+- the selected attendance officer may record attendance
+- physical arrival, departure, exit, and return must be recorded by an authorised officer
+- movement approval must not automatically record physical movement
+- every attendance action must be audited
+
+If the active desktop user is not authorised to record staff attendance:
+
+- show staff attendance as view-only
+- do not display an active recording scanner
+- explain that recording requires Security or the selected attendance officer
+
+Do not weaken the existing staff-attendance permission model merely to make the scanner visible.
+
+==================================================
+PART 11: SERVER AND DESKTOP CONNECTION
+==================================================
+
+The packaged desktop application must use:
+
+https://academiaos.cc
+
+Confirm:
+
+- scanner lookup endpoint
+- learner attendance endpoint
+- staff attendance endpoint
+- school-logo endpoint
+- authentication endpoint
+
+Remove production references to:
+
+- localhost
+- 127.0.0.1
+- old Replit development URLs
+- blank environment variables
+- obsolete deployment URLs
+
+All requests must preserve:
+
+- authentication
+- active-school isolation
+- role permissions
+- secure HTTPS
+- normal certificate validation
+
+Do not add certificate-validation bypasses.
+
+==================================================
+PART 12: ERROR HANDLING
+==================================================
+
+Do not display raw Node.js errors to users.
+
+Provide clear messages for:
+
+- server unavailable
+- connection reset
+- invalid barcode
+- card not found
+- card inactive
+- learner inactive
+- staff inactive
+- wrong school
+- duplicate attendance
+- unauthorised role
+- camera unavailable
+- camera permission denied
+
+Log only safe diagnostic information.
+
+Never log:
+
+- passwords
+- session tokens
+- cookies
+- private card tokens in full
+
+==================================================
+PART 13: REQUIRED TESTS
+==================================================
+
+BRANDING AND LAYOUT
+
+1. Installed app shows the AcademiaOS icon and wordmark in the expanded sidebar.
+2. Collapsed sidebar shows the AcademiaOS icon.
+3. Paul Lawrence Academy shows the uploaded logo.
+4. Initials appear only when no school logo exists.
+5. The complete school name is clearly readable.
+6. The desktop layout remains usable at supported window sizes.
+7. Navigation labels are not cut off.
+8. Main content does not hide under the sidebar.
+
+SCANNER
+
+9. USB barcode scanner input is detected.
+10. Enter correctly completes a scan.
+11. Manual entry works.
+12. Camera scanning works with a supported camera.
+13. Camera absence does not break USB scanning.
+14. Invalid codes show a safe error.
+15. Duplicate scans are prevented.
+16. A deactivated card is rejected.
+17. A card from another school is rejected.
+
+SMART ID
+
+18. Learner card displays the correct learner.
+19. Staff card displays the correct staff member.
+20. Sensitive information is not encoded in the barcode.
+21. Replacement card deactivates the previous token.
+
+ATTENDANCE
+
+22. Valid learner scan records attendance.
+23. Duplicate learner attendance is prevented.
+24. Unauthorised users cannot record attendance.
+25. Staff cannot scan themselves for attendance.
+26. Authorised staff-attendance officer can record another staff member.
+27. Attendance corrections require the authorised audited workflow.
+28. Every scan is school-scoped.
+
+==================================================
+PART 14: BUILD AND VERIFY THE INSTALLED APPLICATION
+==================================================
+
+Run:
+
+Desktop:
+- pnpm typecheck
+- pnpm test
+- pnpm build
+- Windows packaging
+- installer smoke test
+
+Server, when API changes are required:
+- pnpm typecheck
+- pnpm test
+- pnpm security:scan
+- pnpm build
+
+Do not publish the website automatically.
+
+Do not report this as fixed from Electron development mode alone.
+
+Install the new Windows build and provide screenshots showing:
+
+1. AcademiaOS logo in the sidebar
+2. Paul Lawrence Academy’s real logo and readable full name
+3. Correct desktop dashboard layout
+4. Smart ID scanner ready screen
+5. Successful learner ID scan
+6. Learner attendance recorded from a barcode or QR scan
+7. Staff attendance scanner permission behaviour
+
+FINAL REPORT
+
+Provide:
+
+- exact root causes
+- every file changed
+- reusable scanner component created
+- supported barcode formats
+- active production API URL
+- school-logo loading path
+- test results
+- security-scan result
+- Windows installer version
+- installed-application screenshots
+- any remaining camera or hardware limitations
+- whether the installer is ready for release

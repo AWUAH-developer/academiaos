@@ -1,3 +1,12 @@
 AcademiaOS-CURRENT-SOURCE.zip filter=lfs diff=lfs merge=lfs -text
 AcademiaOS-Desktop-Windows-1.0.6-Setup.exe filter=lfs diff=lfs merge=lfs -text
 artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.6-Setup.exe filter=lfs diff=lfs merge=lfs -text
+AcademiaOS-Desktop-Windows-1.0.10-Setup.exe filter=lfs diff=lfs merge=lfs -text
+AcademiaOS-Desktop-Windows-1.0.11-Setup.exe filter=lfs diff=lfs merge=lfs -text
+AcademiaOS-Desktop-Windows-1.0.8-Setup.exe filter=lfs diff=lfs merge=lfs -text
+AcademiaOS-Desktop-Windows-1.0.9-Setup.exe filter=lfs diff=lfs merge=lfs -text
+artifacts/academia-os-desktop/release/version-1.0.7/AcademiaOS-Desktop-Windows-1.0.7-Setup.exe filter=lfs diff=lfs merge=lfs -text
+artifacts/academia-os-desktop/releases/1.0.10/AcademiaOS-Windows-Installer/AcademiaOS-Desktop-Windows-1.0.10-Setup.exe filter=lfs diff=lfs merge=lfs -text
+artifacts/academia-os-desktop/releases/1.0.11/AcademiaOS-Windows-Installer/AcademiaOS-Desktop-Windows-1.0.11-Setup.exe filter=lfs diff=lfs merge=lfs -text
+artifacts/academia-os-desktop/releases/1.0.8/AcademiaOS-Windows-Installer/AcademiaOS-Desktop-Windows-1.0.8-Setup.exe filter=lfs diff=lfs merge=lfs -text
+artifacts/academia-os-desktop/releases/1.0.9/AcademiaOS-Windows-Installer/AcademiaOS-Desktop-Windows-1.0.9-Setup.exe filter=lfs diff=lfs merge=lfs -text
