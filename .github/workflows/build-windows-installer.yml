@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build-windows-installer:
-    name: Build Windows 1.0.12
+    name: Build Windows 1.0.13
     runs-on: windows-2022
     timeout-minutes: 45
 
@@ -113,10 +113,10 @@ jobs:
       - name: Upload Windows installer
         uses: actions/upload-artifact@v7
         with:
-          name: AcademiaOS-Desktop-Windows-1.0.12
+          name: AcademiaOS-Desktop-Windows-1.0.13
           path: |
-            artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.12-Setup.exe
-            artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.12-Setup.exe.sha256.txt
+            artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.13-Setup.exe
+            artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.13-Setup.exe.sha256.txt
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

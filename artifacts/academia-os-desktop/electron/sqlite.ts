@@ -275,20 +275,33 @@ function createSchema(db: InstanceType<typeof Database>): void {
       ON cached_staff_attendance(staff_id, date);
 
     -- Indexes
-    CREATE INDEX IF NOT EXISTS idx_learner_badge  ON cached_learners(badge_code);
     CREATE INDEX IF NOT EXISTS idx_learner_class  ON cached_learners(class_id);
     CREATE INDEX IF NOT EXISTS idx_outbox_status  ON outbox(status, created_at);
-    CREATE INDEX IF NOT EXISTS idx_staff_badge    ON cached_staff(badge_code);
   `);
 
   // ── Column migrations for existing databases ──────────────────────────────
   // ALTER TABLE cannot use IF NOT EXISTS; wrap in try/catch and ignore
   // "duplicate column name" errors from DBs that already have the column.
   try {
+    db.exec(`ALTER TABLE cached_learners ADD COLUMN badge_code TEXT`);
+  } catch {
+    /* column already exists — safe to ignore */
+  }
+
+  try {
     db.exec(`ALTER TABLE cached_staff ADD COLUMN badge_code TEXT`);
   } catch {
     /* column already exists — safe to ignore */
   }
+
+  // Create badge indexes only after older databases receive the columns.
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_learner_badge
+      ON cached_learners(badge_code);
+
+    CREATE INDEX IF NOT EXISTS idx_staff_badge
+      ON cached_staff(badge_code);
+  `);
 }
 
 // ── Query helpers ─────────────────────────────────────────────────────────────
