@@ -74,6 +74,20 @@ export const db = {
     invoke<ApiResult<{ conflicts: ConflictRow[] }>>('db:getConflicts'),
 };
 
+// ── Scanner ───────────────────────────────────────────────────────────────────
+export const scanner = {
+  lookupCard: (token: string) =>
+    invoke<ApiResult<{ record: CardRecord }>>('scanner:lookupCard', { token }),
+
+  recordLearnerAttendance: (params: {
+    cardToken: string; date: string;
+  }) => invoke<ApiResult<{ operationId: string; learner: LearnerSummary }> & { learner?: LearnerSummary }>('scanner:recordLearnerAttendance', params),
+
+  recordStaffAttendance: (params: {
+    cardToken: string; date: string; type: 'ARRIVAL' | 'DEPARTURE';
+  }) => invoke<ApiResult<{ operationId: string; staff: StaffSummary }>>('scanner:recordStaffAttendance', params),
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type User = {
   id: string; name: string; username: string;
@@ -124,3 +138,28 @@ export type SyncCursor  = { entity_type: string; last_synced: string; record_cou
 export type OutboxResult = { operationId: string; status: string; message?: string };
 export type OutboxRow   = { id: string; operation_type: string; status: string; created_at: string; payload_json: string };
 export type ConflictRow = { id: string; operation_type: string; reason: string; created_at: string };
+
+// Scanner types
+export type CardRecord =
+  | {
+      kind: 'LEARNER';
+      id: string; name: string; first_name: unknown; last_name: unknown;
+      admission_no: unknown; class_name: unknown; class_stream: unknown;
+      school_id: unknown; status: unknown; photo_url: unknown;
+      badge_code: unknown; card_valid: boolean; source?: string;
+    }
+  | {
+      kind: 'STAFF';
+      id: string; name: unknown; staff_no: unknown; role: unknown;
+      school_id: unknown; status: unknown; photo_url: unknown;
+      card_valid: boolean; source?: string;
+    };
+
+export type LearnerSummary = {
+  id: unknown; first_name: unknown; last_name: unknown;
+  admission_no: unknown; class_name: unknown; class_stream: unknown; photo_url: unknown;
+};
+
+export type StaffSummary = {
+  id: unknown; name: unknown; username: unknown; role: unknown; photo_url: unknown;
+};

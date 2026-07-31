@@ -22,6 +22,7 @@ import {
 import {
   getDb, upsertLearners, upsertClasses, upsertStaff, addToOutbox, getPendingOps, markOpStatus,
 } from './sqlite';
+import * as scannerLogic from './scanner-logic';
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 const API_BASE    = 'https://academiaos.cc/api/desktop/v1';
@@ -604,18 +605,40 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
 
 
   // ── media:loadImage
+  // Restricted to academiaos.cc hosts to prevent SSRF from renderer input.
   ipcMain.handle('media:loadImage', async (_, payload: {
     url: string;
   }) => {
     try {
-      const accessToken = await getCredential(
-        ACCOUNT_ACCESS_TOKEN,
-      );
+      const raw = String(payload?.url ?? '').trim();
+      if (!raw) {
+        return { ok: false, error: { code: 'INVALID_URL', message: 'Image URL is required.' } };
+      }
 
-      const dataUrl = await fetchImageDataUrl(
-        payload.url,
-        accessToken ?? undefined,
-      );
+      // Resolve to an absolute URL (handles protocol-relative //… paths)
+      const resolved = raw.startsWith('//') ? new URL(`https:${raw}`) : new URL(raw, 'https://academiaos.cc');
+
+      // Allow only academiaos.cc and its subdomains to prevent SSRF
+      const isApprovedHost =
+        resolved.hostname === 'academiaos.cc' ||
+        resolved.hostname.endsWith('.academiaos.cc');
+
+      // Also allow data URIs that have already been fetched / embedded
+      const isDataUri = raw.startsWith('data:image/');
+
+      if (!isApprovedHost && !isDataUri) {
+        return {
+          ok: false,
+          error: {
+            code: 'DISALLOWED_HOST',
+            message: 'Image URL must be on academiaos.cc.',
+          },
+        };
+      }
+
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+
+      const dataUrl = await fetchImageDataUrl(raw, accessToken ?? undefined);
 
       return { ok: true, dataUrl };
     } catch (error) {
@@ -623,9 +646,156 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         ok: false,
         error: {
           code: 'LOGO_LOAD_FAILED',
-          message: String(error),
+          message: 'Image could not be loaded.',
         },
       };
+    }
+  });
+
+  // ── scanner:lookupCard ──────────────────────────────────────────────────────
+  // Resolves an opaque card token to a learner or staff record via the
+  // production API. Falls back to the local SQLite cache when offline.
+  // Identity (schoolId) is read from the trusted main-process device_meta table.
+  ipcMain.handle('scanner:lookupCard', async (_, { token }: { token: string }) => {
+    try {
+      if (!token || typeof token !== 'string' || token.trim().length < 4) {
+        return { ok: false, error: { code: 'INVALID_TOKEN', message: 'Card code is too short or invalid.' } };
+      }
+      const clean = token.trim();
+
+      const accessToken = await getCredential(ACCOUNT_ACCESS_TOKEN);
+      if (!accessToken) return { ok: false, error: { code: 'NOT_AUTHENTICATED', message: 'Not signed in.' } };
+
+      // Derive school context from trusted main-process storage
+      const db = getDb();
+      const meta = db.prepare('SELECT school_id FROM device_meta WHERE id = 1').get() as Record<string, unknown> | undefined;
+      const schoolId = meta?.school_id ? String(meta.school_id) : undefined;
+
+      // Try server lookup first
+      try {
+        const res = await apiRequest('/cards/lookup', 'POST', { token: clean }, accessToken);
+        if (res.ok) {
+          return { ok: true, record: data(res) };
+        }
+        if (res.status === 403) {
+          return { ok: false, error: { code: 'WRONG_SCHOOL', message: 'This card belongs to a different school.' } };
+        }
+        if (res.status === 410) {
+          return { ok: false, error: { code: 'CARD_INACTIVE', message: 'This card has been deactivated.' } };
+        }
+        // 404 or other: fall through to local cache
+      } catch {
+        // Network failure — fall through to local cache
+      }
+
+      // Local cache lookup — scoped to the signed-in school when known
+      const learnerRow = db.prepare(`
+        SELECT l.*, c.name AS class_name, c.stream AS class_stream
+        FROM cached_learners l
+        LEFT JOIN cached_classes c ON c.id = l.class_id
+        WHERE (lower(trim(l.badge_code)) = lower(?) OR lower(trim(l.admission_no)) = lower(?))
+          ${schoolId ? 'AND l.school_id = ?' : ''}
+        LIMIT 1
+      `).get(...(schoolId ? [clean, clean, schoolId] : [clean, clean])) as Record<string, unknown> | undefined;
+
+      if (learnerRow) {
+        return {
+          ok: true,
+          record: {
+            kind: 'LEARNER',
+            id: learnerRow.id,
+            name: `${String(learnerRow.first_name ?? '')} ${String(learnerRow.last_name ?? '')}`.trim(),
+            first_name:  learnerRow.first_name,
+            last_name:   learnerRow.last_name,
+            admission_no: learnerRow.admission_no,
+            class_name:  learnerRow.class_name,
+            class_stream: learnerRow.class_stream,
+            school_id:   learnerRow.school_id,
+            status:      learnerRow.status,
+            photo_url:   learnerRow.photo_url,
+            badge_code:  learnerRow.badge_code,
+            card_valid:  learnerRow.status === 'ACTIVE',
+            source:      'local',
+          },
+        };
+      }
+
+      const staffRow = db.prepare(`
+        SELECT * FROM cached_staff
+        WHERE (lower(trim(badge_code)) = lower(?) OR lower(trim(username)) = lower(?))
+          ${schoolId ? 'AND school_id = ?' : ''}
+        LIMIT 1
+      `).get(...(schoolId ? [clean, clean, schoolId] : [clean, clean])) as Record<string, unknown> | undefined;
+
+      if (staffRow) {
+        return {
+          ok: true,
+          record: {
+            kind:      'STAFF',
+            id:        staffRow.id,
+            name:      staffRow.name,
+            staff_no:  staffRow.username,
+            role:      staffRow.role,
+            school_id: staffRow.school_id,
+            status:    staffRow.status,
+            photo_url: staffRow.photo_url,
+            card_valid: staffRow.status === 'ACTIVE',
+            source:    'local',
+          },
+        };
+      }
+
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Card not recognised. It may belong to a different school or not yet exist in this system.' } };
+    } catch {
+      return { ok: false, error: { code: 'LOOKUP_ERROR', message: 'An error occurred while looking up the card. Please try again.' } };
+    }
+  });
+
+  // ── scanner:recordLearnerAttendance ─────────────────────────────────────────
+  // Identity (userId, schoolId, deviceId) is derived from the trusted
+  // main-process device_meta table — the renderer only supplies cardToken + date.
+  ipcMain.handle('scanner:recordLearnerAttendance', async (_, {
+    cardToken, date,
+  }: { cardToken: string; date: string }) => {
+    try {
+      const db  = getDb();
+      const ctx = scannerLogic.getSessionContext(db);
+      if (!ctx) {
+        return { ok: false, error: { code: 'NOT_AUTHENTICATED', message: 'No active session. Please sign in again.' } };
+      }
+
+      const result = scannerLogic.recordLearnerAttendance(
+        db, ctx, cardToken, date,
+        (op) => addToOutbox(db, op),
+      );
+
+      return result;
+    } catch {
+      return { ok: false, error: { code: 'ATTENDANCE_ERROR', message: 'An error occurred while recording attendance. Please try again.' } };
+    }
+  });
+
+  // ── scanner:recordStaffAttendance ───────────────────────────────────────────
+  // Identity is derived from the trusted main-process device_meta table.
+  // Role authorization (Security / officer) is enforced here, not in the renderer.
+  ipcMain.handle('scanner:recordStaffAttendance', async (_, {
+    cardToken, date, type,
+  }: { cardToken: string; date: string; type: 'ARRIVAL' | 'DEPARTURE' }) => {
+    try {
+      const db  = getDb();
+      const ctx = scannerLogic.getSessionContext(db);
+      if (!ctx) {
+        return { ok: false, error: { code: 'NOT_AUTHENTICATED', message: 'No active session. Please sign in again.' } };
+      }
+
+      const result = scannerLogic.recordStaffAttendance(
+        db, ctx, cardToken, date, type,
+        (op) => addToOutbox(db, op),
+      );
+
+      return result;
+    } catch {
+      return { ok: false, error: { code: 'STAFF_ATTENDANCE_ERROR', message: 'An error occurred while recording staff attendance. Please try again.' } };
     }
   });
 

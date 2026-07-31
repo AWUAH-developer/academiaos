@@ -197,6 +197,7 @@ function createSchema(db: InstanceType<typeof Database>): void {
       role        TEXT NOT NULL,
       status      TEXT NOT NULL,
       photo_url   TEXT,
+      badge_code  TEXT,
       synced_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -241,7 +242,7 @@ function createSchema(db: InstanceType<typeof Database>): void {
       resolved_at     TEXT
     );
 
-    -- Offline attendance cache
+    -- Offline learner attendance cache
     CREATE TABLE IF NOT EXISTS cached_attendance (
       id              TEXT PRIMARY KEY,
       school_id       TEXT NOT NULL,
@@ -257,11 +258,37 @@ function createSchema(db: InstanceType<typeof Database>): void {
     CREATE UNIQUE INDEX IF NOT EXISTS cached_att_learner_date
       ON cached_attendance(learner_id, date);
 
+    -- Offline staff attendance cache (arrival / departure events)
+    CREATE TABLE IF NOT EXISTS cached_staff_attendance (
+      id              TEXT PRIMARY KEY,
+      school_id       TEXT NOT NULL,
+      staff_id        TEXT NOT NULL,
+      date            TEXT NOT NULL,
+      type            TEXT NOT NULL DEFAULT 'ARRIVAL',
+        -- ARRIVAL | DEPARTURE
+      recorded_by     TEXT NOT NULL,
+      recorded_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      is_local        INTEGER NOT NULL DEFAULT 0,
+      synced_at       TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_staff_att_date
+      ON cached_staff_attendance(staff_id, date);
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_learner_badge  ON cached_learners(badge_code);
     CREATE INDEX IF NOT EXISTS idx_learner_class  ON cached_learners(class_id);
     CREATE INDEX IF NOT EXISTS idx_outbox_status  ON outbox(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_staff_badge    ON cached_staff(badge_code);
   `);
+
+  // ── Column migrations for existing databases ──────────────────────────────
+  // ALTER TABLE cannot use IF NOT EXISTS; wrap in try/catch and ignore
+  // "duplicate column name" errors from DBs that already have the column.
+  try {
+    db.exec(`ALTER TABLE cached_staff ADD COLUMN badge_code TEXT`);
+  } catch {
+    /* column already exists — safe to ignore */
+  }
 }
 
 // ── Query helpers ─────────────────────────────────────────────────────────────
@@ -404,29 +431,31 @@ export function upsertStaff(
 ): void {
   const statement = db.prepare(`
     INSERT INTO cached_staff
-      (id, school_id, name, username, role, status, photo_url, synced_at)
+      (id, school_id, name, username, role, status, photo_url, badge_code, synced_at)
     VALUES
-      (@id, @school_id, @name, @username, @role, @status, @photo_url, datetime('now'))
+      (@id, @school_id, @name, @username, @role, @status, @photo_url, @badge_code, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
-      school_id = excluded.school_id,
-      name = excluded.name,
-      username = excluded.username,
-      role = excluded.role,
-      status = excluded.status,
-      photo_url = excluded.photo_url,
-      synced_at = datetime('now')
+      school_id  = excluded.school_id,
+      name       = excluded.name,
+      username   = excluded.username,
+      role       = excluded.role,
+      status     = excluded.status,
+      photo_url  = excluded.photo_url,
+      badge_code = excluded.badge_code,
+      synced_at  = datetime('now')
   `);
 
   const saveRows = db.transaction((items: Record<string, unknown>[]) => {
     for (const row of items) {
       statement.run({
-        id: String(row.id ?? ''),
-        school_id: String(row.schoolId ?? row.school_id ?? ''),
-        name: String(row.name ?? ''),
-        username: String(row.username ?? ''),
-        role: String(row.role ?? ''),
-        status: String(row.status ?? 'ACTIVE'),
-        photo_url: row.photoUrl ?? row.photo_url ?? null,
+        id:         String(row.id ?? ''),
+        school_id:  String(row.schoolId ?? row.school_id ?? ''),
+        name:       String(row.name ?? ''),
+        username:   String(row.username ?? ''),
+        role:       String(row.role ?? ''),
+        status:     String(row.status ?? 'ACTIVE'),
+        photo_url:  row.photoUrl  ?? row.photo_url  ?? null,
+        badge_code: row.badgeCode ?? row.badge_code ?? null,
       });
     }
   });

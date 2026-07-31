@@ -18,6 +18,12 @@ const INVOKE_CHANNELS = [
   // Local DB
   'db:getLearners', 'db:getStaff', 'db:getAttendance', 'db:saveAttendance',
   'db:getPendingOps', 'db:markOpSynced', 'db:getConflicts',
+  // Scanner
+  'scanner:lookupCard',
+  'scanner:recordLearnerAttendance',
+  'scanner:recordStaffAttendance',
+  // Media
+  'media:loadImage',
   // App
   'app:getVersion', 'app:getPlatform',
 ] as const;
