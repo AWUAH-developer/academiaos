@@ -1,7 +1,7 @@
 {
   "name": "academiaos-desktop",
-  "version": "1.0.11",
-  "description": "AcademiaOS \u2014 School Command Centre",
+  "version": "1.0.12",
+  "description": "AcademiaOS — School Command Centre",
   "author": "AcademiaOS <hello@academiaos.cc>",
   "license": "UNLICENSED",
   "private": true,
@@ -43,7 +43,7 @@
   "build": {
     "appId": "com.academiaos.desktop",
     "productName": "AcademiaOS",
-    "copyright": "Copyright \u00a9 2026 AcademiaOS",
+    "copyright": "Copyright © 2026 AcademiaOS",
     "directories": {
       "output": "release",
       "buildResources": "build-resources"
@@ -113,5 +113,13 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/AWUAH-developer/academiaos.git"
+  },
+  "packageManager": "pnpm@10.34.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3-multiple-ciphers",
+      "electron",
+      "esbuild"
+    ]
   }
 }

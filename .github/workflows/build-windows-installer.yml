@@ -1,0 +1,92 @@
+name: Build AcademiaOS Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "artifacts/academia-os-desktop/**"
+      - ".github/workflows/build-windows-installer.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: academiaos-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows-installer:
+    name: Build Windows 1.0.12
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    env:
+      CI: "true"
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: artifacts/academia-os-desktop
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: artifacts/academia-os-desktop/pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run typecheck
+        run: pnpm run typecheck
+
+      - name: Run tests
+        run: pnpm run test
+
+      - name: Build Windows installer
+        run: pnpm run dist:win
+
+      - name: Verify installer and create checksum
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $installer = "release/AcademiaOS-Desktop-Windows-$($package.version)-Setup.exe"
+
+          if (-not (Test-Path $installer)) {
+            throw "Windows installer was not created: $installer"
+          }
+
+          $hash = (
+            Get-FileHash $installer -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+
+          $hashFile = "$installer.sha256.txt"
+
+          "$hash  $(Split-Path $installer -Leaf)" |
+            Set-Content -Path $hashFile -Encoding ascii
+
+          Write-Host "Installer: $installer"
+          Write-Host "SHA256: $hash"
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: AcademiaOS-Desktop-Windows-1.0.12
+          path: |
+            artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.12-Setup.exe
+            artifacts/academia-os-desktop/release/AcademiaOS-Desktop-Windows-1.0.12-Setup.exe.sha256.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
