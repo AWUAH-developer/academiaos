@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { db as localDb, type LocalLearner } from '../api/client';
+import { formatClassDisplay } from '../utils/classDisplay';
 
 export default function LearnersScreen() {
   const [learners, setLearners] = useState<LocalLearner[]>([]);
@@ -64,7 +65,7 @@ export default function LearnersScreen() {
                 <tr key={l.id}>
                   <td style={{ fontWeight: 600 }}>{l.first_name} {l.last_name}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{l.admission_no}</td>
-                  <td>{[l.class_name, l.class_stream].filter(Boolean).join(' ') || 'Unassigned'}</td>
+                  <td>{formatClassDisplay(l.class_name, l.class_stream, l.class_id)}</td>
                   <td>{l.gender ?? '—'}</td>
                   <td>
                     <span className={`pill ${l.status === 'ACTIVE' ? 'pill-green' : 'pill-slate'}`}>

@@ -330,7 +330,7 @@ export function upsertLearners(
       first_name:   r.firstName,
       last_name:    r.lastName,
       class_id:     r.classId ?? null,
-      status:       r.status,
+      status:       String(r.status ?? 'ACTIVE').toUpperCase(),
       photo_url:    r.photoUrl    ?? null,
       badge_code:   r.badgeCode   ?? null,
       gender:       r.gender      ?? null,
@@ -453,7 +453,7 @@ export function upsertStaff(
         name:       String(row.name ?? ''),
         username:   String(row.username ?? ''),
         role:       String(row.role ?? ''),
-        status:     String(row.status ?? 'ACTIVE'),
+        status:     String(row.status ?? 'ACTIVE').toUpperCase(),
         photo_url:  row.photoUrl  ?? row.photo_url  ?? null,
         badge_code: row.badgeCode ?? row.badge_code ?? null,
       });

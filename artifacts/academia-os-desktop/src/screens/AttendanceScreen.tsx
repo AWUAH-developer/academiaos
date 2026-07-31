@@ -24,6 +24,7 @@ import {
 import BarcodeScanner, { type ScannerStatus } from '../components/BarcodeScanner';
 import { useAuth } from '../store/auth';
 import type { useSyncStore } from '../store/sync';
+import { formatClassDisplay } from '../utils/classDisplay';
 
 interface Props {
   syncStore: ReturnType<typeof useSyncStore>;
@@ -390,8 +391,10 @@ export default function AttendanceScreen({ syncStore }: Props) {
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                   {String(lastLearnerResult.learner.admission_no ?? '')} ·{' '}
-                  {String(lastLearnerResult.learner.class_name ?? 'No class')}{' '}
-                  {String(lastLearnerResult.learner.class_stream ?? '')} · {lastLearnerResult.time}
+                  {formatClassDisplay(
+                    lastLearnerResult.learner.class_name,
+                    lastLearnerResult.learner.class_stream,
+                  )} · {lastLearnerResult.time}
                 </div>
               </div>
             )}

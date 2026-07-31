@@ -31,7 +31,7 @@ function SCREEN_MAP(screen: Screen, sync: ReturnType<typeof useSyncStore>) {
   const screens: Record<Screen, React.ReactNode> = {
     dashboard:      <DashboardScreen />,
     learners:       <LearnersScreen />,
-    staff:          <StaffScreen />,
+    staff:          <StaffScreen syncStore={sync} />,
     attendance:     <AttendanceScreen syncStore={sync} />,
     'daily-fees':   <DailyFeesScreen />,
     academics:      <AcademicsScreen />,

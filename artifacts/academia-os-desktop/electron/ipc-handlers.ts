@@ -494,7 +494,7 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
         c.stream AS class_stream
       FROM cached_learners l
       LEFT JOIN cached_classes c ON c.id = l.class_id
-      WHERE l.status = 'ACTIVE'
+      WHERE UPPER(COALESCE(l.status, 'ACTIVE')) = 'ACTIVE'
     `;
 
     const args: (string | number)[] = [];
@@ -542,7 +542,7 @@ export function setupIpcHandlers(ipcMain: IpcMain): void {
   // ── db:getStaff ─────────────────────────────────────────────────────────────
   ipcMain.handle('db:getStaff', async (_, opts: { search?: string } = {}) => {
     const db = getDb();
-    let sql = `SELECT * FROM cached_staff WHERE status = 'ACTIVE'`;
+    let sql = `SELECT * FROM cached_staff WHERE UPPER(COALESCE(status, 'ACTIVE')) = 'ACTIVE'`;
     const args: string[] = [];
 
     if (opts.search) {

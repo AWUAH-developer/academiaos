@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import BarcodeScanner, { type ScannerStatus } from '../components/BarcodeScanner';
 import { scanner as scannerApi, media, type CardRecord } from '../api/client';
 import { useAuth } from '../store/auth';
+import { formatClassDisplay } from '../utils/classDisplay';
 
 function formatRole(role: string): string {
   return role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
@@ -159,9 +160,14 @@ export default function SmartIdScreen() {
                   </div>
                   <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>
                     Admission No: <strong style={{ fontFamily: 'monospace' }}>{String(record.admission_no ?? '—')}</strong>
-                    {!!record.class_name && (
-                      <> · Class: <strong>{String(record.class_name)}{record.class_stream ? ` ${String(record.class_stream)}` : ''}</strong></>
-                    )}
+                    {' · '}
+                    Class:{' '}
+                    <strong>
+                      {formatClassDisplay(
+                        record.class_name,
+                        record.class_stream,
+                      )}
+                    </strong>
                   </div>
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     <span className={`pill ${String(record.status) === 'ACTIVE' ? 'pill-green' : 'pill-red'}`}>
