@@ -1,0 +1,323 @@
+'use client';
+
+import {
+  type CSSProperties,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+
+import styles from './DevourLogo.module.css';
+
+const CHARACTERS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S'];
+
+const HOLD_TIME = 2200;
+const EAT_STEP_TIME = 145;
+const EMPTY_PAUSE_TIME = 260;
+const REBUILD_STEP_TIME = 95;
+const REBUILD_PAUSE_TIME = 180;
+const RETURN_TIME = 560;
+
+const CRUMBS = [
+  { x: '-0.12em', y: '-0.24em', size: '0.10em', delay: '0ms' },
+  { x: '-0.20em', y: '-0.09em', size: '0.075em', delay: '55ms' },
+  { x: '-0.16em', y: '0.10em', size: '0.09em', delay: '105ms' },
+  { x: '-0.27em', y: '0.24em', size: '0.065em', delay: '155ms' },
+  { x: '-0.34em', y: '-0.18em', size: '0.055em', delay: '205ms' },
+] as const;
+
+type AnimationPhase =
+  | 'hold'
+  | 'eat'
+  | 'rebuild'
+  | 'return';
+
+type DevourLogoProps = {
+  className?: string;
+  variant?: 'light' | 'dark';
+};
+
+function useReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    );
+
+    const updatePreference = () => {
+      setReducedMotion(mediaQuery.matches);
+    };
+
+    updatePreference();
+    mediaQuery.addEventListener('change', updatePreference);
+
+    return () => {
+      mediaQuery.removeEventListener('change', updatePreference);
+    };
+  }, []);
+
+  return reducedMotion;
+}
+
+export function DevourLogo({
+  className = '',
+  variant = 'dark',
+}: DevourLogoProps) {
+  const stageRef = useRef<HTMLSpanElement>(null);
+  const wordRef = useRef<HTMLSpanElement>(null);
+  const eaterRef = useRef<HTMLSpanElement>(null);
+  const letterRefs = useRef<Array<HTMLSpanElement | null>>([]);
+
+  const reducedMotion = useReducedMotion();
+
+  const [phase, setPhase] =
+    useState<AnimationPhase>('hold');
+
+  const [eatenCount, setEatenCount] = useState(0);
+  const [rebuiltCount, setRebuiltCount] =
+    useState(CHARACTERS.length);
+
+  const [letterPositions, setLetterPositions] =
+    useState<number[]>([]);
+
+  const [startPosition, setStartPosition] = useState(0);
+  const [afterWordPosition, setAfterWordPosition] =
+    useState(0);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const stage = stageRef.current;
+      const word = wordRef.current;
+      const eater = eaterRef.current;
+
+      if (!stage || !word) return;
+
+      const stageBox = stage.getBoundingClientRect();
+      const wordBox = word.getBoundingClientRect();
+      const eaterWidth =
+        eater?.getBoundingClientRect().width || 0;
+
+      const positions = letterRefs.current.map((letter) => {
+        if (!letter) return 0;
+
+        const letterBox = letter.getBoundingClientRect();
+
+        return (
+          letterBox.left -
+          stageBox.left +
+          letterBox.width / 2 -
+          eaterWidth / 2
+        );
+      });
+
+      const closeToA =
+        wordBox.left -
+        stageBox.left -
+        eaterWidth * 0.88;
+
+      setLetterPositions(positions);
+      setStartPosition(Math.max(0, closeToA));
+
+      setAfterWordPosition(
+        wordBox.right -
+          stageBox.left +
+          Math.max(3, eaterWidth * 0.08),
+      );
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(measure);
+
+    if (stageRef.current) {
+      observer.observe(stageRef.current);
+    }
+
+    if (wordRef.current) {
+      observer.observe(wordRef.current);
+    }
+
+    window.addEventListener('resize', measure);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!reducedMotion) return;
+
+    setPhase('hold');
+    setEatenCount(0);
+    setRebuiltCount(CHARACTERS.length);
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    if (phase === 'hold') {
+      timer = setTimeout(() => {
+        setEatenCount(0);
+        setRebuiltCount(0);
+        setPhase('eat');
+      }, HOLD_TIME);
+    } else if (phase === 'eat') {
+      if (eatenCount < CHARACTERS.length) {
+        timer = setTimeout(() => {
+          setEatenCount((current) => current + 1);
+        }, EAT_STEP_TIME);
+      } else {
+        timer = setTimeout(() => {
+          setRebuiltCount(0);
+          setPhase('rebuild');
+        }, EMPTY_PAUSE_TIME);
+      }
+    } else if (phase === 'rebuild') {
+      if (rebuiltCount < CHARACTERS.length) {
+        timer = setTimeout(() => {
+          setRebuiltCount((current) => current + 1);
+        }, REBUILD_STEP_TIME);
+      } else {
+        timer = setTimeout(() => {
+          setPhase('return');
+        }, REBUILD_PAUSE_TIME);
+      }
+    } else {
+      timer = setTimeout(() => {
+        setEatenCount(0);
+        setRebuiltCount(CHARACTERS.length);
+        setPhase('hold');
+      }, RETURN_TIME);
+    }
+
+    return () => clearTimeout(timer);
+  }, [
+    eatenCount,
+    phase,
+    rebuiltCount,
+    reducedMotion,
+  ]);
+
+  const eaterPosition = (() => {
+    if (reducedMotion || phase === 'hold') {
+      return startPosition;
+    }
+
+    if (phase === 'eat') {
+      if (eatenCount >= CHARACTERS.length) {
+        return afterWordPosition;
+      }
+
+      return (
+        letterPositions[eatenCount] ??
+        startPosition
+      );
+    }
+
+    if (phase === 'rebuild') {
+      return afterWordPosition;
+    }
+
+    return startPosition;
+  })();
+
+  const variables = {
+    '--devour-academia':
+      variant === 'light' ? '#fff8ea' : '#171a3b',
+    '--devour-os': '#f4c542',
+    '--devour-yellow': '#f4c542',
+    '--devour-surface':
+      variant === 'light' ? '#2f1d14' : '#ffffff',
+  } as CSSProperties;
+
+  return (
+    <span
+      ref={stageRef}
+      className={[
+        styles.stage,
+        phase === 'hold' ? styles.holding : '',
+        phase === 'eat' ? styles.eating : '',
+        phase === 'rebuild' ? styles.rebuilding : '',
+        phase === 'return' ? styles.returning : '',
+        reducedMotion ? styles.reducedMotion : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      role="img"
+      aria-label="AcademiaOS"
+      style={variables}
+    >
+      <span
+        ref={wordRef}
+        className={styles.word}
+        aria-hidden="true"
+      >
+        {CHARACTERS.map((character, index) => {
+          let visible = true;
+
+          if (!reducedMotion && phase === 'eat') {
+            visible = index >= eatenCount;
+          }
+
+          if (!reducedMotion && phase === 'rebuild') {
+            visible = index < rebuiltCount;
+          }
+
+          return (
+            <span
+              key={`${character}-${index}`}
+              ref={(element) => {
+                letterRefs.current[index] = element;
+              }}
+              className={[
+                styles.letter,
+                index >= 8
+                  ? styles.osLetter
+                  : styles.academiaLetter,
+              ].join(' ')}
+              style={{ opacity: visible ? 1 : 0 }}
+            >
+              {character}
+            </span>
+          );
+        })}
+      </span>
+
+      <span
+          ref={eaterRef}
+          className={styles.eater}
+          aria-hidden="true"
+          style={{
+            transform: `translate3d(${eaterPosition}px, -50%, 0)`,
+          }}
+        >
+          <span className={styles.eaterBody} />
+
+          {!reducedMotion && phase === 'eat' && (
+            <span className={styles.crumbField}>
+              {CRUMBS.map((crumb, index) => (
+                <span
+                  key={index}
+                  className={styles.crumb}
+                  style={
+                    {
+                      '--crumb-x': crumb.x,
+                      '--crumb-y': crumb.y,
+                      '--crumb-size': crumb.size,
+                      '--crumb-delay': crumb.delay,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </span>
+          )}
+        </span>
+    </span>
+  );
+}

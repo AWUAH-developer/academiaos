@@ -1,0 +1,249 @@
+.root {
+  display: inline-flex;
+  line-height: 1;
+  --brand-ink: #1e2550;
+  --brand-accent: #f4be10;
+}
+
+.dark {
+  --brand-ink: #1e2550;
+  --brand-accent: #f4be10;
+}
+
+.light {
+  --brand-ink: #fff8ea;
+  --brand-accent: #f4be10;
+}
+
+.track {
+  position: relative;
+  display: inline-block;
+  padding-left: 0.78em;
+  overflow: visible;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.005em;
+  white-space: nowrap;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 1em;
+  font-weight: 900;
+  letter-spacing: -0.065em;
+  line-height: 0.95;
+}
+
+.letter {
+  display: inline-block;
+  transition:
+    opacity 110ms linear,
+    transform 110ms linear;
+  will-change: opacity, transform;
+}
+
+.ink {
+  color: var(--brand-ink);
+}
+
+.accent {
+  color: var(--brand-accent);
+}
+
+.visible {
+  opacity: 1;
+  transform: translateY(var(--letter-shift, 0));
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(calc(var(--letter-shift, 0) + 0.16em)) scale(0.98);
+}
+
+.eaterWrap {
+  position: absolute;
+  left: 0;
+  top: 52%;
+  width: 0;
+  height: 0;
+  transform: translate(
+    calc(var(--travel-progress) * (100% - 0.84em)),
+    -46%
+  );
+  z-index: 2;
+}
+
+.eater {
+  position: relative;
+  width: 0.74em;
+  height: 0.74em;
+  filter: drop-shadow(0 0.03em 0.06em rgba(0, 0, 0, 0.08));
+  animation: eaterBob 320ms linear infinite;
+}
+
+.eaterUpper,
+.eaterLower {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: var(--brand-accent);
+}
+
+.eaterUpper {
+  top: 0;
+  border-radius: 999px 999px 0 0;
+  transform-origin: 100% 100%;
+  animation: upperChomp 320ms linear infinite;
+}
+
+.eaterLower {
+  bottom: 0;
+  border-radius: 0 0 999px 999px;
+  transform-origin: 100% 0;
+  animation: lowerChomp 320ms linear infinite;
+}
+
+.eaterEye {
+  position: absolute;
+  width: 0.08em;
+  height: 0.08em;
+  border-radius: 999px;
+  background: var(--brand-ink);
+  left: 0.28em;
+  top: 0.18em;
+  z-index: 3;
+}
+
+.crumbField {
+  position: absolute;
+  left: 0.56em;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.crumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--crumb-size);
+  height: var(--crumb-size);
+  border-radius: 999px;
+  background: rgba(244, 190, 16, 0.95);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  animation: crumbBurst 250ms linear forwards;
+  animation-delay: var(--crumb-delay);
+}
+
+@keyframes upperChomp {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  20% {
+    transform: rotate(-28deg);
+  }
+
+  40% {
+    transform: rotate(0deg);
+  }
+
+  60% {
+    transform: rotate(-18deg);
+  }
+
+  80% {
+    transform: rotate(-28deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes lowerChomp {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  20% {
+    transform: rotate(28deg);
+  }
+
+  40% {
+    transform: rotate(0deg);
+  }
+
+  60% {
+    transform: rotate(18deg);
+  }
+
+  80% {
+    transform: rotate(28deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes eaterBob {
+  0% {
+    transform: translateY(0.03em);
+  }
+
+  20% {
+    transform: translateY(-0.01em);
+  }
+
+  40% {
+    transform: translateY(0.04em);
+  }
+
+  60% {
+    transform: translateY(-0.005em);
+  }
+
+  80% {
+    transform: translateY(0.03em);
+  }
+
+  100% {
+    transform: translateY(0.04em);
+  }
+}
+
+@keyframes crumbBurst {
+  0% {
+    opacity: 0;
+    transform: translate(-20%, -50%) scale(0.95);
+  }
+
+  18% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(-50% + var(--crumb-x)),
+      calc(-50% + var(--crumb-y))
+    ) scale(0.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .letter {
+    opacity: 1 !important;
+    transform: translateY(var(--letter-shift, 0)) !important;
+    transition: none !important;
+  }
+
+  .eaterWrap,
+  .crumbField {
+    display: none !important;
+  }
+}

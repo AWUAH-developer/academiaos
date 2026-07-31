@@ -1,0 +1,358 @@
+FINAL STRICT TASK: REPAIR ACADEMIAOS DESKTOP BRANDING AND WINDOWS LAYOUT, VERIFY IT, AND SAVE IT TO GITHUB
+
+This task applies ONLY to the AcademiaOS Desktop application located at:
+
+/home/runner/workspace/artifacts/academia-os-desktop
+
+Do not work on the website.
+
+Do not modify anything inside:
+
+/home/runner/workspace/artifacts/academia-os
+
+Do not modify:
+- .replit
+- website deployment
+- API routes
+- authentication logic
+- database logic
+- sync logic
+- Staff
+- Learners
+- Attendance
+- Barcode Scanner
+- Smart ID
+- Smart Card
+- Security
+- Finance
+- Academics
+- Reports
+- any feature that is already working
+
+Learners, Attendance, Barcode Scanner, Smart ID, Staff, and the other desktop features are already in place. Do not analyse, rewrite, remove, or repair them.
+
+This task is strictly limited to:
+1. The AcademiaOS logo in the desktop top-left header
+2. The Paul Lawrence Academy identity in the desktop header
+3. The Windows desktop layout and spacing
+4. The desktop login-screen layout
+5. The login-screen copyright and trademark text
+6. Verification and saving the verified desktop changes to GitHub
+
+Do not redesign unrelated parts of the desktop application.
+
+==================================================
+1. USE THE CORRECT ACADEMIAOS LOGO
+==================================================
+
+Primary file:
+
+artifacts/academia-os-desktop/src/components/TitleBar.tsx
+
+The small icon currently shown before “AcademiaOS” in the far top-left corner is incorrect.
+
+The correct logo is the existing image currently displayed close to “Paul Lawrence Academy” in the desktop title bar.
+
+Reuse that exact existing image as the main AcademiaOS logo in the far top-left corner.
+
+The required far-left result is:
+
+[correct existing logo] AcademiaOS
+
+Requirements:
+- Remove the graduation-cap emoji completely.
+- Do not create a new logo.
+- Do not use a different login-screen image.
+- Use the exact existing logo currently shown close to Paul Lawrence Academy.
+- Preserve its proportions.
+- Use object-fit: contain.
+- Keep it clear and compact.
+- Place it directly before the AcademiaOS wordmark.
+- Do not display the same logo twice in the title bar.
+- Keep “Academia” in white or warm cream.
+- Keep “OS” in the existing branded yellow.
+- Preserve the dark title-bar background.
+
+When the remote school logo cannot load, use a clean local branded fallback instead of an emoji.
+
+==================================================
+2. REPLACE THE OLD SCHOOL-LOGO POSITION WITH PLA
+==================================================
+
+The position beside “Paul Lawrence Academy” must no longer display the logo image.
+
+Replace that image with a polished badge displaying exactly:
+
+PLA
+
+The required result is:
+
+[PLA badge] Paul Lawrence Academy
+
+PLA badge requirements:
+- compact
+- rounded
+- professionally styled
+- aligned with the school name
+- readable on the dark title bar
+- warm yellow or branded cream text
+- no raw unstyled letters
+- no duplicate logo image
+
+Do not shorten or change the school name.
+
+It must continue to display:
+
+Paul Lawrence Academy
+
+==================================================
+3. REPAIR THE WINDOWS DESKTOP TITLE-BAR LAYOUT
+==================================================
+
+Clean up the messy spacing and alignment in the Windows desktop title bar.
+
+Requirements:
+- Keep the correct logo and AcademiaOS wordmark together on the far left.
+- Remove the unnecessary large empty space before the AcademiaOS branding.
+- Place a compact divider between AcademiaOS and the school identity.
+- Keep the PLA badge and Paul Lawrence Academy aligned properly.
+- Do not allow the school name to overlap the username or Sign out button.
+- Keep the username and Sign out button aligned on the right.
+- Preserve the Electron drag region.
+- Preserve no-drag behaviour for clickable controls.
+- Do not interfere with Windows window controls.
+- Do not increase the title-bar height unnecessarily.
+- Keep the header clean at the minimum supported window width.
+- Use responsive widths and proper overflow handling.
+- Use ellipsis only when the school name genuinely cannot fit.
+- Do not hide Paul Lawrence Academy during normal desktop-window sizes.
+
+The title bar must look like one professional Windows application header, not disconnected blocks.
+
+==================================================
+4. REPAIR THE DESKTOP LOGIN-SCREEN LAYOUT
+==================================================
+
+Primary files:
+
+artifacts/academia-os-desktop/src/screens/LoginScreen.tsx
+artifacts/academia-os-desktop/src/index.css
+
+Adjust the login interface so it properly fits the Windows desktop application window.
+
+Requirements:
+- Use the available window width and height correctly.
+- Keep the login content centred.
+- Remove excessive empty space.
+- Avoid an unnecessarily narrow or boxed-in appearance.
+- Preserve the cream background.
+- Preserve the current AcademiaOS branding.
+- Preserve “School Command Centre”.
+- Preserve the username field.
+- Preserve the password field.
+- Preserve the Show and Hide password control.
+- Preserve the existing sign-in button styling.
+- Keep error messages visible.
+- Prevent the logo, tagline, form, button, and copyright text from being clipped.
+- Remain usable on smaller Windows desktop-window sizes.
+- Scale cleanly on larger screens.
+- Use controlled scrolling only when the application window is genuinely too short.
+- Do not use rigid dimensions that break responsiveness.
+- Do not change the working login behaviour.
+
+==================================================
+5. COPYRIGHT AND TRADEMARK AT THE BOTTOM OF LOGIN
+==================================================
+
+The exact copyright and trademark text must appear beneath the login-screen content, at the bottom of the login window:
+
+AcademiaOS™ © 2026. All rights reserved.
+
+Requirements:
+- Keep this exact wording.
+- Do not change it to “AcademiaOS™ 2026”.
+- Do not remove “©”.
+- Do not remove “All rights reserved.”
+- Keep it beneath the login form and login content.
+- It must be visible inside the login-screen window.
+- It must not overlap the sign-in button.
+- It must not float beside the logo.
+- It must not be duplicated.
+- It must remain visible on normal Windows desktop-window sizes.
+- Use restrained, professional styling.
+
+==================================================
+6. STRICT FILE SCOPE
+==================================================
+
+Modify only the desktop branding and layout files genuinely required for this repair.
+
+Expected files include:
+
+artifacts/academia-os-desktop/src/components/TitleBar.tsx
+artifacts/academia-os-desktop/src/screens/LoginScreen.tsx
+artifacts/academia-os-desktop/src/index.css
+
+A shared desktop branding component may be modified only when required for the same logo and layout repair.
+
+Do not modify any website file.
+
+Do not modify:
+- StaffScreen.tsx
+- LearnersScreen.tsx
+- AttendanceScreen.tsx
+- SmartIdScreen.tsx
+- BarcodeScanner.tsx
+- API client files
+- sync files
+- database files
+- Electron IPC handlers
+- authentication store
+- deployment configuration
+- package versions
+- installer configuration
+
+Do not add new features.
+
+Do not remove working features.
+
+==================================================
+7. REQUIRED VISUAL RESULT
+==================================================
+
+The desktop title bar must display:
+
+[correct existing logo] AcademiaOS | [PLA badge] Paul Lawrence Academy
+
+The login screen must:
+- fit the Windows application window properly
+- retain the existing sign-in form
+- retain the Show and Hide password control
+- show the exact copyright line beneath the login content:
+
+AcademiaOS™ © 2026. All rights reserved.
+
+==================================================
+8. PROTECT THE CURRENT SOURCE
+==================================================
+
+Before editing, run:
+
+cd /home/runner/workspace
+git status --short --branch
+git log -5 --oneline --decorate
+
+Do not:
+- reset Git history
+- use git reset --hard
+- force-push
+- restore an older desktop version
+- overwrite unrelated work
+- add generated files
+- add node_modules
+- add dist
+- add release
+- add installer files
+- add temporary audit files
+- add backup files
+- add environment files
+- expose secrets
+
+==================================================
+9. REQUIRED VERIFICATION
+==================================================
+
+After completing the desktop-only changes, run from:
+
+/home/runner/workspace/artifacts/academia-os-desktop
+
+Run:
+
+pnpm run typecheck
+pnpm run test
+pnpm run build
+
+Every command must pass.
+
+Do not claim completion when any command fails.
+
+Also verify:
+- TitleBar no longer contains the graduation-cap emoji.
+- The correct existing logo is used before AcademiaOS.
+- The same logo is not duplicated beside Paul Lawrence Academy.
+- The school badge displays exactly PLA.
+- Paul Lawrence Academy remains visible.
+- LoginScreen contains exactly one instance of:
+  AcademiaOS™ © 2026. All rights reserved.
+- The copyright text appears beneath the login content.
+- The Show and Hide password control remains present.
+- No Staff, Learners, Attendance, Barcode Scanner, or Smart ID files were modified.
+
+==================================================
+10. SHOW THE EXACT CHANGES
+==================================================
+
+After verification, run:
+
+cd /home/runner/workspace
+
+git status --short
+git diff --stat
+git diff --check
+
+Then show the complete diffs for only the modified desktop files:
+
+git diff -- \
+  artifacts/academia-os-desktop/src/components/TitleBar.tsx \
+  artifacts/academia-os-desktop/src/screens/LoginScreen.tsx \
+  artifacts/academia-os-desktop/src/index.css
+
+Also show the names of every changed file.
+
+Do not hide unrelated changes. If an unrelated file was changed accidentally, restore only that accidental change before committing.
+
+==================================================
+11. COMMIT AND PUSH TO GITHUB
+==================================================
+
+Only after:
+- typecheck passes
+- all tests pass
+- desktop build passes
+- the diff contains only the requested desktop branding and layout changes
+
+Commit the verified desktop files with this exact commit message:
+
+Fix desktop branding and Windows layout
+
+Then push normally:
+
+cd /home/runner/workspace
+git push origin main
+
+Do not force-push.
+
+After pushing, show:
+
+git status --short --branch
+git log -5 --oneline --decorate
+
+Confirm that:
+- main and origin/main point to the same new commit
+- the working tree has no unintended desktop source changes
+
+==================================================
+12. DO NOT PACKAGE OR DEPLOY
+==================================================
+
+Do not run:
+
+pnpm run dist:win
+
+Do not build a Windows installer inside Replit Linux.
+
+Do not publish or redeploy the website.
+
+Do not modify the live website.
+
+Do not stop after analysing or explaining the task. Complete the desktop UI repair, run every verification command, show the diff, commit the verified changes, and push them to GitHub.

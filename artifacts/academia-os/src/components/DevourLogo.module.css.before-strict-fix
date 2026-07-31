@@ -1,0 +1,191 @@
+.stage {
+  --devour-academia: #171a3b;
+  --devour-os: #f4c542;
+  --devour-yellow: #f4c542;
+  --devour-surface: #ffffff;
+
+  position: relative;
+  display: inline-block;
+  width: 8.25em;
+  height: 1.28em;
+  overflow: hidden;
+  vertical-align: middle;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.word {
+  position: absolute;
+  top: 50%;
+  left: 1.04em;
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  transform: translateY(-50%);
+}
+
+.letter {
+  display: inline-block;
+  flex: 0 0 auto;
+  transition: opacity 55ms linear;
+}
+
+.academiaLetter {
+  color: var(--devour-academia);
+}
+
+.osLetter {
+  color: var(--devour-os);
+}
+
+.eater {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 3;
+  display: block;
+  width: 0.84em;
+  height: 0.84em;
+  transition: transform 145ms linear;
+  will-change: transform;
+}
+
+.eaterBody {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--devour-yellow);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 18%);
+  transform-origin: center;
+}
+
+.eaterBody::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 58%;
+  height: 58%;
+  background: var(--devour-surface);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: right center;
+}
+
+.holding .eater {
+  transition: none;
+}
+
+.holding .eaterBody::after,
+.rebuilding .eaterBody::after {
+  transform: translateY(-50%) scaleX(0);
+}
+
+.eating .eaterBody::after {
+  animation: devourMouth 145ms steps(2, end) infinite;
+}
+
+.rebuilding .letter {
+  transition:
+    opacity 70ms linear,
+    transform 95ms ease-out;
+}
+
+.returning .eater {
+  transition: transform 560ms cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+.returning .eaterBody {
+  transform: scaleX(-1);
+}
+
+.returning .eaterBody::after {
+  transform: translateY(-50%) scaleX(0.32);
+}
+
+.crumbField {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.crumb {
+  --crumb-x: -0.2em;
+  --crumb-y: 0;
+  --crumb-size: 0.07em;
+  --crumb-delay: 0ms;
+
+  position: absolute;
+  top: 50%;
+  left: 20%;
+  width: var(--crumb-size);
+  height: var(--crumb-size);
+  border-radius: 50%;
+  background: var(--devour-yellow);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: devourCrumb 310ms ease-out infinite;
+  animation-delay: var(--crumb-delay);
+}
+
+@keyframes devourMouth {
+  0%,
+  100% {
+    transform: translateY(-50%) scaleX(0.94);
+  }
+
+  50% {
+    transform: translateY(-50%) scaleX(0.12);
+  }
+}
+
+@keyframes devourCrumb {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scale(0.55);
+  }
+
+  18% {
+    opacity: 0.82;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(
+        calc(-50% + var(--crumb-x)),
+        calc(-50% + var(--crumb-y))
+      )
+      scale(0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .letter {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+
+  .eater {
+    transition: none !important;
+  }
+
+  .eaterBody,
+  .eaterBody::after {
+    animation: none !important;
+  }
+
+  .eaterBody::after {
+    transform: translateY(-50%) scaleX(0) !important;
+  }
+
+  .crumbField {
+    display: none !important;
+  }
+}

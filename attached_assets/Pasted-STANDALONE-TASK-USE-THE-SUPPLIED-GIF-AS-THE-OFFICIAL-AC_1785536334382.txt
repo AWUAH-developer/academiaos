@@ -1,0 +1,334 @@
+STANDALONE TASK: USE THE SUPPLIED GIF AS THE OFFICIAL ACADEMIAOS ANIMATION
+
+Use the uploaded file:
+
+AcademiaOS-Pacman-Preview-Slightly-Faster(7).gif
+
+The supplied GIF contains the final approved AcademiaOS animation, including the exact:
+
+- AcademiaOS lettering
+- Pac-Man movement
+- Eating sequence
+- Rebuild sequence
+- Return movement
+- Animation speed
+- Colours
+- Letter positions
+
+IMPORTANT TEXT REMOVAL
+
+The text shown inside the supplied GIF:
+
+SLIGHTLY FASTER • EAT • REBUILD • RETURN
+
+must not appear in the application.
+
+Create a cleaned derivative of the supplied GIF by removing only the bottom area containing:
+
+SLIGHTLY FASTER • EAT • REBUILD • RETURN
+
+Prefer cropping the caption area from every frame when the text is located beneath the actual animation.
+
+The cleaned GIF must retain:
+
+- The original AcademiaOS animation
+- The exact frame timing
+- The original loop behaviour
+- The exact Pac-Man movement
+- The eating, rebuilding, and returning sequence
+- The original colours
+- The original wordmark proportions
+- The original animation speed
+
+Do not recreate the animation with React, CSS, JavaScript, SVG, Canvas, Lottie, video, or a newly designed GIF.
+
+Do not manually redraw Pac-Man or the AcademiaOS lettering.
+
+Keep the original uploaded GIF unchanged as the source file. Create a separate cleaned application asset named:
+
+academiaos-pacman-animation.gif
+
+Only the caption area may be removed. Do not otherwise trim, accelerate, slow down, recolour, distort, regenerate, or redesign the animation.
+
+IMPLEMENTATION
+
+1. LOCATE THE ACTUAL PROJECTS
+
+Inspect the workspace and locate the real projects for:
+
+- Public website
+- Authenticated web application
+- AcademiaOS desktop application
+- AcademiaOS mobile application
+
+Do not guess project paths.
+
+Do not edit backup folders, old ZIP extractions, abandoned copies, or duplicate projects.
+
+Report the confirmed active path for every platform before making replacements.
+
+2. CREATE THE CLEANED GIF
+
+Use the uploaded file:
+
+AcademiaOS-Pacman-Preview-Slightly-Faster(7).gif
+
+Create a cleaned derivative that removes only:
+
+SLIGHTLY FASTER • EAT • REBUILD • RETURN
+
+The preferred method is to crop the caption strip beneath the animated AcademiaOS wordmark from every GIF frame.
+
+Preserve:
+
+- Frame order
+- Frame duration
+- Loop count
+- Transparency
+- Pac-Man position
+- Wordmark position
+- Eating sequence
+- Rebuild sequence
+- Return sequence
+- Animation speed
+
+Verify the cleaned GIF by comparing its frame timing and loop settings with the original.
+
+Do not modify the source GIF.
+
+3. BUNDLE THE GIF LOCALLY
+
+Store the cleaned GIF as a bundled local asset for every applicable platform.
+
+Use this asset name:
+
+academiaos-pacman-animation.gif
+
+Do not load it from an external website, temporary Replit URL, CDN, or remote storage.
+
+Ensure the asset remains available in:
+
+- Development preview
+- Website production build
+- Desktop packaged build
+- Mobile production or release build
+
+4. FIND THE CURRENT GENERATED ANIMATION
+
+Search the active repository for:
+
+- DevourLogo
+- AcademiaEateryLogo
+- Pac-Man
+- Pacman
+- logo-preview
+- animated AcademiaOS branding
+- DevourLogo.module.css
+- HeroEntrance
+- SplashScreen
+- LoginScreen
+
+Identify every active place where the current React, CSS, SVG, or generated Pac-Man animation is rendered.
+
+Do not edit inactive backups unless they are required for reference.
+
+5. REPLACE THE ACTIVE GENERATED ANIMATION
+
+Replace the current generated animation with the cleaned GIF in these appropriate branding areas:
+
+PUBLIC WEBSITE
+
+- Homepage branding or hero section
+- Logo preview page
+- Public entrance or loading area where the animation currently appears
+
+AUTHENTICATED WEB APPLICATION
+
+- Login screen
+- Initial loading or splash screen
+- Existing large animated branding areas
+
+DESKTOP APPLICATION
+
+- Login screen
+- Splash screen
+- Loading screen
+- Existing large animated branding areas
+
+MOBILE APPLICATION
+
+- Login screen
+- Splash screen
+- Loading screen
+- Existing large animated branding areas
+
+Do not place the large GIF inside:
+
+- Tiny navigation buttons
+- Favicons
+- App icons
+- ID cards
+- Smart ID cards
+- Small sidebar logo spaces
+- Compact title bars
+- School profile logos
+
+Existing static app icons and small school logos must remain unchanged.
+
+6. CREATE REUSABLE GIF COMPONENTS
+
+Create a small reusable image component for each applicable codebase.
+
+The component must render the actual cleaned GIF directly.
+
+Example web implementation:
+
+<img
+  src="/brand/academiaos-pacman-animation.gif"
+  alt="AcademiaOS animated logo"
+  width="960"
+  height="auto"
+/>
+
+Use the correct implementation for each framework.
+
+For Electron, ensure the image resolves from bundled production assets after packaging.
+
+For the mobile application, use the framework’s local asset system and confirm animated GIF playback is supported in both development and production builds.
+
+Do not reproduce the animation through code.
+
+7. RESPONSIVE DISPLAY
+
+The complete cleaned animation must remain visible.
+
+Do not crop the cleaned animation again inside the interface.
+
+Use responsive behaviour equivalent to:
+
+width: 100%;
+max-width: 960px;
+height: auto;
+object-fit: contain;
+display: block;
+margin-left: auto;
+margin-right: auto;
+
+On mobile:
+
+- Fit within the available width
+- Preserve the cleaned GIF’s aspect ratio
+- Use safe horizontal padding
+- Do not stretch the image
+- Do not cut off Pac-Man or any letters
+
+8. REMOVE DUPLICATE GENERATED ANIMATIONS
+
+Disable or remove the active React, CSS, and SVG animation from the rendered interface so the generated animation and GIF do not appear together.
+
+Remove only code that exclusively produces the replaced Pac-Man animation.
+
+Do not delete unrelated branding components when they are still used elsewhere.
+
+Do not delete:
+
+- Static school logos
+- Application icons
+- Favicons
+- API code
+- Authentication code
+- Database code
+- Attendance code
+- Smart ID code
+- Desktop synchronization
+- Adepa
+- Deployment configuration
+- Unrelated page layouts
+
+9. STRICT TASK BOUNDARIES
+
+This standalone task must not change:
+
+- Backend APIs
+- Database schemas
+- Authentication behaviour
+- School records
+- Learner records
+- Staff records
+- Desktop synchronization
+- Attendance
+- Barcode scanning
+- Smart ID
+- Adepa
+- Fees
+- Reports
+- Existing deployment configuration
+- Unrelated styling or page layout
+
+Do not perform cleanup, redesign, refactoring, dependency upgrades, or unrelated repairs.
+
+10. VERIFY ALL PLATFORMS
+
+WEBSITE AND WEB APPLICATION
+
+Run:
+
+- Type checking
+- Production build
+- Relevant existing tests
+
+Confirm that the cleaned GIF displays and loops correctly on:
+
+- Homepage
+- Logo preview page
+- Login screen
+- Existing loading or entrance screen
+
+DESKTOP APPLICATION
+
+Run:
+
+- Type checking
+- Existing automated tests
+- Renderer build
+- Electron build
+
+Confirm that the GIF is loaded from a local bundled asset and remains visible in the production renderer.
+
+Do not attempt a Windows installer build from Linux when the project requires Windows-native packaging.
+
+MOBILE APPLICATION
+
+Run:
+
+- Type checking
+- Existing tests
+- Supported production or release build
+
+Confirm that the local animated GIF plays correctly on the mobile login and splash or loading screens.
+
+11. FINAL REPORT
+
+Do not stop after editing files.
+
+Provide:
+
+- The confirmed path of every active application
+- The source GIF path
+- The cleaned GIF path for every platform
+- The tool or command used to remove the caption
+- Confirmation that only “SLIGHTLY FASTER • EAT • REBUILD • RETURN” was removed
+- Confirmation that the animation timing was preserved
+- Confirmation that the loop behaviour was preserved
+- Every modified file path
+- Every created asset path
+- Every replaced DevourLogo or generated-animation reference
+- Type-check results
+- Test results
+- Build results for all available platforms
+- Working preview instructions
+- Screenshots of the cleaned animation in each available application
+
+Do not publish, deploy, push to production, or create a public release until I approve the previews.
+
+Do not perform any work outside this standalone GIF-insertion task.

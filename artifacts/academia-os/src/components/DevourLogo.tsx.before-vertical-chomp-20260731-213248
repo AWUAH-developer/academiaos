@@ -1,0 +1,268 @@
+'use client';
+
+import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
+import styles from './DevourLogo.module.css';
+
+const LETTERS = [
+  { char: 'A', accent: false, shift: '0em' },
+  { char: 'c', accent: false, shift: '0em' },
+  { char: 'a', accent: false, shift: '0em' },
+  { char: 'd', accent: false, shift: '0.03em' },
+  { char: 'e', accent: false, shift: '-0.02em' },
+  { char: 'm', accent: false, shift: '-0.02em' },
+  { char: 'i', accent: false, shift: '0.03em' },
+  { char: 'a', accent: false, shift: '-0.02em' },
+  { char: 'O', accent: true, shift: '0.03em' },
+  { char: 'S', accent: true, shift: '0.03em' },
+] as const;
+
+const CRUMBS = [
+  { x: '-0.18em', y: '-0.24em', size: '0.10em', delay: '0ms' },
+  { x: '-0.28em', y: '-0.08em', size: '0.08em', delay: '35ms' },
+  { x: '-0.22em', y: '0.08em', size: '0.09em', delay: '70ms' },
+  { x: '-0.34em', y: '0.22em', size: '0.07em', delay: '105ms' },
+  { x: '-0.42em', y: '-0.16em', size: '0.06em', delay: '140ms' },
+] as const;
+
+const HOLD_TIME = 900;
+const EAT_STEP_TIME = 170;
+const EMPTY_PAUSE_TIME = 240;
+const RETURN_TIME = 1400;
+const RISE_TIME = 320;
+
+type AnimationPhase = 'hold' | 'eat' | 'return';
+
+type DevourLogoProps = {
+  className?: string;
+  variant?: 'dark' | 'light';
+};
+
+function useReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener('change', update);
+
+    return () => {
+      mediaQuery.removeEventListener('change', update);
+    };
+  }, []);
+
+  return reducedMotion;
+}
+
+export function DevourLogo({
+  className = '',
+  variant = 'dark',
+}: DevourLogoProps) {
+  const reducedMotion = useReducedMotion();
+
+  const [phase, setPhase] = useState<AnimationPhase>('hold');
+  const [eatenCount, setEatenCount] = useState(0);
+  const [rebuiltCount, setRebuiltCount] = useState(0);
+  const [returnProgress, setReturnProgress] = useState(0);
+  const [crumbBurstKey, setCrumbBurstKey] = useState(0);
+
+  useEffect(() => {
+    if (!reducedMotion) return;
+
+    setPhase('hold');
+    setEatenCount(0);
+    setRebuiltCount(0);
+    setReturnProgress(0);
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+
+    let timeoutId: number | undefined;
+    let frameId = 0;
+
+    if (phase === 'hold') {
+      timeoutId = window.setTimeout(() => {
+        setEatenCount(0);
+        setRebuiltCount(0);
+        setReturnProgress(0);
+        setPhase('eat');
+      }, HOLD_TIME);
+    }
+
+    if (phase === 'eat') {
+      if (eatenCount < LETTERS.length) {
+        timeoutId = window.setTimeout(() => {
+          setEatenCount((value) => value + 1);
+          setCrumbBurstKey((value) => value + 1);
+        }, EAT_STEP_TIME);
+      } else {
+        timeoutId = window.setTimeout(() => {
+          setRebuiltCount(0);
+          setReturnProgress(0);
+          setPhase('return');
+        }, EMPTY_PAUSE_TIME);
+      }
+    }
+
+    if (phase === 'return') {
+      const startedAt = performance.now();
+
+      const tick = (now: number) => {
+        const progress = Math.min(
+          (now - startedAt) / RETURN_TIME,
+          1,
+        );
+
+        setReturnProgress(progress);
+        setRebuiltCount(
+          Math.min(
+            LETTERS.length,
+            Math.ceil(progress * LETTERS.length),
+          ),
+        );
+
+        if (progress < 1) {
+          frameId = window.requestAnimationFrame(tick);
+          return;
+        }
+
+        timeoutId = window.setTimeout(() => {
+          setPhase('hold');
+          setEatenCount(0);
+          setRebuiltCount(0);
+          setReturnProgress(0);
+        }, RISE_TIME);
+      };
+
+      frameId = window.requestAnimationFrame(tick);
+    }
+
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (frameId) window.cancelAnimationFrame(frameId);
+    };
+  }, [phase, eatenCount, reducedMotion]);
+
+  const travelProgress = reducedMotion
+    ? 0
+    : phase === 'eat'
+      ? eatenCount / LETTERS.length
+      : phase === 'return'
+        ? 1 - returnProgress
+        : 0;
+
+  const travelX = `${travelProgress * 7.15}em`;
+  const travelY = phase === 'return' ? '0.95em' : '0em';
+
+  const rootClassName = [
+    styles.root,
+    variant === 'light' ? styles.light : styles.dark,
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <span className={rootClassName} data-phase={phase}>
+      <span className={styles.track}>
+        <span className={styles.wordmark} aria-label="AcademiaOS">
+          {LETTERS.map((letter, index) => {
+            const visible =
+              reducedMotion || phase === 'hold'
+                ? true
+                : phase === 'eat'
+                  ? index >= eatenCount
+                  : index < rebuiltCount;
+
+            return (
+              <span
+                key={`${letter.char}-${index}`}
+                className={[
+                  styles.letter,
+                  letter.accent ? styles.accent : styles.ink,
+                  visible ? styles.visible : styles.hidden,
+                ].join(' ')}
+                style={
+                  {
+                    '--letter-shift': letter.shift,
+                  } as CSSProperties
+                }
+              >
+                {letter.char}
+              </span>
+            );
+          })}
+        </span>
+
+        {!reducedMotion && (
+          <span
+            className={styles.eaterWrap}
+            style={
+              {
+                '--travel-x': travelX,
+                '--travel-y': travelY,
+              } as CSSProperties
+            }
+            aria-hidden="true"
+          >
+            <span
+              className={[
+                styles.eaterFacing,
+                phase === 'return' ? styles.facingLeft : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <svg
+                className={styles.pacmanSvg}
+                viewBox="0 0 100 100"
+                aria-hidden="true"
+              >
+                <circle
+                  className={styles.pacmanBody}
+                  cx="50"
+                  cy="50"
+                  r="48"
+                />
+                <polygon
+                  className={styles.pacmanMouth}
+                  points="101,18 48,50 101,82"
+                />
+                <circle
+                  className={styles.pacmanEyeSvg}
+                  cx="62"
+                  cy="29"
+                  r="6"
+                />
+              </svg>
+            </span>
+
+            {phase === 'eat' && (
+              <span className={styles.crumbField} key={crumbBurstKey}>
+                {CRUMBS.map((crumb, index) => (
+                  <span
+                    key={index}
+                    className={styles.crumb}
+                    style={
+                      {
+                        '--crumb-x': crumb.x,
+                        '--crumb-y': crumb.y,
+                        '--crumb-size': crumb.size,
+                        '--crumb-delay': crumb.delay,
+                      } as CSSProperties
+                    }
+                  />
+                ))}
+              </span>
+            )}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
+
+export default DevourLogo;
