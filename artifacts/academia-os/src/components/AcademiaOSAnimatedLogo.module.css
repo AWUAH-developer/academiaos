@@ -21,3 +21,38 @@
   pointer-events: none;
   user-select: none;
 }
+
+.letter {
+  transition: opacity 180ms ease;
+}
+
+.pacman {
+  position: absolute;
+  z-index: 20;
+  width: 6.7%;
+  aspect-ratio: 1;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--pacman-rotation, 0deg));
+  transform-origin: center;
+  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 18%));
+  pointer-events: none;
+  will-change: left, top, transform;
+  transition:
+    left var(--pacman-travel-time, 850ms) ease-in-out,
+    top var(--pacman-travel-time, 850ms) ease-in-out,
+    transform 220ms ease,
+    opacity 180ms ease;
+}
+
+.pacmanSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pacman {
+    display: none;
+  }
+}
