@@ -23,29 +23,29 @@ const LETTER_LAYERS = [
  * a visible horizontal left-to-right zig-zag.
  */
 const EAT_PATH = [
-  { x: 22.9, y: 61.5 },
-  { x: 29.3, y: 57.8 },
-  { x: 35.5, y: 64.2 },
-  { x: 42.2, y: 57.8 },
-  { x: 49.3, y: 64.2 },
-  { x: 57.8, y: 57.8 },
-  { x: 64.5, y: 64.2 },
-  { x: 69.2, y: 57.8 },
-  { x: 76.8, y: 64.2 },
-  { x: 84.5, y: 59.5 },
+  { x: 22.2, y: 60.8 },
+  { x: 29.1, y: 56.8 },
+  { x: 35.4, y: 63.6 },
+  { x: 42.0, y: 56.8 },
+  { x: 49.1, y: 63.6 },
+  { x: 57.7, y: 56.8 },
+  { x: 64.3, y: 63.6 },
+  { x: 69.1, y: 56.8 },
+  { x: 76.7, y: 63.6 },
+  { x: 84.5, y: 59.2 },
 ] as const;
 
-const REST_POSITION = { x: 19.2, y: 81.5 } as const;
-const UNDER_LAST_POSITION = { x: 84.5, y: 81.5 } as const;
+const REST_POSITION = { x: 19.2, y: 82.2 } as const;
+const UNDER_LAST_POSITION = { x: 84.5, y: 82.2 } as const;
 
 const HOLD_TIME = 1800;
-const RISE_TIME = 420;
-const BITE_TIME = 420;
-const AFTER_EAT_TIME = 100;
-const DROP_TIME = 320;
-const RETURN_TIME = 1500;
-const REBUILD_TIME = 120;
-const SETTLE_TIME = 200;
+const RISE_TIME = 500;
+const BITE_TIME = 500;
+const AFTER_EAT_TIME = 140;
+const DROP_TIME = 380;
+const RETURN_TIME = 1800;
+const REBUILD_TIME = 150;
+const SETTLE_TIME = 260;
 
 type AnimationPhase =
   | 'hold'
@@ -193,7 +193,7 @@ export function AcademiaOSAnimatedLogo({
         {LETTER_LAYERS.map((letter, index) => {
           const visible =
             phase === 'return'
-              ? index < rebuiltCount
+              ? index >= LETTER_LAYERS.length - rebuiltCount
               : phase === 'eat' || phase === 'drop'
                 ? index >= eatenCount
                 : true;

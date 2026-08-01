@@ -23,13 +23,13 @@
 }
 
 .letter {
-  transition: opacity 70ms linear;
+  transition: opacity 190ms ease-out;
 }
 
 .pacmanMover {
   position: absolute;
   z-index: 30;
-  width: 7.2%;
+  width: 7.4%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -61,7 +61,7 @@
 }
 
 .moving .mouthCutout {
-  animation: pacmanChomp 130ms steps(2, end) infinite;
+  animation: pacmanChomp 160ms steps(2, end) infinite;
 }
 
 .crumbs {
@@ -81,7 +81,7 @@
   top: 47%;
   left: 12%;
   display: block;
-  width: 7%;
+  width: 5.5%;
   aspect-ratio: 1;
   border-radius: 50%;
   background: #f4c542;
@@ -89,19 +89,19 @@
 }
 
 .eating .crumbs span:nth-child(1) {
-  animation: crumbOne 170ms linear infinite;
+  animation: crumbOne 230ms linear infinite;
 }
 
 .eating .crumbs span:nth-child(2) {
-  animation: crumbTwo 170ms linear 42ms infinite;
+  animation: crumbTwo 230ms linear 58ms infinite;
 }
 
 .eating .crumbs span:nth-child(3) {
-  animation: crumbThree 170ms linear 84ms infinite;
+  animation: crumbThree 230ms linear 116ms infinite;
 }
 
 .eating .crumbs span:nth-child(4) {
-  animation: crumbFour 170ms linear 126ms infinite;
+  animation: crumbFour 230ms linear 174ms infinite;
 }
 
 @keyframes pacmanChomp {
