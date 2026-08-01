@@ -332,18 +332,53 @@ export default async function HomePage() {
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer className="border-t border-black/10 bg-[#2f1d14] px-5 py-10 sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
-          <div className="flex items-center gap-3">
-            <Image src="/brand-logo.jpg" alt="AcademiaOS" width={32} height={32} unoptimized className="h-8 w-8 rounded-xl object-cover" />
-            <span className="text-sm font-black text-white">AcademiaOS</span>
-            <span className="text-xs text-white/40">School Command Centre</span>
+      <footer className="border-t border-black/10 bg-white px-5 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/brand-logo.jpg"
+              alt="AcademiaOS"
+              width={28}
+              height={28}
+              unoptimized
+              className="h-7 w-7 rounded-lg object-cover"
+            />
+
+            <div className="flex items-center gap-1.5 text-black">
+              <span className="inline-flex items-start whitespace-nowrap text-sm font-bold leading-none tracking-tight">
+                AcademiaOS
+                <sup className="ml-0.5 text-[7px] font-normal leading-none">
+                  ™
+                </sup>
+              </span>
+
+              <span className="whitespace-nowrap text-[10px] font-normal leading-none text-black/60">
+                © {new Date().getFullYear()}
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-white/40">Built for primary and secondary schools. © {new Date().getFullYear()} AcademiaOS.</p>
-          <div className="flex gap-5">
-            <Link href="/features" className="text-xs font-bold text-white/60 hover:text-white">Features</Link>
-            <Link href="/pricing" className="text-xs font-bold text-white/60 hover:text-white">Packages</Link>
-            <a href="mailto:hello@academiaos.cc" className="text-xs font-bold text-white/60 hover:text-white">Contact</a>
+
+          <div className="flex gap-4">
+            <Link
+              href="/features"
+              className="text-[11px] font-medium text-black/60 hover:text-black"
+            >
+              Features
+            </Link>
+
+            <Link
+              href="/pricing"
+              className="text-[11px] font-medium text-black/60 hover:text-black"
+            >
+              Packages
+            </Link>
+
+            <a
+              href="mailto:hello@academiaos.cc"
+              className="text-[11px] font-medium text-black/60 hover:text-black"
+            >
+              Contact
+            </a>
           </div>
         </div>
       </footer>
