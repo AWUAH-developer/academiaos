@@ -1,163 +1,172 @@
+.root {
+  display: inline-block;
+  width: min(100%, var(--academia-logo-max-width, 420px));
+  line-height: 0;
+}
+
 .stage {
   position: relative;
-  width: min(100%, 430px);
-  height: 140px;
-  overflow: visible;
+  display: block;
+  width: 100%;
+  aspect-ratio: 960 / 370;
 }
 
-.wordmark {
+.layer {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
-  display: block;
-}
-
-.letter {
-  font-family: Inter, Arial, Helvetica, sans-serif;
-  font-size: 56px;
-  font-weight: 900;
-  letter-spacing: -0.065em;
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
-  transform-origin: center;
-  transform-box: fill-box;
+  object-fit: contain;
+  pointer-events: none;
   user-select: none;
 }
 
-.navy {
-  fill: #1d2449;
+.letter {
+  transition: opacity 70ms linear;
 }
 
-.gold {
-  fill: #f0b90f;
-}
-
-.eaten {
-  opacity: 0;
-  transform: translateY(5px) scale(0.72);
-}
-
-.pacmanLayer {
+.pacmanMover {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 36px;
-  height: 36px;
-  transform: translate(
-    calc(var(--pacman-x) - 18px),
-    calc(var(--pacman-y) - 18px)
-  );
+  z-index: 30;
+  width: 7.2%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
   pointer-events: none;
-  z-index: 3;
+  transition:
+    left var(--pacman-travel-time, 0ms) linear,
+    top var(--pacman-travel-time, 0ms) linear;
+  will-change: left, top;
 }
 
-.pacman {
-  width: 36px;
-  height: 36px;
+.pacmanSvg {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
   overflow: visible;
+  transform: rotate(var(--pacman-rotation, -90deg));
+  transform-origin: center;
+  filter:
+    drop-shadow(0 2px 3px rgb(15 23 42 / 30%))
+    drop-shadow(0 0 1px rgb(15 23 42 / 40%));
+  transition: transform 170ms ease;
 }
 
-.up {
-  transform: rotate(-90deg);
+.mouthCutout {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(1);
 }
 
-.right {
-  transform: rotate(0deg);
+.moving .mouthCutout {
+  animation: pacmanChomp 130ms steps(2, end) infinite;
 }
 
-.left {
-  transform: rotate(180deg);
-}
-
-.upperJaw,
-.lowerJaw {
-  fill: #f4c542;
-  transform-origin: 18px 18px;
-}
-
-.eye {
-  fill: #6a4b00;
-}
-
-.chomping .upperJaw {
-  animation: topChomp 180ms ease-in-out infinite alternate;
-}
-
-.chomping .lowerJaw {
-  animation: bottomChomp 180ms ease-in-out infinite alternate;
-}
-
-.crumbCloud {
+.crumbs {
   position: absolute;
   inset: 0;
+  z-index: 1;
+  display: block;
   opacity: 0;
 }
 
-.crumbCloudActive {
+.eating .crumbs {
   opacity: 1;
 }
 
-.crumb {
+.crumbs span {
   position: absolute;
-  left: 18px;
-  top: 18px;
-  width: var(--crumb-size);
-  height: var(--crumb-size);
-  margin-left: calc(var(--crumb-size) / -2);
-  margin-top: calc(var(--crumb-size) / -2);
-  border-radius: 999px;
-  background: #f7c84e;
-  box-shadow: 0 0 0 1px rgba(110, 75, 0, 0.12);
+  top: 47%;
+  left: 12%;
+  display: block;
+  width: 7%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #f4c542;
   opacity: 0;
-  transform: translate(0, 0) scale(0.25);
 }
 
-.crumbCloudActive .crumb {
-  animation: crumbBurst 620ms ease-out forwards;
-  animation-delay: var(--crumb-delay);
+.eating .crumbs span:nth-child(1) {
+  animation: crumbOne 170ms linear infinite;
 }
 
-@keyframes topChomp {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(-16deg);
-  }
+.eating .crumbs span:nth-child(2) {
+  animation: crumbTwo 170ms linear 42ms infinite;
 }
 
-@keyframes bottomChomp {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(16deg);
-  }
+.eating .crumbs span:nth-child(3) {
+  animation: crumbThree 170ms linear 84ms infinite;
 }
 
-@keyframes crumbBurst {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.25);
-  }
+.eating .crumbs span:nth-child(4) {
+  animation: crumbFour 170ms linear 126ms infinite;
+}
 
-  18% {
-    opacity: 1;
-  }
-
+@keyframes pacmanChomp {
+  0%,
   100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(0.06);
+  }
+}
+
+@keyframes crumbOne {
+  from {
+    opacity: 0.95;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
     opacity: 0;
-    transform: translate(var(--crumb-dx), var(--crumb-dy)) scale(1);
+    transform: translate3d(-115%, -70%, 0) scale(0.15);
+  }
+}
+
+@keyframes crumbTwo {
+  from {
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0) scale(0.9);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-140%, 65%, 0) scale(0.12);
+  }
+}
+
+@keyframes crumbThree {
+  from {
+    opacity: 0.8;
+    transform: translate3d(0, 0, 0) scale(0.75);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-95%, -120%, 0) scale(0.1);
+  }
+}
+
+@keyframes crumbFour {
+  from {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale(0.65);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-120%, 110%, 0) scale(0.08);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chomping .upperJaw,
-  .chomping .lowerJaw,
-  .crumbCloudActive .crumb {
-    animation: none;
+  .pacmanMover,
+  .pacmanSvg,
+  .letter {
+    transition-duration: 1ms;
   }
 }
