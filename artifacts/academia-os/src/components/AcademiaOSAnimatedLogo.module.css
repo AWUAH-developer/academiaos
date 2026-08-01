@@ -23,36 +23,150 @@
 }
 
 .letter {
-  transition: opacity 180ms ease;
+  transition: opacity 70ms linear;
 }
 
-.pacman {
+.pacmanMover {
   position: absolute;
-  z-index: 20;
-  width: 6.7%;
+  z-index: 30;
+  width: 7.2%;
   aspect-ratio: 1;
-  transform:
-    translate(-50%, -50%)
-    rotate(var(--pacman-rotation, 0deg));
-  transform-origin: center;
-  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 18%));
+  transform: translate(-50%, -50%);
   pointer-events: none;
-  will-change: left, top, transform;
   transition:
-    left var(--pacman-travel-time, 850ms) ease-in-out,
-    top var(--pacman-travel-time, 850ms) ease-in-out,
-    transform 220ms ease,
-    opacity 180ms ease;
+    left var(--pacman-travel-time, 0ms) linear,
+    top var(--pacman-travel-time, 0ms) linear;
+  will-change: left, top;
 }
 
 .pacmanSvg {
+  position: relative;
+  z-index: 2;
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(var(--pacman-rotation, -90deg));
+  transform-origin: center;
+  filter:
+    drop-shadow(0 2px 3px rgb(15 23 42 / 30%))
+    drop-shadow(0 0 1px rgb(15 23 42 / 40%));
+  transition: transform 170ms ease;
+}
+
+.mouthCutout {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(1);
+}
+
+.moving .mouthCutout {
+  animation: pacmanChomp 130ms steps(2, end) infinite;
+}
+
+.crumbs {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  opacity: 0;
+}
+
+.eating .crumbs {
+  opacity: 1;
+}
+
+.crumbs span {
+  position: absolute;
+  top: 47%;
+  left: 12%;
+  display: block;
+  width: 7%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #f4c542;
+  opacity: 0;
+}
+
+.eating .crumbs span:nth-child(1) {
+  animation: crumbOne 170ms linear infinite;
+}
+
+.eating .crumbs span:nth-child(2) {
+  animation: crumbTwo 170ms linear 42ms infinite;
+}
+
+.eating .crumbs span:nth-child(3) {
+  animation: crumbThree 170ms linear 84ms infinite;
+}
+
+.eating .crumbs span:nth-child(4) {
+  animation: crumbFour 170ms linear 126ms infinite;
+}
+
+@keyframes pacmanChomp {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(0.06);
+  }
+}
+
+@keyframes crumbOne {
+  from {
+    opacity: 0.95;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-115%, -70%, 0) scale(0.15);
+  }
+}
+
+@keyframes crumbTwo {
+  from {
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0) scale(0.9);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-140%, 65%, 0) scale(0.12);
+  }
+}
+
+@keyframes crumbThree {
+  from {
+    opacity: 0.8;
+    transform: translate3d(0, 0, 0) scale(0.75);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-95%, -120%, 0) scale(0.1);
+  }
+}
+
+@keyframes crumbFour {
+  from {
+    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale(0.65);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-120%, 110%, 0) scale(0.08);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pacman {
-    display: none;
+  .pacmanMover,
+  .pacmanSvg,
+  .letter {
+    transition-duration: 1ms;
   }
 }

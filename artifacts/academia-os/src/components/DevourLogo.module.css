@@ -2,35 +2,33 @@
   --devour-academia: #171a3b;
   --devour-os: #f4c542;
   --devour-yellow: #f4c542;
-  --devour-travel-time: 0ms;
+  --devour-surface: #ffffff;
 
   position: relative;
   display: inline-block;
   width: 8.25em;
-  height: 1.72em;
-  overflow: visible;
-  vertical-align: -0.34em;
+  height: 1.22em;
+  overflow: hidden;
+  vertical-align: middle;
   white-space: nowrap;
   line-height: 1;
 }
 
 .word {
   position: absolute;
-  top: 0.04em;
+  top: 50%;
   left: 1.04em;
   display: inline-flex;
   align-items: baseline;
   line-height: 1;
   letter-spacing: -0.045em;
+  transform: translateY(-50%);
 }
 
 .letter {
   display: inline-block;
   flex: 0 0 auto;
-  transform-origin: center;
-  transition:
-    opacity 65ms linear,
-    transform 90ms ease-out;
+  transition: opacity 55ms linear;
 }
 
 .academiaLetter {
@@ -41,164 +39,58 @@
   color: var(--devour-os);
 }
 
-.pacman {
+.eater {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
-  z-index: 20;
+  z-index: 2;
   display: block;
-  width: 0.62em;
-  height: 0.62em;
-  overflow: visible;
-  filter: drop-shadow(0 0.08em 0.1em rgb(0 0 0 / 22%));
-  transform-origin: center;
-  transition:
-    transform var(--devour-travel-time)
-    linear,
-    opacity 80ms linear;
+  width: 0.84em;
+  height: 0.84em;
+  border-radius: 50%;
+  background: var(--devour-yellow);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 18%);
+  transition: transform 150ms linear;
   will-change: transform;
 }
 
-.hold .pacman {
+.eater::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 58%;
+  height: 58%;
+  background: var(--devour-surface);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: right center;
+}
+
+.holding .eater {
   transition: none;
 }
 
-.mouthCutout {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scaleY(1);
+.holding .eater::after {
+  transform: translateY(-50%) scaleX(0);
 }
 
-.moving .mouthCutout {
-  animation: pacmanChomp 135ms steps(2, end) infinite;
+.eating .eater::after {
+  animation: devourMouth 150ms steps(2, end) infinite;
 }
 
-.crumbField {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 19;
-  display: block;
-  width: 0.62em;
-  height: 0.62em;
-  pointer-events: none;
-  opacity: 0;
-  transition:
-    transform var(--devour-travel-time) linear;
-  will-change: transform;
+.resetting .letter {
+  opacity: 1 !important;
+  transition: none;
 }
 
-.eating .crumbField {
-  opacity: 1;
-}
-
-.crumb {
-  position: absolute;
-  top: 46%;
-  left: 10%;
-  display: block;
-  width: 0.075em;
-  height: 0.075em;
-  border-radius: 50%;
-  background: var(--devour-yellow);
-  opacity: 0;
-}
-
-.eating .crumb:nth-child(1) {
-  animation: crumbOne 165ms linear infinite;
-}
-
-.eating .crumb:nth-child(2) {
-  animation: crumbTwo 165ms linear 40ms infinite;
-}
-
-.eating .crumb:nth-child(3) {
-  animation: crumbThree 165ms linear 80ms infinite;
-}
-
-.eating .crumb:nth-child(4) {
-  animation: crumbFour 165ms linear 120ms infinite;
-}
-
-.return .letter {
-  animation: rebuildLetter 120ms ease-out both;
-}
-
-@keyframes pacmanChomp {
+@keyframes devourMouth {
   0%,
   100% {
-    transform: scaleY(1);
+    transform: translateY(-50%) scaleX(0.94);
   }
 
   50% {
-    transform: scaleY(0.08);
-  }
-}
-
-@keyframes crumbOne {
-  0% {
-    opacity: 0.95;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(-0.36em, -0.15em, 0) scale(0.15);
-  }
-}
-
-@keyframes crumbTwo {
-  0% {
-    opacity: 0.85;
-    transform: translate3d(0, 0, 0) scale(0.9);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(-0.42em, 0.14em, 0) scale(0.12);
-  }
-}
-
-@keyframes crumbThree {
-  0% {
-    opacity: 0.8;
-    transform: translate3d(0, 0, 0) scale(0.75);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(-0.3em, -0.25em, 0) scale(0.1);
-  }
-}
-
-@keyframes crumbFour {
-  0% {
-    opacity: 0.7;
-    transform: translate3d(0, 0, 0) scale(0.65);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(-0.32em, 0.24em, 0) scale(0.08);
-  }
-}
-
-@keyframes rebuildLetter {
-  from {
-    opacity: 0;
-    transform: translateY(0.08em) scale(0.92);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pacman,
-  .crumbField,
-  .letter {
-    transition-duration: 1ms;
+    transform: translateY(-50%) scaleX(0.15);
   }
 }
