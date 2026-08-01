@@ -59,6 +59,7 @@ type AcademiaOSAnimatedLogoProps = {
   className?: string;
   maxWidth?: number;
   showTagline?: boolean;
+  onDark?: boolean;
   style?: CSSProperties;
 };
 
@@ -66,6 +67,7 @@ export function AcademiaOSAnimatedLogo({
   className = '',
   maxWidth = 420,
   showTagline = true,
+  onDark = false,
   style,
 }: AcademiaOSAnimatedLogoProps) {
   const maskId = useId().replace(/:/g, '');
@@ -181,6 +183,7 @@ export function AcademiaOSAnimatedLogo({
         styles.root,
         moving ? styles.moving : '',
         phase === 'eat' ? styles.eating : '',
+        onDark ? styles.onDark : '',
         className,
       ]
         .filter(Boolean)
@@ -203,7 +206,15 @@ export function AcademiaOSAnimatedLogo({
               key={letter}
               src={`/brand/exact-wordmark/${letter}.png`}
               alt=""
-              className={[styles.layer, styles.letter].join(' ')}
+              className={[
+                styles.layer,
+                styles.letter,
+                index < LETTER_LAYERS.length - 2
+                  ? styles.academiaLetter
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={{
                 opacity: visible ? 1 : 0,
               }}

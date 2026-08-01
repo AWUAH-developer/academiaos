@@ -50,13 +50,8 @@ export default async function HomePage() {
         <div className="relative mx-auto max-w-7xl lg:grid lg:grid-cols-[1fr_460px] lg:items-center lg:gap-16">
           {/* Left — copy */}
           <div>
-            <HeroText delay={0}>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">
-                School command centre
-              </div>
-            </HeroText>
             <HeroText delay={100}>
-              <h1 className="mt-6 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+              <h1 className="text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
                 Run every aspect of your school
                 <br />
                 <span className="text-[#d9a441]">from one secure platform.</span>

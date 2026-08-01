@@ -31,14 +31,18 @@ export function AnimatedNav({ user }: { user: { name: string } | null }) {
           <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white p-1 shadow-lg shadow-black/20">
             <Image src="/icon.svg" alt="" width={48} height={48} priority className="h-full w-full object-contain" />
           </div>
-          <div className="hidden h-11 w-[250px] items-center sm:flex">
+          <div className="flex w-[190px] min-w-0 flex-col items-stretch justify-center sm:w-[280px]">
             <AcademiaOSAnimatedLogo
-              className="max-h-11 w-auto max-w-full"
-              style={{ maxHeight: '44px', width: 'auto' }}
+              className="w-full max-w-full"
+              maxWidth={280}
+              showTagline={false}
+              onDark
+              style={{ transform: 'translateY(-9px)' }}
             />
-          </div>
-          <div className="whitespace-nowrap text-lg font-black tracking-tight sm:hidden" aria-hidden="true">
-            <span className="text-[#fff8ea]">Academia</span><span className="text-[#f4c542]">OS</span>
+
+            <span className="-mt-3 text-center text-[7px] font-black uppercase tracking-[0.2em] text-[#f4c542] sm:-mt-4 sm:text-[9px] sm:tracking-[0.24em]">
+              School Command Centre
+            </span>
           </div>
         </Link>
 

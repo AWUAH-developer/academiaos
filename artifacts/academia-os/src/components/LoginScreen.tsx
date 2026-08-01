@@ -40,18 +40,22 @@ export function LoginScreen({
 
             <div className="min-w-0">
               <div
-                className="flex w-full max-w-[320px] items-center"
+                className="flex w-full max-w-[340px] flex-col items-stretch justify-center"
                 aria-label="AcademiaOS"
               >
                 <AcademiaOSAnimatedLogo
                   className="w-full"
-                  style={{ maxHeight: '96px', width: 'auto' }}
+                  maxWidth={340}
+                  showTagline={false}
+                  onDark
+                  style={{ transform: 'translateY(-12px)' }}
                 />
+
+                <p className="-mt-2 text-center text-[10px] font-black uppercase tracking-[0.24em] text-[#f4c542] sm:text-xs sm:tracking-[0.28em]">
+                  School Command Centre
+                </p>
               </div>
 
-              <p className="mt-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.22em] text-[#f4c542] sm:text-sm sm:tracking-[0.28em]">
-                School Command Centre
-              </p>
             </div>
           </section>
 

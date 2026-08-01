@@ -41,7 +41,6 @@ export function Brand({
   className = '',
 }: BrandProps) {
   const selectedSize = sizes[size];
-  const taglineColor = variant === 'dark' ? '#64748b' : '#fde68a';
 
   return (
     <div className={`flex items-center ${compact ? '' : 'gap-3'} ${className}`.trim()}>
@@ -61,21 +60,29 @@ export function Brand({
       {!compact && (
         <div className="min-w-0">
           <AcademiaOSAnimatedLogo
+            maxWidth={selectedSize.logoMaxWidth}
+            showTagline={false}
+            onDark={variant === 'light'}
             style={{
-              height: selectedSize.logoHeight,
-              width: 'auto',
-              maxWidth: selectedSize.logoMaxWidth,
+              width: `${selectedSize.logoMaxWidth}px`,
+              maxWidth: '100%',
               marginLeft: 0,
               marginRight: 0,
+              transform: 'translateY(-4px)',
             }}
           />
 
           {showTagline && (
             <div
-              className={`mt-1 whitespace-nowrap font-bold uppercase tracking-[0.2em] ${selectedSize.tagline}`}
-              style={{ color: taglineColor }}
+              className={`-mt-3 whitespace-nowrap text-center font-black uppercase tracking-[0.2em] ${selectedSize.tagline}`}
+              style={{
+                color:
+                  variant === 'light'
+                    ? '#f4c542'
+                    : '#64748b',
+              }}
             >
-              School command centre
+              School Command Centre
             </div>
           )}
         </div>

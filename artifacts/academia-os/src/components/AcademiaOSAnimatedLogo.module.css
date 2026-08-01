@@ -26,6 +26,24 @@
   transition: opacity 190ms ease-out;
 }
 
+.academiaLetter {
+  filter: brightness(0) saturate(100%);
+}
+
+.onDark .letter {
+  filter:
+    drop-shadow(0 0 1px rgb(255 248 234 / 95%))
+    drop-shadow(0 0 3px rgb(255 248 234 / 45%));
+}
+
+.onDark .academiaLetter {
+  filter:
+    brightness(0)
+    saturate(100%)
+    drop-shadow(0 0 1px rgb(255 248 234 / 100%))
+    drop-shadow(0 0 4px rgb(255 248 234 / 70%));
+}
+
 .pacmanMover {
   position: absolute;
   z-index: 30;
