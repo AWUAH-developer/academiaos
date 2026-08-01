@@ -3,6 +3,7 @@
 import {
   type CSSProperties,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -12,14 +13,14 @@ import styles from './DevourLogo.module.css';
 
 const CHARACTERS = ['A', 'c', 'a', 'd', 'e', 'm', 'i', 'a', 'O', 'S'];
 
-const HOLD_TIME = 2400;
-const RISE_TIME = 320;
-const EAT_STEP_TIME = 175;
-const POST_EAT_PAUSE = 100;
-const DROP_TIME = 280;
-const RETURN_TIME = 1080;
-const REBUILD_STEP_TIME = 90;
-const SETTLE_TIME = 220;
+const HOLD_TIME = 2200;
+const RISE_TIME = 300;
+const EAT_STEP_TIME = 165;
+const AFTER_EAT_TIME = 90;
+const DROP_TIME = 260;
+const RETURN_TIME = 1000;
+const REBUILD_STEP_TIME = 82;
+const SETTLE_TIME = 180;
 
 type AnimationPhase =
   | 'hold'
@@ -45,9 +46,11 @@ export function DevourLogo({
   className = '',
   variant = 'dark',
 }: DevourLogoProps) {
+  const maskId = useId().replace(/:/g, '');
+
   const stageRef = useRef<HTMLSpanElement>(null);
   const wordRef = useRef<HTMLSpanElement>(null);
-  const eaterRef = useRef<HTMLSpanElement>(null);
+  const pacmanRef = useRef<SVGSVGElement>(null);
   const letterRefs = useRef<Array<HTMLSpanElement | null>>([]);
 
   const [phase, setPhase] = useState<AnimationPhase>('hold');
@@ -57,26 +60,28 @@ export function DevourLogo({
   const [restPosition, setRestPosition] = useState<Point>(ORIGIN);
   const [underLastPosition, setUnderLastPosition] =
     useState<Point>(ORIGIN);
+  const [measured, setMeasured] = useState(false);
 
   useLayoutEffect(() => {
     const measure = () => {
       const stage = stageRef.current;
       const word = wordRef.current;
-      const eater = eaterRef.current;
+      const pacman = pacmanRef.current;
 
-      if (!stage || !word || !eater) return;
+      if (!stage || !word || !pacman) return;
 
       const stageBox = stage.getBoundingClientRect();
       const wordBox = word.getBoundingClientRect();
-      const eaterBox = eater.getBoundingClientRect();
-      const zigZagDistance = eaterBox.height * 0.13;
+      const pacmanBox = pacman.getBoundingClientRect();
+
+      const zigZagDistance = pacmanBox.height * 0.2;
 
       const positions = letterRefs.current.map((letter, index) => {
         if (!letter) return ORIGIN;
 
         const letterBox = letter.getBoundingClientRect();
 
-        const zigZagOffset =
+        const zigZag =
           index === 0
             ? 0
             : index % 2 === 0
@@ -88,13 +93,13 @@ export function DevourLogo({
             letterBox.left -
             stageBox.left +
             letterBox.width / 2 -
-            eaterBox.width / 2,
+            pacmanBox.width / 2,
           y:
             letterBox.top -
             stageBox.top +
             letterBox.height / 2 -
-            eaterBox.height / 2 +
-            zigZagOffset,
+            pacmanBox.height / 2 +
+            zigZag,
         };
       });
 
@@ -107,19 +112,17 @@ export function DevourLogo({
         ]?.getBoundingClientRect();
 
       const underWordY = Math.min(
-        stageBox.height - eaterBox.height - 1,
-        wordBox.bottom - stageBox.top + eaterBox.height * 0.04,
+        stageBox.height - pacmanBox.height,
+        wordBox.bottom - stageBox.top + 2,
       );
-
-      setLetterPositions(positions);
 
       if (firstLetterBox) {
         setRestPosition({
           x:
             firstLetterBox.left -
             stageBox.left +
-            firstLetterBox.width / 2 -
-            eaterBox.width / 2,
+            firstLetterBox.width * 0.16 -
+            pacmanBox.width / 2,
           y: underWordY,
         });
       }
@@ -130,25 +133,25 @@ export function DevourLogo({
             lastLetterBox.left -
             stageBox.left +
             lastLetterBox.width / 2 -
-            eaterBox.width / 2,
+            pacmanBox.width / 2,
           y: underWordY,
         });
       }
+
+      setLetterPositions(positions);
+      setMeasured(true);
     };
 
     measure();
 
     const observer = new ResizeObserver(measure);
 
-    if (stageRef.current) {
-      observer.observe(stageRef.current);
-    }
-
-    if (wordRef.current) {
-      observer.observe(wordRef.current);
-    }
+    if (stageRef.current) observer.observe(stageRef.current);
+    if (wordRef.current) observer.observe(wordRef.current);
 
     window.addEventListener('resize', measure);
+
+    document.fonts?.ready.then(measure).catch(() => undefined);
 
     return () => {
       observer.disconnect();
@@ -178,7 +181,7 @@ export function DevourLogo({
       } else {
         timer = setTimeout(() => {
           setPhase('drop');
-        }, POST_EAT_PAUSE);
+        }, AFTER_EAT_TIME);
       }
     } else if (phase === 'drop') {
       timer = setTimeout(() => {
@@ -189,10 +192,6 @@ export function DevourLogo({
       rebuildTimer = setInterval(() => {
         setRebuiltCount((current) => {
           if (current >= CHARACTERS.length) {
-            if (rebuildTimer) {
-              clearInterval(rebuildTimer);
-            }
-
             return current;
           }
 
@@ -212,13 +211,8 @@ export function DevourLogo({
     }
 
     return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-
-      if (rebuildTimer) {
-        clearInterval(rebuildTimer);
-      }
+      if (timer) clearTimeout(timer);
+      if (rebuildTimer) clearInterval(rebuildTimer);
     };
   }, [eatenCount, phase]);
 
@@ -229,60 +223,59 @@ export function DevourLogo({
     letterPositions[CHARACTERS.length - 1] ||
     underLastPosition;
 
-  let eaterPosition = restPosition;
-  let eaterRotation = -90;
+  let pacmanPosition = restPosition;
+  let pacmanRotation = -90;
   let travelTime = 0;
 
   if (phase === 'rise') {
-    eaterPosition = firstLetterPosition;
-    eaterRotation = -90;
+    pacmanPosition = firstLetterPosition;
+    pacmanRotation = -90;
     travelTime = RISE_TIME;
   } else if (phase === 'eat') {
-    eaterPosition =
+    pacmanPosition =
       eatenCount >= CHARACTERS.length
         ? lastLetterPosition
         : letterPositions[eatenCount] ||
           firstLetterPosition;
 
-    eaterRotation = 0;
+    pacmanRotation = 0;
     travelTime = EAT_STEP_TIME;
   } else if (phase === 'drop') {
-    eaterPosition = underLastPosition;
-    eaterRotation = 90;
+    pacmanPosition = underLastPosition;
+    pacmanRotation = 90;
     travelTime = DROP_TIME;
   } else if (phase === 'return') {
-    eaterPosition = restPosition;
-    eaterRotation = 180;
+    pacmanPosition = restPosition;
+    pacmanRotation = 180;
     travelTime = RETURN_TIME;
   } else if (phase === 'settle') {
-    eaterPosition = restPosition;
-    eaterRotation = 270;
+    pacmanPosition = restPosition;
+    pacmanRotation = 270;
     travelTime = SETTLE_TIME;
   }
 
   const moving =
-    phase !== 'hold' && phase !== 'settle';
-
-  const eating = phase === 'eat';
+    phase === 'rise' ||
+    phase === 'eat' ||
+    phase === 'drop' ||
+    phase === 'return';
 
   const variables = {
     '--devour-academia':
       variant === 'light' ? '#fff8ea' : '#171a3b',
     '--devour-os': '#f4c542',
     '--devour-yellow': '#f4c542',
-    '--devour-surface':
-      variant === 'light' ? '#2f1d14' : '#ffffff',
     '--devour-travel-time': `${travelTime}ms`,
   } as CSSProperties;
 
-  const eaterTransform =
-    `translate3d(${eaterPosition.x}px, ` +
-    `${eaterPosition.y}px, 0) ` +
-    `rotate(${eaterRotation}deg)`;
+  const pacmanTransform =
+    `translate3d(${pacmanPosition.x}px, ` +
+    `${pacmanPosition.y}px, 0) ` +
+    `rotate(${pacmanRotation}deg)`;
 
   const crumbTransform =
-    `translate3d(${eaterPosition.x}px, ` +
-    `${eaterPosition.y}px, 0)`;
+    `translate3d(${pacmanPosition.x}px, ` +
+    `${pacmanPosition.y}px, 0)`;
 
   return (
     <span
@@ -291,7 +284,7 @@ export function DevourLogo({
         styles.stage,
         styles[phase],
         moving ? styles.moving : '',
-        eating ? styles.eating : '',
+        phase === 'eat' ? styles.eating : '',
         className,
       ]
         .filter(Boolean)
@@ -327,6 +320,9 @@ export function DevourLogo({
               ].join(' ')}
               style={{
                 opacity: visible ? 1 : 0,
+                transform: visible
+                  ? 'scale(1)'
+                  : 'scale(0.88)',
               }}
             >
               {character}
@@ -335,14 +331,49 @@ export function DevourLogo({
         })}
       </span>
 
-      <span
-        ref={eaterRef}
-        className={styles.eater}
+      <svg
+        ref={pacmanRef}
+        className={styles.pacman}
+        viewBox="0 0 100 100"
         aria-hidden="true"
         style={{
-          transform: eaterTransform,
+          opacity: measured ? 1 : 0,
+          transform: pacmanTransform,
         }}
-      />
+      >
+        <defs>
+          <mask
+            id={maskId}
+            maskUnits="userSpaceOnUse"
+            x="-10"
+            y="-10"
+            width="120"
+            height="120"
+          >
+            <rect
+              x="-10"
+              y="-10"
+              width="120"
+              height="120"
+              fill="white"
+            />
+
+            <polygon
+              className={styles.mouthCutout}
+              points="48,50 108,14 108,86"
+              fill="black"
+            />
+          </mask>
+        </defs>
+
+        <circle
+          cx="50"
+          cy="50"
+          r="48"
+          fill="var(--devour-yellow)"
+          mask={`url(#${maskId})`}
+        />
+      </svg>
 
       <span
         className={styles.crumbField}
