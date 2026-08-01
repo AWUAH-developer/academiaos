@@ -4,284 +4,235 @@ import { type CSSProperties, useEffect, useId, useState } from 'react';
 
 import styles from './AcademiaOSAnimatedLogo.module.css';
 
-const LETTER_LAYERS = [
-  'A',
-  'c',
-  'a1',
-  'd',
-  'e',
-  'm',
-  'i',
-  'a2',
-  'O',
-  'S',
+type Phase = 'hold' | 'rise' | 'eat' | 'drop' | 'return' | 'rest';
+type Direction = 'up' | 'right' | 'left';
+type Point = { x: number; y: number };
+
+const LETTERS = [
+  { char: 'A', x: 58, tone: 'navy' },
+  { char: 'c', x: 91, tone: 'navy' },
+  { char: 'a', x: 122, tone: 'navy' },
+  { char: 'd', x: 155, tone: 'navy' },
+  { char: 'e', x: 190, tone: 'navy' },
+  { char: 'm', x: 228, tone: 'navy' },
+  { char: 'i', x: 270, tone: 'navy' },
+  { char: 'a', x: 297, tone: 'navy' },
+  { char: 'O', x: 333, tone: 'gold' },
+  { char: 'S', x: 370, tone: 'gold' },
 ] as const;
 
-/*
- * Letter centres across the exact layered wordmark.
- * Y alternates around the middle of the letters to create
- * a visible horizontal left-to-right zig-zag.
- */
+const REST_POSITION = { x: 41, y: 103 } as const;
+const RISE_POSITION = { x: 52, y: 78 } as const;
+
 const EAT_PATH = [
-  { x: 22.9, y: 61.5 },
-  { x: 29.3, y: 57.8 },
-  { x: 35.5, y: 64.2 },
-  { x: 42.2, y: 57.8 },
-  { x: 49.3, y: 64.2 },
-  { x: 57.8, y: 57.8 },
-  { x: 64.5, y: 64.2 },
-  { x: 69.2, y: 57.8 },
-  { x: 76.8, y: 64.2 },
-  { x: 84.5, y: 59.5 },
+  { x: 60, y: 58 },
+  { x: 92, y: 50 },
+  { x: 124, y: 58 },
+  { x: 158, y: 50 },
+  { x: 192, y: 58 },
+  { x: 230, y: 50 },
+  { x: 270, y: 58 },
+  { x: 300, y: 50 },
+  { x: 336, y: 58 },
+  { x: 372, y: 50 },
 ] as const;
 
-const REST_POSITION = { x: 19.2, y: 81.5 } as const;
-const UNDER_LAST_POSITION = { x: 84.5, y: 81.5 } as const;
+const DROP_POSITION = { x: 372, y: 103 } as const;
+
+const RETURN_PATH = [
+  { x: 340, y: 103 },
+  { x: 292, y: 103 },
+  { x: 244, y: 103 },
+  { x: 196, y: 103 },
+  { x: 148, y: 103 },
+  { x: 102, y: 103 },
+  { x: 66, y: 103 },
+  { x: 41, y: 103 },
+] as const;
+
+const CRUMBS = [
+  { dx: -10, dy: -3, size: 4, delay: 0 },
+  { dx: -15, dy: -10, size: 5, delay: 35 },
+  { dx: -20, dy: 2, size: 4, delay: 60 },
+  { dx: -24, dy: -6, size: 3, delay: 95 },
+  { dx: -29, dy: 6, size: 3, delay: 125 },
+  { dx: -34, dy: -2, size: 2, delay: 155 },
+  { dx: -18, dy: 10, size: 2, delay: 185 },
+] as const;
 
 const HOLD_TIME = 1800;
-const RISE_TIME = 420;
-const BITE_TIME = 420;
-const AFTER_EAT_TIME = 100;
+const RISE_TIME = 650;
+const EAT_STEP_TIME = 340;
+const EAT_FINISH_DELAY = 120;
 const DROP_TIME = 320;
-const RETURN_TIME = 1500;
-const REBUILD_TIME = 120;
-const SETTLE_TIME = 200;
+const RETURN_STEP_TIME = 220;
+const SETTLE_TIME = 220;
 
-type AnimationPhase =
-  | 'hold'
-  | 'rise'
-  | 'eat'
-  | 'drop'
-  | 'return'
-  | 'settle';
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-type AcademiaOSAnimatedLogoProps = {
-  className?: string;
-  maxWidth?: number;
-  showTagline?: boolean;
-  style?: CSSProperties;
-};
-
-export function AcademiaOSAnimatedLogo({
-  className = '',
-  maxWidth = 420,
-  showTagline = true,
-  style,
-}: AcademiaOSAnimatedLogoProps) {
+export default function AcademiaOSAnimatedLogo() {
+  const [phase, setPhase] = useState<Phase>('hold');
+  const [position, setPosition] = useState<Point>(REST_POSITION);
+  const [eatenCount, setEatenCount] = useState(0);
+  const [crumbBurstKey, setCrumbBurstKey] = useState(0);
   const maskId = useId().replace(/:/g, '');
 
-  const [phase, setPhase] = useState<AnimationPhase>('hold');
-  const [eatenCount, setEatenCount] = useState(0);
-  const [rebuiltCount, setRebuiltCount] =
-    useState(LETTER_LAYERS.length);
-
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let rebuildTimer: ReturnType<typeof setInterval> | undefined;
+    let cancelled = false;
 
-    if (phase === 'hold') {
-      timer = setTimeout(() => {
-        setEatenCount(0);
-        setRebuiltCount(LETTER_LAYERS.length);
-        setPhase('rise');
-      }, HOLD_TIME);
-    } else if (phase === 'rise') {
-      timer = setTimeout(() => {
-        setPhase('eat');
-      }, RISE_TIME);
-    } else if (phase === 'eat') {
-      if (eatenCount < LETTER_LAYERS.length) {
-        timer = setTimeout(() => {
-          setEatenCount((current) => current + 1);
-        }, BITE_TIME);
-      } else {
-        timer = setTimeout(() => {
-          setPhase('drop');
-        }, AFTER_EAT_TIME);
+    async function runAnimation() {
+      setPhase('hold');
+      setPosition(REST_POSITION);
+      setEatenCount(0);
+      setCrumbBurstKey(0);
+
+      await wait(HOLD_TIME);
+      if (cancelled) return;
+
+      setPhase('rise');
+      setPosition(RISE_POSITION);
+
+      await wait(RISE_TIME);
+      if (cancelled) return;
+
+      setPhase('eat');
+
+      for (let index = 0; index < EAT_PATH.length; index += 1) {
+        if (cancelled) return;
+
+        setPosition(EAT_PATH[index]!);
+        setCrumbBurstKey(index + 1);
+
+        await wait(EAT_STEP_TIME * 0.55);
+        if (cancelled) return;
+
+        setEatenCount(index + 1);
+
+        await wait(EAT_STEP_TIME * 0.45);
       }
-    } else if (phase === 'drop') {
-      timer = setTimeout(() => {
-        setRebuiltCount(0);
-        setPhase('return');
-      }, DROP_TIME);
-    } else if (phase === 'return') {
-      rebuildTimer = setInterval(() => {
-        setRebuiltCount((current) =>
-          Math.min(current + 1, LETTER_LAYERS.length),
-        );
-      }, REBUILD_TIME);
 
-      timer = setTimeout(() => {
-        setRebuiltCount(LETTER_LAYERS.length);
-        setPhase('settle');
-      }, RETURN_TIME);
-    } else {
-      timer = setTimeout(() => {
-        setEatenCount(0);
-        setPhase('hold');
-      }, SETTLE_TIME);
+      await wait(EAT_FINISH_DELAY);
+      if (cancelled) return;
+
+      setPhase('drop');
+      setPosition(DROP_POSITION);
+
+      await wait(DROP_TIME);
+      if (cancelled) return;
+
+      setPhase('return');
+
+      for (const point of RETURN_PATH) {
+        if (cancelled) return;
+
+        setPosition(point);
+        await wait(RETURN_STEP_TIME);
+      }
+
+      if (cancelled) return;
+
+      setPhase('rest');
+      setPosition(REST_POSITION);
+
+      await wait(SETTLE_TIME);
     }
 
+    void runAnimation();
+
     return () => {
-      if (timer) clearTimeout(timer);
-      if (rebuildTimer) clearInterval(rebuildTimer);
+      cancelled = true;
     };
-  }, [eatenCount, phase]);
+  }, []);
 
-  let position = REST_POSITION;
-  let rotation = -90;
-  let travelTime = 0;
-
-  if (phase === 'rise') {
-    position = EAT_PATH[0];
-    rotation = -90;
-    travelTime = RISE_TIME;
-  } else if (phase === 'eat') {
-    position =
-      EAT_PATH[
-        Math.min(eatenCount, EAT_PATH.length - 1)
-      ];
-
-    rotation = 0;
-    travelTime = BITE_TIME;
-  } else if (phase === 'drop') {
-    position = UNDER_LAST_POSITION;
-    rotation = 90;
-    travelTime = DROP_TIME;
-  } else if (phase === 'return') {
-    position = REST_POSITION;
-    rotation = 180;
-    travelTime = RETURN_TIME;
-  } else if (phase === 'settle') {
-    position = REST_POSITION;
-    rotation = -90;
-    travelTime = SETTLE_TIME;
-  }
-
-  const moving =
-    phase === 'rise' ||
-    phase === 'eat' ||
-    phase === 'drop' ||
-    phase === 'return';
-
-  const variables = {
-    '--academia-logo-max-width': `${maxWidth}px`,
-    '--pacman-travel-time': `${travelTime}ms`,
-    '--pacman-rotation': `${rotation}deg`,
-  } as CSSProperties;
+  const direction: Direction =
+    phase === 'return'
+      ? 'left'
+      : phase === 'eat'
+        ? 'right'
+        : 'up';
 
   const pacmanStyle = {
-    left: `${position.x}%`,
-    top: `${position.y}%`,
+    '--pacman-x': `${position.x}px`,
+    '--pacman-y': `${position.y}px`,
   } as CSSProperties;
 
   return (
-    <span
-      className={[
-        styles.root,
-        moving ? styles.moving : '',
-        phase === 'eat' ? styles.eating : '',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{ ...style, ...variables }}
-      role="img"
-      aria-label="AcademiaOS"
-    >
-      <span className={styles.stage} aria-hidden="true">
-        {LETTER_LAYERS.map((letter, index) => {
-          const visible =
-            phase === 'return'
-              ? index < rebuiltCount
-              : phase === 'eat' || phase === 'drop'
-                ? index >= eatenCount
-                : true;
-
-          return (
-            <img
-              key={letter}
-              src={`/brand/exact-wordmark/${letter}.png`}
-              alt=""
-              className={[styles.layer, styles.letter].join(' ')}
-              style={{
-                opacity: visible ? 1 : 0,
-              }}
-            />
-          );
-        })}
-
-        {showTagline ? (
-          <img
-            src="/brand/exact-wordmark/tagline.png"
-            alt=""
-            className={styles.layer}
-          />
-        ) : null}
-
-        <span
-          className={styles.pacmanMover}
-          style={pacmanStyle}
-          aria-hidden="true"
-        >
-          <svg
-            viewBox="0 0 100 100"
-            className={styles.pacmanSvg}
-            role="presentation"
+    <div className={styles.stage} aria-label="AcademiaOS animated logo">
+      <svg
+        viewBox="0 0 430 140"
+        className={styles.wordmark}
+        role="img"
+        aria-label="AcademiaOS"
+      >
+        {LETTERS.map((letter, index) => (
+          <text
+            key={`${letter.char}-${index}`}
+            x={letter.x}
+            y={78}
+            className={[
+              styles.letter,
+              letter.tone === 'gold' ? styles.gold : styles.navy,
+              index < eatenCount ? styles.eaten : '',
+            ].join(' ')}
           >
-            <defs>
-              <mask
-                id={maskId}
-                maskUnits="userSpaceOnUse"
-                x="-10"
-                y="-10"
-                width="120"
-                height="120"
-              >
-                <rect
-                  x="-10"
-                  y="-10"
-                  width="120"
-                  height="120"
-                  fill="white"
-                />
+            {letter.char}
+          </text>
+        ))}
+      </svg>
 
-                <polygon
-                  className={styles.mouthCutout}
-                  points="48,50 110,13 110,87"
-                  fill="black"
-                />
-              </mask>
-            </defs>
+      <div className={styles.pacmanLayer} style={pacmanStyle} aria-hidden="true">
+        <svg
+          viewBox="0 0 36 36"
+          className={[
+            styles.pacman,
+            styles[direction],
+            phase === 'eat' || phase === 'return' ? styles.chomping : '',
+          ].join(' ')}
+        >
+          <defs>
+            <filter id={`${maskId}-shadow`} x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity="0.25" />
+            </filter>
+          </defs>
 
-            <circle
-              cx="50"
-              cy="50"
-              r="47"
-              fill="#f4c542"
-              stroke="#a96f00"
-              strokeWidth="4"
-              mask={`url(#${maskId})`}
+          <g filter={`url(#${maskId}-shadow)`}>
+            <path
+              className={styles.upperJaw}
+              d="M18 18 L3 18 A15 15 0 0 1 33 18 Z"
             />
-
-            <circle
-              cx="48"
-              cy="24"
-              r="5"
-              fill="#171a3b"
+            <path
+              className={styles.lowerJaw}
+              d="M18 18 L33 18 A15 15 0 0 1 3 18 Z"
             />
-          </svg>
+            <circle cx="14.2" cy="10.3" r="1.8" className={styles.eye} />
+          </g>
+        </svg>
 
-          <span className={styles.crumbs}>
-            <span />
-            <span />
-            <span />
-            <span />
-          </span>
-        </span>
-      </span>
-    </span>
+        <div
+          key={crumbBurstKey}
+          className={[
+            styles.crumbCloud,
+            phase === 'eat' ? styles.crumbCloudActive : '',
+          ].join(' ')}
+        >
+          {CRUMBS.map((crumb, index) => (
+            <span
+              key={`${crumbBurstKey}-${index}`}
+              className={styles.crumb}
+              style={
+                {
+                  '--crumb-dx': `${crumb.dx}px`,
+                  '--crumb-dy': `${crumb.dy}px`,
+                  '--crumb-size': `${crumb.size}px`,
+                  '--crumb-delay': `${crumb.delay}ms`,
+                } as CSSProperties
+              }
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
-
-export default AcademiaOSAnimatedLogo;
