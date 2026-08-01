@@ -23,28 +23,28 @@ const LETTER_LAYERS = [
  * a visible horizontal left-to-right zig-zag.
  */
 const EAT_PATH = [
-  { x: 15.2, y: 39.0 },
-  { x: 29.3, y: 34.5 },
-  { x: 35.2, y: 42.5 },
-  { x: 41.4, y: 35.0 },
-  { x: 47.7, y: 42.0 },
-  { x: 55.0, y: 34.5 },
-  { x: 61.2, y: 42.5 },
-  { x: 65.5, y: 35.0 },
-  { x: 72.8, y: 42.0 },
-  { x: 80.2, y: 36.0 },
+  { x: 22.9, y: 61.5 },
+  { x: 29.3, y: 57.8 },
+  { x: 35.5, y: 64.2 },
+  { x: 42.2, y: 57.8 },
+  { x: 49.3, y: 64.2 },
+  { x: 57.8, y: 57.8 },
+  { x: 64.5, y: 64.2 },
+  { x: 69.2, y: 57.8 },
+  { x: 76.8, y: 64.2 },
+  { x: 84.5, y: 59.5 },
 ] as const;
 
-const REST_POSITION = { x: 13.1, y: 62.5 } as const;
-const UNDER_LAST_POSITION = { x: 80.2, y: 62.5 } as const;
+const REST_POSITION = { x: 19.2, y: 81.5 } as const;
+const UNDER_LAST_POSITION = { x: 84.5, y: 81.5 } as const;
 
 const HOLD_TIME = 1800;
-const RISE_TIME = 320;
-const BITE_TIME = 170;
+const RISE_TIME = 420;
+const BITE_TIME = 420;
 const AFTER_EAT_TIME = 100;
-const DROP_TIME = 280;
-const RETURN_TIME = 1100;
-const REBUILD_TIME = 88;
+const DROP_TIME = 320;
+const RETURN_TIME = 1500;
+const REBUILD_TIME = 120;
 const SETTLE_TIME = 200;
 
 type AnimationPhase =
