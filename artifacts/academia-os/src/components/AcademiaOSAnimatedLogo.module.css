@@ -85,9 +85,11 @@
 .crumbs {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 4;
   display: block;
+  overflow: visible;
   opacity: 0;
+  pointer-events: none;
 }
 
 .eating .crumbs {
@@ -96,30 +98,52 @@
 
 .crumbs span {
   position: absolute;
-  top: 47%;
-  left: 12%;
+  left: -18%;
+  top: 44%;
   display: block;
-  width: 5.5%;
+  width: 20%;
   aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: 35%;
   background: #f4c542;
+  box-shadow:
+    0 0 2px rgb(255 248 234 / 100%),
+    0 0 5px rgb(244 197 66 / 95%);
   opacity: 0;
+  will-change: transform, opacity;
+}
+
+.crumbs span:nth-child(2) {
+  top: 58%;
+  width: 15%;
+  background: #fff8ea;
+}
+
+.crumbs span:nth-child(3) {
+  top: 34%;
+  width: 17%;
+  background: #e7ae25;
+}
+
+.crumbs span:nth-child(4) {
+  top: 51%;
+  width: 12%;
+  background: #fff1b5;
 }
 
 .eating .crumbs span:nth-child(1) {
-  animation: crumbOne 230ms linear infinite;
+  animation: crumbOne 420ms ease-out infinite;
 }
 
 .eating .crumbs span:nth-child(2) {
-  animation: crumbTwo 230ms linear 58ms infinite;
+  animation: crumbTwo 420ms ease-out 105ms infinite;
 }
 
 .eating .crumbs span:nth-child(3) {
-  animation: crumbThree 230ms linear 116ms infinite;
+  animation: crumbThree 420ms ease-out 210ms infinite;
 }
 
 .eating .crumbs span:nth-child(4) {
-  animation: crumbFour 230ms linear 174ms infinite;
+  animation: crumbFour 420ms ease-out 315ms infinite;
 }
 
 @keyframes pacmanChomp {
@@ -135,49 +159,49 @@
 
 @keyframes crumbOne {
   from {
-    opacity: 0.95;
-    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
   }
 
   to {
     opacity: 0;
-    transform: translate3d(-115%, -70%, 0) scale(0.15);
+    transform: translate3d(-520%, -170%, 0) rotate(100deg) scale(0.2);
   }
 }
 
 @keyframes crumbTwo {
   from {
-    opacity: 0.9;
-    transform: translate3d(0, 0, 0) scale(0.9);
+    opacity: 0.95;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
   }
 
   to {
     opacity: 0;
-    transform: translate3d(-140%, 65%, 0) scale(0.12);
+    transform: translate3d(-700%, 120%, 0) rotate(-120deg) scale(0.15);
   }
 }
 
 @keyframes crumbThree {
   from {
-    opacity: 0.8;
-    transform: translate3d(0, 0, 0) scale(0.75);
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.8);
   }
 
   to {
     opacity: 0;
-    transform: translate3d(-95%, -120%, 0) scale(0.1);
+    transform: translate3d(-420%, 250%, 0) rotate(140deg) scale(0.12);
   }
 }
 
 @keyframes crumbFour {
   from {
-    opacity: 0.7;
-    transform: translate3d(0, 0, 0) scale(0.65);
+    opacity: 0.85;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.75);
   }
 
   to {
     opacity: 0;
-    transform: translate3d(-120%, 110%, 0) scale(0.08);
+    transform: translate3d(-800%, -20%, 0) rotate(-150deg) scale(0.1);
   }
 }
 
