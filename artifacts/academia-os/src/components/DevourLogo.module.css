@@ -3,32 +3,34 @@
   --devour-os: #f4c542;
   --devour-yellow: #f4c542;
   --devour-surface: #ffffff;
+  --devour-travel-time: 0ms;
 
   position: relative;
   display: inline-block;
   width: 8.25em;
-  height: 1.22em;
+  height: 1.58em;
   overflow: hidden;
-  vertical-align: middle;
+  vertical-align: -0.28em;
   white-space: nowrap;
   line-height: 1;
 }
 
 .word {
   position: absolute;
-  top: 50%;
+  top: 0.04em;
   left: 1.04em;
   display: inline-flex;
   align-items: baseline;
   line-height: 1;
   letter-spacing: -0.045em;
-  transform: translateY(-50%);
 }
 
 .letter {
   display: inline-block;
   flex: 0 0 auto;
-  transition: opacity 55ms linear;
+  transition:
+    opacity 70ms linear,
+    transform 90ms ease-out;
 }
 
 .academiaLetter {
@@ -41,16 +43,19 @@
 
 .eater {
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 0;
-  z-index: 2;
+  z-index: 3;
   display: block;
-  width: 0.84em;
-  height: 0.84em;
+  width: 0.52em;
+  height: 0.52em;
   border-radius: 50%;
   background: var(--devour-yellow);
-  box-shadow: 0 2px 5px rgb(0 0 0 / 18%);
-  transition: transform 150ms linear;
+  box-shadow: 0 0.08em 0.16em rgb(0 0 0 / 18%);
+  transition:
+    transform var(--devour-travel-time)
+    cubic-bezier(0.45, 0, 0.55, 1);
+  transform-origin: center;
   will-change: transform;
 }
 
@@ -59,38 +64,157 @@
   position: absolute;
   top: 50%;
   right: -1px;
-  width: 58%;
-  height: 58%;
+  width: 62%;
+  height: 62%;
   background: var(--devour-surface);
   clip-path: polygon(100% 0, 0 50%, 100% 100%);
-  transform: translateY(-50%) scaleX(0);
+  transform: translateY(-50%) scaleX(0.94);
   transform-origin: right center;
 }
 
-.holding .eater {
+.hold .eater {
   transition: none;
 }
 
-.holding .eater::after {
-  transform: translateY(-50%) scaleX(0);
+.moving .eater::after {
+  animation: devourMouth 140ms steps(2, end) infinite;
 }
 
-.eating .eater::after {
-  animation: devourMouth 150ms steps(2, end) infinite;
+.crumbField {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: block;
+  width: 0.52em;
+  height: 0.52em;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    transform var(--devour-travel-time)
+    cubic-bezier(0.45, 0, 0.55, 1);
+  will-change: transform;
 }
 
-.resetting .letter {
-  opacity: 1 !important;
-  transition: none;
+.eating .crumbField {
+  opacity: 1;
+}
+
+.crumb {
+  position: absolute;
+  top: 44%;
+  left: 22%;
+  display: block;
+  width: 0.075em;
+  height: 0.075em;
+  border-radius: 50%;
+  background: var(--devour-yellow);
+  opacity: 0;
+}
+
+.eating .crumb:nth-child(1) {
+  animation: crumbTrailOne 175ms linear infinite;
+}
+
+.eating .crumb:nth-child(2) {
+  animation: crumbTrailTwo 175ms linear 42ms infinite;
+}
+
+.eating .crumb:nth-child(3) {
+  animation: crumbTrailThree 175ms linear 84ms infinite;
+}
+
+.eating .crumb:nth-child(4) {
+  animation: crumbTrailFour 175ms linear 126ms infinite;
+}
+
+.return .letter {
+  animation: rebuildLetter 130ms ease-out both;
+}
+
+.settle .eater::after,
+.hold .eater::after {
+  transform: translateY(-50%) scaleX(0.94);
 }
 
 @keyframes devourMouth {
   0%,
   100% {
-    transform: translateY(-50%) scaleX(0.94);
+    transform: translateY(-50%) scaleX(0.96);
   }
 
   50% {
-    transform: translateY(-50%) scaleX(0.15);
+    transform: translateY(-50%) scaleX(0.1);
+  }
+}
+
+@keyframes crumbTrailOne {
+  0% {
+    opacity: 0.95;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-0.32em, -0.15em, 0) scale(0.25);
+  }
+}
+
+@keyframes crumbTrailTwo {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(0, 0, 0) scale(0.9);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-0.38em, 0.13em, 0) scale(0.2);
+  }
+}
+
+@keyframes crumbTrailThree {
+  0% {
+    opacity: 0.8;
+    transform: translate3d(0, 0, 0) scale(0.75);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-0.24em, -0.25em, 0) scale(0.15);
+  }
+}
+
+@keyframes crumbTrailFour {
+  0% {
+    opacity: 0.75;
+    transform: translate3d(0, 0, 0) scale(0.65);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-0.3em, 0.23em, 0) scale(0.1);
+  }
+}
+
+@keyframes rebuildLetter {
+  from {
+    transform: translateY(0.08em);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eater,
+  .crumbField,
+  .letter {
+    transition-duration: 1ms;
+  }
+
+  .moving .eater::after,
+  .eating .crumb {
+    animation-duration: 1ms;
   }
 }
